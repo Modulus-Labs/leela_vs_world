@@ -1,0 +1,14 @@
+--- With quantization and cursed sigmoid, round instead of trunc ---
+============ Results: Leela (bgnet) v Stockfish (1850) for 50 games ============
+Leela (as white) won: 32 games | Drew 6 games | Lost 12 games
+
+============ Results: Leela (bgnet) v Stockfish (1850) for 50 games ============
+Stockfish (as white) won: 14 games | Drew 7 games | Lost 29 games
+
+
+--- With quantization, trunc, cursed sigmoid, cursed batchnorm (everything) ---
+============ Results: Leela (bgnet) v Stockfish (1900) for 50 games ============
+Leela (as white) won: 19 games | Drew 6 games | Lost 25 games
+
+============ Results: Leela (bgnet) v Stockfish (1900) for 50 games ============
+Stockfish (as white) won: 22 games | Drew 5 games | Lost 23 games

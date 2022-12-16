@@ -11,7 +11,7 @@ NUM_GAMES_PLAYED = 100
 
 # --------- Stockfish stuff ---------
 STOCKFISH_BINARY_PATH = os.path.join("./stockfish")
-STOCKFISH_TARGET_ELO = 1850
+STOCKFISH_TARGET_ELO = 1900
 
 # --------- Leela stuff ---------
 PIECE_REPLACEMENTS = {
@@ -203,6 +203,7 @@ def main():
   # --- Leela shenanigans ---
   leela_model_name = "bgnet"
   leela_model = badgyal.BGNet(cuda=True)
+  leela_model.net.quantize_parameters()
   # model = badgyal.GGNet(cuda=False)
   # model = badgyal.LENet(cuda=False)
   # model = badgyal.BGTorchNet(cuda=False)
