@@ -93,7 +93,7 @@ def get_stockfish_move(board: chess.Board,
   """
   Literally just an abstraction to avoid some duplicate code.
   """
-  result = stockfish_engine.play(board, chess.engine.Limit(time=0.5))
+  result = stockfish_engine.play(board, chess.engine.Limit(time=0.1))
   if verbose:
     print(f"Stockfish ({stockfish_target_elo} ELO) moves: {result.move}")
   return result.move
@@ -123,6 +123,7 @@ def play_game(leela_model: badgyal.AbstractNet,
     if verbose:
       print("---" * 10 + f" MOVE {move_number} " + "---" * 10)
       print_leela_chessboard(board)
+    # tqdm.write(f"Move number: {move_number}")
 
     # --- White moves ---
     white_move = None
@@ -166,13 +167,25 @@ def play_game(leela_model: badgyal.AbstractNet,
 
 
 def report_results(all_outcomes: list[chess.Outcome], leela_model_name: str,
-                   stockfish_target_elo: int):
+                   stockfish_target_elo: int, leela_move_first: bool):
   """
   Simple reporting for a set of games.
   """
   print(
       f"============ Results: Leela ({leela_model_name}) v Stockfish ({stockfish_target_elo}) for {len(all_outcomes)} games ============"
   )
+  num_white_wins, num_black_wins, num_draws = 0, 0, 0
+  for outcome in all_outcomes:
+    if outcome.winner is None:
+      num_draws += 1
+    elif outcome.winner == True:
+      num_white_wins += 1
+    elif outcome.winner == False:
+      num_black_wins += 1
+    else:
+      raise RuntimeError(f"Error: outcome.winner was not one of [None, True, False]. Got {outcome.winner} instead.")
+  white_player = "Leela" if leela_move_first else "Stockfish"
+  print(f"{white_player} (as white) won: {num_white_wins} games | Drew {num_draws} games | Lost {num_black_wins} games\n")
 
 
 def main():
@@ -199,8 +212,10 @@ def main():
   # model = badgyal.MGNet(cuda=False)
 
   # --- Run the main loop ---
-  all_outcomes = list()
-  all_move_histories = list()
+  leela_white_outcomes = list()
+  leela_white_move_histories = list()
+  leela_black_outcomes = list()
+  leela_black_move_histories = list()
   for game_number in tqdm(range(NUM_GAMES_PLAYED)):
 
     # --- Leela plays white for half and black for the other half of games ---
@@ -211,11 +226,18 @@ def main():
                                                 stockfish_engine,
                                                 stockfish_target_elo,
                                                 leela_move_first)
-    all_outcomes.append(final_board.outcome())
-    all_move_histories.append(move_history)
+    if leela_move_first:
+      leela_white_outcomes.append(final_board.outcome())
+      leela_white_move_histories.append(move_history)
+    else:
+      leela_black_outcomes.append(final_board.outcome())
+      leela_black_move_histories.append(move_history)
 
   # --- Report results ---
+  report_results(leela_white_outcomes, leela_model_name, stockfish_target_elo, True)
+  report_results(leela_black_outcomes, leela_model_name, stockfish_target_elo, False)
 
+  stockfish_engine.close()
 
 if __name__ == "__main__":
   main()
