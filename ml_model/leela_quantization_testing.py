@@ -4,8 +4,7 @@ import chess
 import chess.engine
 import sunfish
 import os
-
-print(sunfish.A1)
+import json
 
 # --------- Leela stuff ---------
 PIECE_REPLACEMENTS = {
@@ -83,13 +82,6 @@ def get_leela_move(board: chess.Board,
 
 def main():
 
-  # --- Leela shenanigans ---
-  leela_model_name = "bgnet"
-  leela_model = badgyal_local.bgnet.BGNet(cuda=True)
-  leela_model.net.quantize_parameters()
-  print(dir(leela_model.net))
-  leela_model.net.export_to_json_for_halo2()
-  exit()
   # model = badgyal_local.GGNet(cuda=False)
   # model = badgyal_local.LENet(cuda=False)
   # model = badgyal_local.BGTorchNet(cuda=False)
@@ -97,6 +89,20 @@ def main():
   # model = badgyal_local.LETorchNet(cuda=False)
   # model = badgyal_local.MENet(cuda=False)
   # model = badgyal_local.MGNet(cuda=False)
+
+  # --- Leela shenanigans ---
+  leela_model_name = "bgnet"
+  leela_model = badgyal_local.bgnet.BGNet(cuda=False)
+  leela_model.net.quantize_parameters()
+
+  # --- Dump model repr to JSON ---
+  model_repr_save_dir = "model_json_reprs"
+  os.path.isdir(model_repr_save_dir) or os.makedirs(model_repr_save_dir)
+  json_repr_save_path = os.path.join(model_repr_save_dir, f"{leela_model_name}.json")
+  json_repr = leela_model.net.export_to_json_for_halo2()
+  with open(json_repr_save_path, "w") as f:
+    json.dump(json_repr, f)
+  print(f"Dumped JSON representation to {json_repr_save_path}!")
 
   board = chess.Board()
   eval(leela_model, board, leela_model_name)

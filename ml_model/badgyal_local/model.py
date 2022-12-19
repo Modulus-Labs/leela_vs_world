@@ -69,12 +69,16 @@ def cursed_batchnorm(x: torch.Tensor, batchnorm_module: nn.BatchNorm2d, quantize
     # --- NOTE: This is what we'll eventually put into Halo2 ---
     # coeff = torch.round(gamma / torch.sqrt(var_x))
 
-    coeff = torch.round(gamma * QUANTIZE_FACTOR) / (torch.sqrt(var_x))
-    first_term = torch.trunc(((x - e_x) * coeff) / QUANTIZE_FACTOR)
+    coeff = torch.round((gamma * quantize_factor) / torch.sqrt(var_x))
+    first_term = torch.trunc(((x - e_x) * coeff) / quantize_factor)
     return first_term + beta
 
     # return ((x - e_x) / torch.sqrt(var_x)) * gamma + beta
     # return torch.trunc(batchnorm_module(x))
+
+
+def export_parameter_to_flattened_list(module_parameter: nn.Parameter):
+    return list(round(x.item()) for x in module_parameter.flatten())
 
 
 class Net(nn.Module):
@@ -150,10 +154,51 @@ class Net(nn.Module):
 
     def export_to_json_for_halo2(self):
         """
-        Returns JSON format for Halo2 model weight saving
+        Returns JSON format for Halo2 model weight saving.
+
+        Format:
+        {
+            "name": None or {
+                "weight": [...],
+                "bias": [...]
+            } or {
+                "coeff": int,
+                "e_x": int,
+                "beta": int,
+            }
+        }
+
+        TODO(ryancao): Transpose weights and biases to match what Nick wants
         """
+        ret = OrderedDict()
         for name, module in self.named_modules():
-            print(name, type(module))
+            print(name)
+            if isinstance(module, nn.Conv2d):
+                ret[name] = {
+                    # C_o, C_i, W, H --> C_i, W, H, C_o
+                    "weight": export_parameter_to_flattened_list(module.weight.permute(1, 2, 3, 0)),
+                }
+                if module.bias is not None:
+                    ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
+            elif isinstance(module, nn.Linear):
+                ret[name] = {
+                    "weight": export_parameter_to_flattened_list(module.weight),
+                }
+                if module.bias is not None:
+                    ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
+            elif isinstance(module, nn.BatchNorm2d):
+                beta, gamma = module.bias, module.weight
+                var_x, e_x = module.running_var, module.running_mean
+                coeff = torch.round((gamma * QUANTIZE_FACTOR) / (torch.sqrt(var_x)))
+
+                ret[name] = {
+                    "coeff": export_parameter_to_flattened_list(coeff),
+                    "e_x": export_parameter_to_flattened_list(e_x),
+                    "beta": export_parameter_to_flattened_list(beta)
+                }
+            else:
+                ret[name] = None
+        return ret
 
     def conv_and_linear_weights(self):
         return [m.weight for m in self.modules() if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear)]
