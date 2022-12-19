@@ -1,7 +1,11 @@
-import badgyal
+# import badgyal
+from badgyal_local import *
 import chess
 import chess.engine
+import sunfish
 import os
+
+print(sunfish.A1)
 
 # --------- Leela stuff ---------
 PIECE_REPLACEMENTS = {
@@ -28,7 +32,7 @@ def print_leela_chessboard(board: chess.Board):
   print(board_repr)
 
 
-def eval(net: badgyal.AbstractNet, board: chess.Board, model_name: str):
+def eval(net: badgyal_local.abstractnet.AbstractNet, board: chess.Board, model_name: str):
   # policy, value = net.eval(board, softmax_temp=1.61)
   policy, _ = net.eval(board, softmax_temp=1, name=model_name)
   print(policy)
@@ -62,7 +66,7 @@ def get_legal_move(legal_moves: list[chess.Move]):
 
 
 def get_leela_move(board: chess.Board,
-                   leela_model: badgyal.AbstractNet,
+                   leela_model: badgyal_local.abstractnet.AbstractNet,
                    leela_model_name: str,
                    verbose: bool = False):
   """
@@ -81,15 +85,18 @@ def main():
 
   # --- Leela shenanigans ---
   leela_model_name = "bgnet"
-  leela_model = badgyal.BGNet(cuda=True)
+  leela_model = badgyal_local.bgnet.BGNet(cuda=True)
   leela_model.net.quantize_parameters()
-  # model = badgyal.GGNet(cuda=False)
-  # model = badgyal.LENet(cuda=False)
-  # model = badgyal.BGTorchNet(cuda=False)
-  # model = badgyal.BGXLTorchNet(cuda=False)
-  # model = badgyal.LETorchNet(cuda=False)
-  # model = badgyal.MENet(cuda=False)
-  # model = badgyal.MGNet(cuda=False)
+  print(dir(leela_model.net))
+  leela_model.net.export_to_json_for_halo2()
+  exit()
+  # model = badgyal_local.GGNet(cuda=False)
+  # model = badgyal_local.LENet(cuda=False)
+  # model = badgyal_local.BGTorchNet(cuda=False)
+  # model = badgyal_local.BGXLTorchNet(cuda=False)
+  # model = badgyal_local.LETorchNet(cuda=False)
+  # model = badgyal_local.MENet(cuda=False)
+  # model = badgyal_local.MGNet(cuda=False)
 
   board = chess.Board()
   eval(leela_model, board, leela_model_name)
