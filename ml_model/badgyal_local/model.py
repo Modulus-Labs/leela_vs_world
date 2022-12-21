@@ -9,12 +9,26 @@ import badgyal_local.lc0_az_policy_map as lc0_az_policy_map
 import badgyal_local.net as proto_net
 import badgyal_local.proto.net_pb2 as pb
 
-
 # --- Ryan's addendum ---
 QUANTIZE_NETWORKS = True
 QUANTIZE_FACTOR = 1024 ** 2
 # SIGMOID_PIECEWISE_BOUND = 2.654 # From numeric approximation
 SIGMOID_PIECEWISE_BOUND = 2
+
+# --- Hacky af, but it works ---
+max_abs_intermediate_value = -1
+
+def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor]):
+    """
+    For sanitychecking.
+    """
+    global max_abs_intermediate_value
+    print(f"\n--- Printing max values for {context} ---")
+    for name, tensor in named_tensors.items():
+        tensor_max_abs_value = torch.max(torch.abs(tensor)).item()
+        print("Max abs value entry of tensor " + name + ": " + str(tensor_max_abs_value))
+        # --- For logging overall max ---
+        max_abs_intermediate_value = max(max_abs_intermediate_value, tensor_max_abs_value)
 
 
 def near_zero_sigmoid_approx(x: torch.Tensor, quantize_factor=QUANTIZE_FACTOR):
@@ -46,10 +60,7 @@ def cursed_sigmoid(x: torch.Tensor, quantize_factor=QUANTIZE_FACTOR):
     middle = near_zero_sigmoid_approx(middle)
     # print((x / QUANTIZE_FACTOR).round().sigmoid() * QUANTIZE_FACTOR)
 
-    # exit()
-
-    # return (middle + upper)
-    return ((x / QUANTIZE_FACTOR).round().sigmoid() * QUANTIZE_FACTOR)
+    return (middle + upper)
 
 
 def cursed_batchnorm(x: torch.Tensor, batchnorm_module: nn.BatchNorm2d, quantize_factor=QUANTIZE_FACTOR):
@@ -69,9 +80,21 @@ def cursed_batchnorm(x: torch.Tensor, batchnorm_module: nn.BatchNorm2d, quantize
     # --- NOTE: This is what we'll eventually put into Halo2 ---
     # coeff = torch.round(gamma / torch.sqrt(var_x))
 
-    coeff = torch.round((gamma * quantize_factor) / torch.sqrt(var_x))
-    first_term = torch.trunc(((x - e_x) * coeff) / quantize_factor)
-    return first_term + beta
+    coeff = torch.round((gamma * quantize_factor) / torch.sqrt(var_x + batchnorm_module.eps))
+    subtracted_mean = x - e_x
+    subtracted_mean_times_coeff = subtracted_mean * coeff
+    normalized_first_term = torch.trunc(subtracted_mean_times_coeff / quantize_factor)
+
+    # --- Check if any of these are too large ---
+    print_max_abs_value("cursed_batchnorm", {
+        "x": x,
+        "subtracted_mean": subtracted_mean,
+        "subtracted_mean_times_coeff": subtracted_mean_times_coeff,
+        "normalized_first_term": normalized_first_term,
+        "normalized_first_term + beta": normalized_first_term + beta
+    })
+
+    return normalized_first_term + beta
 
     # return ((x - e_x) / torch.sqrt(var_x)) * gamma + beta
     # return torch.trunc(batchnorm_module(x))
@@ -133,9 +156,18 @@ class Net(nn.Module):
                 # print(f"Just quantized layer: {name}!")
 
     def forward(self, x: torch.Tensor):
+
+        global max_abs_intermediate_value
+
         # --- Quantize model inputs ---
         if QUANTIZE_NETWORKS:
+            max_abs_intermediate_value = -1
             x = torch.round(x * QUANTIZE_FACTOR)
+        
+        # --- Check if any of these are too large ---
+        print_max_abs_value("initial x", {
+            "x": x,
+        })
 
         x = self.conv_block(x)
         x = self.residual_stack(x)
@@ -149,6 +181,10 @@ class Net(nn.Module):
         value = self.value_head(x)
         if QUANTIZE_NETWORKS:
             value = value / QUANTIZE_FACTOR
+        
+        if QUANTIZE_NETWORKS:
+            print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
+
         # print(value)
         return policy, value
 
@@ -175,21 +211,23 @@ class Net(nn.Module):
             print(name)
             if isinstance(module, nn.Conv2d):
                 ret[name] = {
-                    # C_o, C_i, W, H --> C_i, W, H, C_o
-                    "weight": export_parameter_to_flattened_list(module.weight.permute(1, 2, 3, 0)),
+                    # C_o, C_i, H, W --> C_i, W, H, C_o
+                    "weight": export_parameter_to_flattened_list(module.weight.permute(1, 3, 2, 0)),
+                    "weight_shape": list(module.weight.permute(1, 3, 2, 0).shape)
                 }
                 if module.bias is not None:
                     ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
             elif isinstance(module, nn.Linear):
                 ret[name] = {
                     "weight": export_parameter_to_flattened_list(module.weight),
+                    "weight_shape": list(module.weight.shape)
                 }
                 if module.bias is not None:
                     ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
             elif isinstance(module, nn.BatchNorm2d):
                 beta, gamma = module.bias, module.weight
                 var_x, e_x = module.running_var, module.running_mean
-                coeff = torch.round((gamma * QUANTIZE_FACTOR) / (torch.sqrt(var_x)))
+                coeff = torch.round((gamma * QUANTIZE_FACTOR) / (torch.sqrt(var_x + module.eps)))
 
                 ret[name] = {
                     "coeff": export_parameter_to_flattened_list(coeff),
@@ -293,6 +331,9 @@ class PolicyHead(nn.Module):
         # --- Conv needs quantization ---
         x = self.conv(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("policy head conv", {
+                "x": x,
+            })
             x = torch.round(x / QUANTIZE_FACTOR)
 
         x = x.contiguous()
@@ -301,6 +342,12 @@ class PolicyHead(nn.Module):
         # print(self.policy_map.shape)
         # print(self.policy_map.expand(x.size(0), self.policy_map.size(1)).shape)
         x = x.gather(dim=1, index=self.policy_map.expand(x.size(0), self.policy_map.size(1)))
+
+        if QUANTIZE_NETWORKS:
+            print_max_abs_value("policy head gather", {
+                "x": x,
+            })
+
         # print(f"After gather! x.shape: {x.shape}")
         return x
 
@@ -350,16 +397,23 @@ class ValueHeadClassical(nn.Sequential):
         x = self.flatten(x)
         x = self.lin1(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("value head lin 1", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         x = self.relu1(x)
         x = self.lin2(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("value head lin 2", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         
         # if not QUANTIZE_NETWORKS:
         #     x = self.tanh(x)
 
-        # --- We don't use tanh but that's probably fine
+        # --- We don't use tanh but that's probably fine ---
+
         return x
 
 
@@ -388,6 +442,9 @@ class ResidualBlock(nn.Module):
         # --- Conv, then quantize ---
         x = self.layers.get_submodule("conv1")(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("residual block conv 1", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         
         # --- Batchnorm, then round ---
@@ -402,6 +459,9 @@ class ResidualBlock(nn.Module):
         # --- Conv #2 ---
         x = self.layers.get_submodule("conv2")(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("residual block conv 2", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         
         # --- Batchnorm #2 ---
@@ -415,6 +475,11 @@ class ResidualBlock(nn.Module):
 
         # --- Residual + final ReLU ---
         x = x + x_in
+        if QUANTIZE_NETWORKS:
+            print_max_abs_value("residual block after SE and residual", {
+                "x": x,
+            })
+
         x = self.relu2(x)
 
         return x
@@ -438,8 +503,12 @@ class ConvBlock(nn.Sequential):
 
         # --- Conv, then normalize ---
         x = self.conv(x)
+
         # print(f"After first conv: {x}")
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("conv block post conv", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         # print(f"After first conv normalization: {x}")
 
@@ -471,16 +540,25 @@ class SqueezeExcitation(nn.Module):
         x = self.pool(x).view(n, c)
         if QUANTIZE_NETWORKS:
             x = torch.trunc(x)
+            print_max_abs_value("SE block post pooling", {
+                "x": x,
+            })
         # print(f"After first pooling layer! x.shape: {x.shape}")
 
         x = self.lin1(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("SE block lin 1", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         # print(f"After first linear layer! x.shape: {x.shape}")
 
         x = self.relu(x)
         x = self.lin2(x)
         if QUANTIZE_NETWORKS:
+            print_max_abs_value("SE block lin 2", {
+                "x": x,
+            })
             x = torch.trunc(x / QUANTIZE_FACTOR)
         # print(f"After second linear layer! x.shape: {x.shape}")
 
@@ -494,6 +572,16 @@ class SqueezeExcitation(nn.Module):
         # TODO(ryancao): Is this actually circuit-friendly?
         if QUANTIZE_NETWORKS:
             # x = torch.trunc((scale / QUANTIZE_FACTOR).sigmoid() * x_in + shift)
+            scale_sigmoid = cursed_sigmoid(scale)
+            scaled_x_in = scale_sigmoid * x_in
+            quantized = torch.trunc(scaled_x_in / QUANTIZE_FACTOR)
+            quantized_and_shifted = quantized + shift
+            print_max_abs_value("SE sigmoid with scale and shift", {
+                "scale_sigmoid": scale_sigmoid,
+                "scaled_x_in": scaled_x_in,
+                "quantized": quantized,
+                "quantized_and_shifted": quantized_and_shifted,
+            })
             x = torch.trunc((cursed_sigmoid(scale) * x_in) / QUANTIZE_FACTOR) + shift
         else:
             x = scale.sigmoid() * x_in + shift

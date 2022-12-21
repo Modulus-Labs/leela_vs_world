@@ -60,6 +60,10 @@ def append_plane(planes, ones):
         return np.append(planes, np.zeros((1,8,8), dtype=np.float), axis=0)
 
 def board2planes(board_):
+
+    print(f"In board2planes. Board is {board_}")
+    exit()
+
     if not board_.turn:
         board = board_.mirror()
     else:

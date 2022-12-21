@@ -8,10 +8,9 @@ import pylru
 import sys
 
 
-
-CACHE=100000
+CACHE = 100000
 MAX_BATCH = 8
-MIN_POLICY=0.2
+MIN_POLICY = 0.2
 
 
 class AbstractNet:
