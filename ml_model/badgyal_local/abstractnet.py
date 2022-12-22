@@ -108,18 +108,18 @@ class AbstractNet:
         else:
             return None, None
 
-    def value_to_scalar(self, value):
+    def value_to_scalar(self, value: torch.Tensor):
         return value.item()
 
-    def eval(self, board, softmax_temp=1.61, name=None):
+    def eval(self, board: chess.Board, softmax_temp=1.61, name=None):
         epd = board.epd()
         if epd in self.cache:
             policy, value = self.cache[epd]
         else:
             # put all the child positions on the board
             boards = [board.copy()]
-            # print("Boards are:")
-            # print(boards)
+
+            # --- Compute actual inference ---
             policies, values = self.process_boards(boards, name=name)
 
             with torch.jit.optimized_execution(True):
@@ -133,6 +133,8 @@ class AbstractNet:
 
             policy, value = self.cache[epd]
 
+        # --- All this self.cache stuff is just caching "good moves" for positions ---
+        # --- Doesn't really matter for Leela v World ---
         # get the best move and prefetch it
         tocache = []
 

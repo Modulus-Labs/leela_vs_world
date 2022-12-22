@@ -18,15 +18,18 @@ SIGMOID_PIECEWISE_BOUND = 2
 # --- Hacky af, but it works ---
 max_abs_intermediate_value = -1
 
-def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor]):
+def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor], do_print=False):
     """
     For sanitychecking.
     """
+    return
     global max_abs_intermediate_value
-    print(f"\n--- Printing max values for {context} ---")
+    if do_print:
+        print(f"\n--- Printing max values for {context} ---")
     for name, tensor in named_tensors.items():
         tensor_max_abs_value = torch.max(torch.abs(tensor)).item()
-        print("Max abs value entry of tensor " + name + ": " + str(tensor_max_abs_value))
+        if do_print:
+            print("Max abs value entry of tensor " + name + ": " + str(tensor_max_abs_value))
         # --- For logging overall max ---
         max_abs_intermediate_value = max(max_abs_intermediate_value, tensor_max_abs_value)
 
@@ -157,6 +160,7 @@ class Net(nn.Module):
 
     def forward(self, x: torch.Tensor):
 
+        # --- For range checking intermediate values ---
         global max_abs_intermediate_value
 
         # --- Quantize model inputs ---
@@ -176,14 +180,13 @@ class Net(nn.Module):
         policy = self.policy_head(x)
         if QUANTIZE_NETWORKS:
             policy = policy / QUANTIZE_FACTOR
-        # print(policy)
 
         value = self.value_head(x)
         if QUANTIZE_NETWORKS:
             value = value / QUANTIZE_FACTOR
         
-        if QUANTIZE_NETWORKS:
-            print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
+        # if QUANTIZE_NETWORKS:
+            # print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
 
         # print(value)
         return policy, value
@@ -315,13 +318,25 @@ class PolicyHead(nn.Module):
         self.conv_block = ConvBlock(in_channels, policy_channels, 3, padding=1)
         self.conv = nn.Conv2d(policy_channels, 80, 3, padding=1)
         # fixed mapping from az conv output to lc0 policy
-        self.register_buffer('policy_map', self.create_gather_tensor())
+        # self.register_buffer('policy_map', self.create_gather_tensor())
+        self.load_gather_tensor()
 
     def create_gather_tensor(self):
+        print("Creating (and saving) gather tensor...")
         lc0_to_az_indices = dict(enumerate(lc0_az_policy_map.make_map('index')))
         az_to_lc0_indices = {az: lc0 for lc0, az in lc0_to_az_indices.items()}
         gather_indices = [lc0 for az, lc0 in sorted(az_to_lc0_indices.items()) if az != -1]
-        return torch.LongTensor(gather_indices).unsqueeze(0)
+        final_gather_tensor = torch.LongTensor(gather_indices).unsqueeze(0)
+
+        # --- Save gather tensor ---
+        torch.save(final_gather_tensor, "policy_map_gather_tensor.pt")
+
+        return final_gather_tensor
+    
+    def load_gather_tensor(self):
+        print(f"Loading gather tensor...")
+        final_gather_tensor = torch.load("policy_map_gather_tensor.pt")
+        self.register_buffer("policy_map", final_gather_tensor)
 
     def forward(self, x: torch.Tensor):
 
@@ -339,7 +354,6 @@ class PolicyHead(nn.Module):
         x = x.contiguous()
         x = x.view(x.size(0), -1)
         # print(f"After reshape! x.shape: {x.shape}")
-        # print(self.policy_map.shape)
         # print(self.policy_map.expand(x.size(0), self.policy_map.size(1)).shape)
         x = x.gather(dim=1, index=self.policy_map.expand(x.size(0), self.policy_map.size(1)))
 

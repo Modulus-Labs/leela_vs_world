@@ -1,4 +1,4 @@
-import badgyal
+import badgyal_local
 import chess
 import chess.engine
 import os
@@ -11,7 +11,7 @@ NUM_GAMES_PLAYED = 100
 
 # --------- Stockfish stuff ---------
 STOCKFISH_BINARY_PATH = os.path.join("./stockfish")
-STOCKFISH_TARGET_ELO = 1900
+STOCKFISH_TARGET_ELO = 1850
 
 # --------- Leela stuff ---------
 PIECE_REPLACEMENTS = {
@@ -38,7 +38,7 @@ def print_leela_chessboard(board: chess.Board):
   print(board_repr)
 
 
-def eval(net: badgyal.AbstractNet, board: chess.Board, model_name: str):
+def eval(net: badgyal_local.badgyal_local.abstractnet.AbstractNet, board: chess.Board, model_name: str):
   # policy, value = net.eval(board, softmax_temp=1.61)
   policy, _ = net.eval(board, softmax_temp=1, name=model_name)
   # print(value)
@@ -71,7 +71,7 @@ def get_legal_move(legal_moves: list[chess.Move]):
 
 
 def get_leela_move(board: chess.Board,
-                   leela_model: badgyal.AbstractNet,
+                   leela_model: badgyal_local.badgyal_local.abstractnet.AbstractNet,
                    leela_model_name: str,
                    verbose: bool = False):
   """
@@ -99,7 +99,7 @@ def get_stockfish_move(board: chess.Board,
   return result.move
 
 
-def play_game(leela_model: badgyal.AbstractNet,
+def play_game(leela_model: badgyal_local.badgyal_local.abstractnet.AbstractNet,
               leela_model_name: str,
               stockfish_engine: chess.engine.SimpleEngine,
               stockfish_target_elo: int = STOCKFISH_TARGET_ELO,
@@ -202,7 +202,7 @@ def main():
 
   # --- Leela shenanigans ---
   leela_model_name = "bgnet"
-  leela_model = badgyal.BGNet(cuda=True)
+  leela_model = badgyal_local.badgyal_local.bgnet.BGNet(cuda=True)
   leela_model.net.quantize_parameters()
   # model = badgyal.GGNet(cuda=False)
   # model = badgyal.LENet(cuda=False)
