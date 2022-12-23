@@ -94,6 +94,7 @@ def main():
   leela_model_name = "bgnet"
   leela_model = badgyal_local.bgnet.BGNet(cuda=False)
   leela_model.net.quantize_parameters()
+  leela_model.net.set_model_name("bgnet")
 
   # --- Dump model repr to JSON ---
   # model_repr_save_dir = "model_json_reprs"

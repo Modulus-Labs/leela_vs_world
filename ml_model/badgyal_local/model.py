@@ -9,6 +9,8 @@ import badgyal_local.lc0_az_policy_map as lc0_az_policy_map
 import badgyal_local.net as proto_net
 import badgyal_local.proto.net_pb2 as pb
 
+import json
+
 # --- Ryan's addendum ---
 QUANTIZE_NETWORKS = True
 QUANTIZE_FACTOR = 1024 ** 2
@@ -17,6 +19,11 @@ SIGMOID_PIECEWISE_BOUND = 2
 
 # --- Hacky af, but it works ---
 max_abs_intermediate_value = -1
+
+# --- Also hacky af, but it works ---
+all_intermediate_values = OrderedDict()
+SAVE_INTERMEDIATE_VALUES = True
+SAVE_INTERMEDIATE_VALUES_VERBOSE = True
 
 def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor], do_print=False):
     """
@@ -40,7 +47,7 @@ def near_zero_sigmoid_approx(x: torch.Tensor, quantize_factor=QUANTIZE_FACTOR):
     """
     return (
         math.floor(quantize_factor * 0.5) + torch.trunc(x / 4)
-        # round(x ** 3 / 64) + 
+        # round(x ** 3 / 64) +
         # round(x ** 5 / 1024)
     )
 
@@ -107,6 +114,36 @@ def export_parameter_to_flattened_list(module_parameter: nn.Parameter):
     return list(round(x.item()) for x in module_parameter.flatten())
 
 
+def save_chw_tensor_to_cwh(name: str, tensor: torch.Tensor, dim_check=True):
+    """
+    Writes the tensor to the global storage var.
+    Assumes input tensor is in (1, C, H, W) and writes as (1, C, W, H)
+    (but flattened), UNLESS `dim_check` is set to false.
+    """
+    global all_intermediate_values
+    if SAVE_INTERMEDIATE_VALUES:
+        if SAVE_INTERMEDIATE_VALUES_VERBOSE:
+            print(f"Saving tensor {name}...")
+        if dim_check:
+            # --- Append batch dim ---
+            if len(tensor.shape) == 3:
+                tensor = tensor.unsqueeze(0)
+            if len(tensor.shape) != 4:
+                raise RuntimeError(f"You goofed! Tensor is not 4-dimensional. Name: {name} | Tensor shape: {tensor.shape}")
+            all_intermediate_values[name] = export_parameter_to_flattened_list(tensor.transpose(2, 3))
+        else:
+            all_intermediate_values[name] = export_parameter_to_flattened_list(tensor)
+
+
+def save_all_intermediate_tensors(filename: str):
+    """
+    Writes all intermediate tensors to file
+    """
+    global all_intermediate_values
+    with open(filename, "w") as f:
+        json.dump(all_intermediate_values, f)
+
+
 class Net(nn.Module):
     def __init__(self, residual_channels, residual_blocks, policy_channels, se_ratio, classical=False, classicalPolicy=False):
         super().__init__()
@@ -114,7 +151,7 @@ class Net(nn.Module):
 
         self.conv_block = ConvBlock(112, channels, 3, padding=1)
 
-        blocks = [(f'block{i+1}', ResidualBlock(channels, se_ratio)) for i in range(residual_blocks)]
+        blocks = [(f'block{i+1}', ResidualBlock(channels, se_ratio, i)) for i in range(residual_blocks)]
         self.residual_stack = nn.Sequential(OrderedDict(blocks))
 
         if classicalPolicy:
@@ -158,7 +195,16 @@ class Net(nn.Module):
                 module.running_var = nn.Parameter(torch.round(module.running_var * QUANTIZE_FACTOR ** 2))
                 # print(f"Just quantized layer: {name}!")
 
+    def set_model_name(self, model_name: str):
+        """
+        Should call this before saving!!
+        """
+        self.model_name = model_name
+
     def forward(self, x: torch.Tensor):
+
+        # --- To ensure correct saving ---
+        assert self.model_name is not None
 
         # --- For range checking intermediate values ---
         global max_abs_intermediate_value
@@ -167,7 +213,10 @@ class Net(nn.Module):
         if QUANTIZE_NETWORKS:
             max_abs_intermediate_value = -1
             x = torch.round(x * QUANTIZE_FACTOR)
-        
+
+        # --- Save input if needed ---
+        save_chw_tensor_to_cwh("input", x)
+
         # --- Check if any of these are too large ---
         print_max_abs_value("initial x", {
             "x": x,
@@ -184,11 +233,13 @@ class Net(nn.Module):
         value = self.value_head(x)
         if QUANTIZE_NETWORKS:
             value = value / QUANTIZE_FACTOR
-        
+
         # if QUANTIZE_NETWORKS:
             # print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
 
-        # print(value)
+        if SAVE_INTERMEDIATE_VALUES:
+            save_all_intermediate_tensors(f"{self.model_name}_intermediates.json")
+
         return policy, value
 
     def export_to_json_for_halo2(self):
@@ -332,7 +383,7 @@ class PolicyHead(nn.Module):
         torch.save(final_gather_tensor, "policy_map_gather_tensor.pt")
 
         return final_gather_tensor
-    
+
     def load_gather_tensor(self):
         print(f"Loading gather tensor...")
         final_gather_tensor = torch.load("policy_map_gather_tensor.pt")
@@ -350,6 +401,7 @@ class PolicyHead(nn.Module):
                 "x": x,
             })
             x = torch.round(x / QUANTIZE_FACTOR)
+        save_chw_tensor_to_cwh(f"policy_head.conv", x)
 
         x = x.contiguous()
         x = x.view(x.size(0), -1)
@@ -361,6 +413,7 @@ class PolicyHead(nn.Module):
             print_max_abs_value("policy head gather", {
                 "x": x,
             })
+        save_chw_tensor_to_cwh("policy_head.gather", x, dim_check=False)
 
         # print(f"After gather! x.shape: {x.shape}")
         return x
@@ -405,7 +458,7 @@ class ValueHeadClassical(nn.Sequential):
         self.relu1 = nn.ReLU(inplace=True)
         self.lin2 = nn.Linear(lin_channels, 1)
         self.tanh = nn.Tanh()
-    
+
     def forward(self, x):
         x = self.conv_block(x)
         x = self.flatten(x)
@@ -422,7 +475,7 @@ class ValueHeadClassical(nn.Sequential):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        
+
         # if not QUANTIZE_NETWORKS:
         #     x = self.tanh(x)
 
@@ -432,7 +485,7 @@ class ValueHeadClassical(nn.Sequential):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, channels, se_ratio):
+    def __init__(self, channels, se_ratio, block_number):
         super().__init__()
         # ResidualBlock can't be an nn.Sequential, because it would try to apply self.relu2
         # in the residual block even when not passed into the constructor
@@ -444,10 +497,14 @@ class ResidualBlock(nn.Module):
             ('conv2', nn.Conv2d(channels, channels, 3, padding=1, bias=False)),
             ('bn2', nn.BatchNorm2d(channels)),
 
-            ('se', SqueezeExcitation(channels, se_ratio)),
+            ('se', SqueezeExcitation(channels, se_ratio, block_number)),
         ]))
 
         self.relu2 = nn.ReLU(inplace=True)
+
+        # --- For keeping track of the layer number ---
+        self.block_number = block_number
+
 
     def forward(self, x):
         x_in = x
@@ -460,15 +517,18 @@ class ResidualBlock(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.conv1", x)
+
         # --- Batchnorm, then round ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.layers.get_submodule("bn1"))
         else:
             x = self.layers.get_submodule("bn1")(x)
-        
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.bn1", x)
+
         # --- ReLU # 1 ---
         x = self.layers.get_submodule("relu")(x)
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.relu1", x)
 
         # --- Conv #2 ---
         x = self.layers.get_submodule("conv2")(x)
@@ -477,13 +537,15 @@ class ResidualBlock(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.conv2", x)
+
         # --- Batchnorm #2 ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.layers.get_submodule("bn2"))
         else:
             x = self.layers.get_submodule("bn2")(x)
-        
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.bn2", x)
+
         # --- SE ---
         x = self.layers.get_submodule("se")(x)
 
@@ -493,8 +555,10 @@ class ResidualBlock(nn.Module):
             print_max_abs_value("residual block after SE and residual", {
                 "x": x,
             })
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.residual", x)
 
         x = self.relu2(x)
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.relu2", x)
 
         return x
 
@@ -513,38 +577,40 @@ class ConvBlock(nn.Sequential):
 
     def forward(self, x):
 
-        # print(f"Before conv block forward pass")
-
         # --- Conv, then normalize ---
         x = self.conv(x)
-
-        # print(f"After first conv: {x}")
         if QUANTIZE_NETWORKS:
             print_max_abs_value("conv block post conv", {
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        # print(f"After first conv normalization: {x}")
+        save_chw_tensor_to_cwh("conv_block.conv", x)
 
         # --- Batchnorm, then normalize ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.bn)
         else:
             x = self.bn(x)
-        # print(f"After first batchnorm: {x}")
+        save_chw_tensor_to_cwh("conv_block.bn", x)
 
+        # --- ReLU ---
         x = self.relu(x)
+        save_chw_tensor_to_cwh("conv_block.relu", x)
+
         return x
 
 
 class SqueezeExcitation(nn.Module):
-    def __init__(self, channels, ratio):
+    def __init__(self, channels, ratio, block_number):
         super().__init__()
 
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.lin1 = nn.Linear(channels, channels // ratio)
         self.relu = nn.ReLU(inplace=True)
         self.lin2 = nn.Linear(channels // ratio, 2 * channels)
+
+        # --- For keeping track of intermediates ---
+        self.block_number = block_number
 
     def forward(self, x: torch.Tensor):
         # print(f"Before SE block! x.shape: {x.shape}")
@@ -557,7 +623,7 @@ class SqueezeExcitation(nn.Module):
             print_max_abs_value("SE block post pooling", {
                 "x": x,
             })
-        # print(f"After first pooling layer! x.shape: {x.shape}")
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.pool", x, dim_check=False)
 
         x = self.lin1(x)
         if QUANTIZE_NETWORKS:
@@ -565,31 +631,47 @@ class SqueezeExcitation(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        # print(f"After first linear layer! x.shape: {x.shape}")
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.lin1", x, dim_check=False)
 
         x = self.relu(x)
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.relu", x, dim_check=False)
+
         x = self.lin2(x)
         if QUANTIZE_NETWORKS:
             print_max_abs_value("SE block lin 2", {
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        # print(f"After second linear layer! x.shape: {x.shape}")
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.lin2", x, dim_check=False)
 
         x = x.view(n, 2 * c, 1, 1)
-        # print(f"After reshape! x.shape: {x.shape}")
-
         scale, shift = x.chunk(2, dim=1)
-        # print(f"After chunk! scale.shape: {scale.shape}")
-        # print(f"After chunk! shift.shape: {scale.shape}")
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scale", scale)
+        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.shift", shift)
 
         # TODO(ryancao): Is this actually circuit-friendly?
         if QUANTIZE_NETWORKS:
+
+            # --- Reference ---
             # x = torch.trunc((scale / QUANTIZE_FACTOR).sigmoid() * x_in + shift)
+            # --- End reference ---
+
+            # --- Compute scaled sigmoid ---
             scale_sigmoid = cursed_sigmoid(scale)
+            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scale_sigmoid", scale_sigmoid)
+
+            # --- Multiply by input ---
             scaled_x_in = scale_sigmoid * x_in
+            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scaled_x_in", scaled_x_in)
+
+            # --- Re-normalize ---
             quantized = torch.trunc(scaled_x_in / QUANTIZE_FACTOR)
+            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized", quantized)
+
+            # --- Add shift term ---
             quantized_and_shifted = quantized + shift
+            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized_and_shifted", quantized_and_shifted)
+
             print_max_abs_value("SE sigmoid with scale and shift", {
                 "scale_sigmoid": scale_sigmoid,
                 "scaled_x_in": scaled_x_in,
