@@ -1,12 +1,13 @@
 pragma solidity >=0.7.6;
 
+
 contract LeelaBetting {
 
     address private owner;
 
     uint256 public poolSize;
     uint256 public minStake;
-    uint public timerStart;
+    uint256 public timerStart;
     bool public isEnd;
     bool public teamWorld;
     bool public teamLeela;
@@ -16,33 +17,36 @@ contract LeelaBetting {
     mapping(uint256 => uint256) validMoves;
     mapping(address => uint256) private worldBets;
     mapping(address => uint256) private leelaBets;
-    
-    //Only owner can withraw from this contract
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
 
     constructor() public {}
 
     function updateValidMoves() internal {}
 
-    //Figure out how we want to verify sides
+    //TODO: how do we want to verify sides?
     function addStake(uint256 stake, bool isWorld, bool isLeela) internal {}
 
-    //Figure out how we want to record moves
-    //needs a variable type
-    function makeVote() public {}
+    //TODO: how do we want to record moves? needs a variable type.
+    function makeVote(bool _world, bool _leela) public {}
 
     function makeMoveHandler() internal {}
 
     function gameEndHandler() internal {}
 
-    function checkTimerEnd(bool isEnd) internal {}
+    function checkTimerEnd() internal returns (bool){
+        //gets current timestamp
+        uint256 currTimestamp = block.timestamp;
+        //checks 30 min in sec from start of timer
+        if(currTimestamp >= (60*30)+timerStart){
+            return true;
+        } else return false;
+    }
 
-    function beginTimer() internal {}
-
-    function checkTimerEnd() internal {}
+    function beginTimer() internal returns (uint256){
+        //gets current timestamp
+        uint256 lastBlockTimestamp = block.timestamp;
+        //sets timer var
+        return timerStart = lastBlockTimestamp;
+    }
 
     function payOut() public {}
 
