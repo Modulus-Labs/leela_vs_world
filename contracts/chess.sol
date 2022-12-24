@@ -7,6 +7,31 @@ import "../libraries/Math.sol";
 contract Chess {
     using SafeMath for uint256;
 
+    address constant WORLD_ADDRESS = 0x0;
+    address constant LEELA_ADDRESS = 0x0; // to change
+    uint256 public gameState = 0x0; // gameboard state 
+    uint256 public gameIndex = 0x0; // game number index
+    uint256 public moveIndex = 0x0; // move index
+    bool public leelaColor = false; // originally Leela is playing black
+
+    /** @dev    Initial white state:
+                    0f: 15 (non-king) pieces left
+                    00: Queen-side rook at a1 position
+                    07: King-side rook at h1 position
+                    04: King at e1 position
+                    ff: En-passant at invalid position
+        */
+    uint32 world_state = 0x000704ff;
+
+        /** @dev    Initial black state:
+                    0f: 15 (non-king) pieces left
+                    38: Queen-side rook at a8 position
+                    3f: King-side rook at h8 position
+                    3c: King at e8 position
+                    ff: En-passant at invalid position
+        */
+    uint32 leela_state = 0x383f3cff;
+
     uint8 constant empty_const  = 0x0;
     uint8 constant pawn_const   = 0x1; // 001
     uint8 constant bishop_const = 0x2; // 010
@@ -60,91 +85,31 @@ contract Chess {
     uint256 constant invalid_move_constant =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-    /** @dev    Initial white state:
-                0f: 15 (non-king) pieces left
-                00: Queen-side rook at a1 position
-                07: King-side rook at h1 position
-                04: King at e1 position
-                ff: En-passant at invalid position
-    */
-    uint32 constant initial_white_state = 0x000704ff;
-
-    /** @dev    Initial black state:
-                0f: 15 (non-king) pieces left
-                38: Queen-side rook at a8 position
-                3f: King-side rook at h8 position
-                3c: King at e8 position
-                ff: En-passant at invalid position
-    */
-    uint32 constant initial_black_state = 0x383f3cff;
+   
 
     constructor ()
     { }
-
-
-    function checkGameFromStart(uint16[] memory moves)
-    public pure
-    returns (uint8, uint256, uint32, uint32)
+    function initializeGame()
+    internal
     {
-        return checkGame(game_state_start, initial_white_state, initial_black_state, false, moves);
-    }
-
-    /**
-        @dev Calculates the outcome of a game depending on the moves from a starting position.
-             Reverts when an invalid move is found.
-        @param startingGameState Game state from which start the movements
-        @param startingPlayerState State of the first playing player
-        @param startingOpponentState State of the other playing player
-        @param startingTurnBlack Whether the starting player is the black pieces
-        @param moves is the input array containing all the moves in the game
-        @return outcome can be 0 for inconclusive, 1 for draw, 2 for white winning, 3 for black winning
-     */
-    function checkGame(uint256 startingGameState,
-                        uint32 startingPlayerState,
-                        uint32 startingOpponentState,
-                        bool startingTurnBlack,
-                        uint16[] memory moves)
-    public pure
-    returns (uint8 outcome, uint256 gameState, uint32 playerState, uint32 opponentState)
-    {
-        gameState = startingGameState;
-
-        playerState = startingPlayerState;
-        opponentState = startingOpponentState;
-
-        outcome = inconclusive_outcome;
-
-        bool currentTurnBlack = startingTurnBlack;
-
-        require(moves.length > 0, "inv moves");
-
-        if (moves[moves.length - 1] == accept_draw_const) {
-            // Check
-            require(moves.length >= 2, "inv draw");
-            require(moves[moves.length - 2] == request_draw_const, "inv draw");
-            outcome = draw_outcome;
-        } else if (moves[moves.length - 1] == resign_const) {
-            // Assumes that signatures have been checked and moves are in correct order
-            outcome = ((moves.length % 2) == 1) != currentTurnBlack ? black_win_outcome : white_win_outcome;
-        } else {
-            // Check entire game            
-            for (uint256 i = 0; i < moves.length; i++)
-            {
-                (gameState, opponentState, playerState) = verifyExecuteMove(gameState, moves[i], playerState, opponentState, currentTurnBlack);
-                require (!checkForCheck(gameState, opponentState), "inv check");
-                //require (outcome == 0 || i == (moves.length - 1), "Excesive moves");
-                currentTurnBlack = !currentTurnBlack;
-            }
-            uint8 endgameOutcome = checkEndgame(gameState, playerState, opponentState);
-            if (endgameOutcome == 2) {
-                outcome = currentTurnBlack ? white_win_outcome : black_win_outcome;
-            } else if (endgameOutcome == 1) {
-                outcome = draw_outcome;
-            }
-
+        gameIndex = gameIndex+1; // increment game index
+        moveIndex = 0; // resets the move index
+        leelaColor = !leelaColor; // alternate colors
+        if (!leelaColor){
+            world_state = 0x000704ff; // world state is white if Leela is playing black
+            leela_state = 0x383f3cff;
         }
+        else {
+            leela_state = 0x000704ff; // reset white and black states
+            world_state = 0x383f3cff;
+        }
+            
     }
-
+    function convertToCircruit() public pure returns 
+    (uint256[][]){
+        uint256[][] answer = [];
+        
+    }
     /**
         @dev Calculates the outcome of a single move given the current game state.
              Reverts for invalid movement.
@@ -154,17 +119,18 @@ contract Chess {
         @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
-    function verifyExecuteMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentTurnBlack)
-    public pure
-    returns (uint256 newGameState, uint32 newPlayerState, uint32 newOpponentState)
+    function playMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela)
+    public
     {
-        // TODO: check resigns and other stuff first
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
-        // uint8 moveExtra   = (uint8)(move >> 12);
-        require(fromPos != toPos, "inv move stale");
+
+        // add this line back in when we launch
+        // require(sender.address == WORLD_ADDRESS || sender.address == LEELA_ADDRESS)
+
+        require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(gameState, fromPos);
-        require(((fromPiece & color_const) > 0) == currentTurnBlack, "inv move color");
+        // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
         uint8 fromType = fromPiece & type_mask_const;
         newPlayerState = playerState;
         newOpponentState = opponentState;
@@ -201,9 +167,9 @@ contract Chess {
         }
         else
         {
-            revert("inv move type");
+            revert("Inv move type");
         }
-        require(newGameState != invalid_move_constant, "inv move");
+        require(newGameState != invalid_move_constant, "Invalid move.");
         if ( toPos == (opponentState & en_passant_const) ) {
             if ( currentTurnBlack ) {
                 newGameState = zeroPosition(newGameState, toPos + 8);
@@ -212,6 +178,17 @@ contract Chess {
             }
         }
         newOpponentState = opponentState | en_passant_const;
+        require (!checkForCheck(gameState, opponentState), "You can't make a move that keeps you in check.");
+        gameState = newGameState;
+        if (currentPlayerLeela){
+            leela_state = newPlayerState;
+            world_state = newOpponentState;
+        }
+        else{
+            world_state = newPlayerState;
+            leela_state = newOpponentState;
+        } 
+        
     }
 
     /**
