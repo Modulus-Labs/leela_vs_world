@@ -108,7 +108,7 @@ contract Chess {
     function convertToCircruit() public pure returns 
     (uint256[][]){
         uint256[][] answer = [];
-        
+
     }
     /**
         @dev Calculates the outcome of a single move given the current game state.
