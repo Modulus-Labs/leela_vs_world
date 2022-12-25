@@ -11,7 +11,7 @@ contract Chess {
     address constant LEELA_ADDRESS = 0x0; // to change
     uint256 public gameState = 0x0; // gameboard state 
     uint256 public gameIndex = 0x0; // game number index
-    uint256 public moveIndex = 0x0; // move index
+    uint16 public moveIndex = 0x0; // move index (2^16-1 is enough for a game)
     bool public leelaColor = false; // originally Leela is playing black
 
     /** @dev    Initial white state:
@@ -21,7 +21,7 @@ contract Chess {
                     04: King at e1 position
                     ff: En-passant at invalid position
         */
-    uint32 world_state = 0x000704ff;
+    uint32 public world_state = 0x000704ff;
 
         /** @dev    Initial black state:
                     0f: 15 (non-king) pieces left
@@ -30,7 +30,7 @@ contract Chess {
                     3c: King at e8 position
                     ff: En-passant at invalid position
         */
-    uint32 leela_state = 0x383f3cff;
+    uint32 public leela_state = 0x383f3cff;
 
     uint8 constant empty_const  = 0x0;
     uint8 constant pawn_const   = 0x1; // 001
@@ -110,17 +110,10 @@ contract Chess {
         uint256[][] answer = [];
         
     }
-    /**
-        @dev Calculates the outcome of a single move given the current game state.
-             Reverts for invalid movement.
-        @param gameState current game state on which to perform the movement.
-        @param move is the move to execute: 16-bit var, high word = from pos, low word = to pos
-                move can also be: resign, request draw, accept draw.
-        @param currentTurnBlack true if it's black turn
-        @return newGameState the new game state after it's executed.
-     */
-    function playMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela)
-    public
+
+    function verifyPlayMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela)
+        public view
+        returns (uint256 newGameState, uint32 newPlayerState, uint8 fromPiece)
     {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
@@ -177,6 +170,24 @@ contract Chess {
                 newGameState = zeroPosition(newGameState, toPos - 8);
             }
         }
+    }
+
+    /**
+        @dev Calculates the outcome of a single move given the current game state.
+             Reverts for invalid movement.
+        @param gameState current game state on which to perform the movement.
+        @param move is the move to execute: 16-bit var, high word = from pos, low word = to pos
+                move can also be: resign, request draw, accept draw.
+        @param currentTurnBlack true if it's black turn
+        @return newGameState the new game state after it's executed.
+     */
+    function playMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela)
+        public
+        returns (uint256 newGameState, uint32 newPlayerState)
+    {
+        // below will revert if move is invalid
+        (newGameState, newPlayerState, ) = verifyPlayMove(gameState, move, playerState, opponentState, currentPlayerLeela);
+
         newOpponentState = opponentState | en_passant_const;
         require (!checkForCheck(gameState, opponentState), "You can't make a move that keeps you in check.");
         gameState = newGameState;
@@ -189,6 +200,8 @@ contract Chess {
             leela_state = newOpponentState;
         } 
         
+        // Update move index
+        moveIndex += 1;
     }
 
     /**
