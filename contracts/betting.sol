@@ -1,10 +1,12 @@
 pragma solidity >=0.7.6;
 import {verifyMove} from "./chess.sol";
 import "./redblack.sol";
-import {Tree} from "./redblack.sol";
+import "./redblack.sol";
 
 contract betting {
-    using RedBlackTree for Tree;
+    using RedBlackTree for RedBlackTree.Tree;
+    using Chess for Chess;
+    RedBlackTree.Tree Tree;
     address private owner;
 
     uint256 public poolSize;
@@ -40,17 +42,21 @@ contract betting {
         movesToVotes[move] += stake;
         uint256[] movesFormerVotes = votesToMoves[formerVotes];
         for (uint i=0; i<studentList.length; i++) {
-            
+
         }
-        bool gameEnd = checkTimerEnd();
-        if (gameEnd){
-            gameEndHandler();
+        bool moveEnd = checkTimerEnd();
+        if (moveEnd){
+            moveEndHandler();
         }
         return true;
     }
 
     function makeMoveHandler() internal {
-
+        uint topVotes = Tree.first();
+        uint topMoves = votesToMoves[topVotes];
+        uint topMove = topMoves[0];
+        Chess.playMove(topMove, false);
+        // bool isEndGame = Chess.checkEndgame(); if the move is played we should assume it was safe to do so.
     }
 
     function gameEndHandler() internal {}
