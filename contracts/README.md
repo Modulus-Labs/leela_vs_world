@@ -88,3 +88,23 @@ For example the following command would run the script `testScript` on Goerli
 ```shell
 npx hardhat run scripts/testScript.ts --network goerli
 ```
+
+---
+
+## **🚀 TestContract Example**
+
+```shell
+npx hardhat compile
+```
+
+```shell
+npx hardhat deploy
+```
+
+```shell
+npx hardhat run scripts/testScript.ts
+```
+
+```shell
+npx hardhat test
+```
