@@ -7,15 +7,21 @@ import "../libraries/Math.sol";
 contract Chess {
     using SafeMath for uint256;
 
-    address constant WORLD_ADDRESS = 0x0;
+    address constant WORLD_ADDRESS = 0x0; // address of the betting 
     address constant LEELA_ADDRESS = 0x0; // to change
-    uint256 public gameState = 0x0; // gameboard state 
+
+    uint256 public gameState = 0x0; // gameboard state
+
     uint256 public gameIndex = 0x0; // game number index
+
     uint256 public moveIndex = 0x0; // move index
+
     bool public leelaColor = false; // originally Leela is playing black
+
     bool public leelaTurn = false; // is it Leela's turn
+
     /** @dev    Initial white state:
-                    0f: 15 (non-king) pieces left
+                    
                     00: Queen-side rook at a1 position
                     07: King-side rook at h1 position
                     04: King at e1 position
@@ -24,7 +30,7 @@ contract Chess {
     uint32 world_state = 0x000704ff;
 
         /** @dev    Initial black state:
-                    0f: 15 (non-king) pieces left
+                    
                     38: Queen-side rook at a8 position
                     3f: King-side rook at h8 position
                     3c: King at e8 position
@@ -39,7 +45,7 @@ contract Chess {
     uint8 constant rook_const   = 0x4; // 100
     uint8 constant queen_const  = 0x5; // 101
     uint8 constant king_const   = 0x6; // 110
-    uint8 constant type_mask_const   = 0x7;
+    uint8 constant type_mask_const   = 0x7; //111
     uint8 constant color_const  = 0x8;
 
     uint8 constant piece_bit_size = 4;
@@ -59,7 +65,6 @@ contract Chess {
     uint32 constant king_move_mask   = 0x80800000;
 
     uint16 constant pieces_left_bit = 32;
-
 
 
     uint8 constant king_white_start_pos = 0x04;
@@ -89,9 +94,11 @@ contract Chess {
 
     constructor ()
     { }
+
     function initializeGame()
-    internal
+    public 
     {
+        // require(sender.address == LEELA_ADDRESS || sender.address == WORLD_ADDRESS )
         gameIndex = gameIndex+1; // increment game index
         moveIndex = 0; // resets the move index
         leelaColor = !leelaColor; // alternate colors
@@ -105,15 +112,17 @@ contract Chess {
         }
             
     }
+
     function getGameIndex() public pure{
         return gameIndex;
     }
     function getMoveIndex() public pure{
         return moveIndex;
     }
-    function convertToCircruit() public pure returns 
+
+    function convertToCircuit() public pure returns 
     (uint256 [][][]){
-        uint256 memory answer[112][8][8];
+        uint256 memory board[112][8][8];
         for (uint k = 0; k<8; k++){
             for (uint i = 0; i<8; i++){
                 for (uint j = 0; j<8; j++){
@@ -124,7 +133,7 @@ contract Chess {
                     }
                 }
             }
-        }
+        } // wp = 0, ...bp = 6. bk = 11
         uint32 white_state = (leelaColor)? leela_state: world_state;
         uint32 black_state = (leelaColor)? world_state: leela_state;
         bool white_king = ((white_state >> 8) && ff == 3c);
@@ -135,7 +144,7 @@ contract Chess {
         bool black_king = ((black_state >> 24) && ff == 00);
         for (uint i = 0; i<8; i++){
             for (uint j = 0; j<8; j++){
-                board[104][i][j] = white_king && white_king_rook; // white king side castling, white queen side castling
+                board[104][i][j] = white_king && white_king_rook; // white king side castling, white queen side castling 
                 board[105][i][j] = white_king && white_queen_rook;
                 board[106][i][j] = black_king && black_queen_rook; // black queen side castling, black king side castling
                 board[107][i][j] = black_king && black_king_rook;
@@ -145,7 +154,7 @@ contract Chess {
                 board[111][i][j] = true;
             }
         }
-        return answer;
+        return board;
     }
     /**
         @dev Calculates the outcome of a single move given the current game state.
