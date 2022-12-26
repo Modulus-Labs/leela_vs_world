@@ -1,18 +1,21 @@
 import { ethers } from "hardhat"
+import { TestContract__factory } from "../typechain-types"
 
 async function main() {
-    const currentTimestampInSeconds = Math.round(Date.now() / 1000)
-    const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60
-    const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS
+    const testContractFactory: TestContract__factory =
+        await ethers.getContractFactory("TestContract")
+    const testContract = await testContractFactory.deploy(10)
 
-    const lockedAmount = ethers.utils.parseEther("1")
+    await testContract.deployed()
 
-    const Lock = await ethers.getContractFactory("Lock")
-    const lock = await Lock.deploy(unlockTime, { value: lockedAmount })
+    console.log("TestContract deployed to: ", testContract.address)
 
-    await lock.deployed()
+    const immutableTestUint = await testContract.IMMUTABLE_TEST_UINT()
 
-    console.log("Lock with 1 ETH deployed to:", lock.address)
+    console.log(
+        "IMMUTABLE_TEST_UINT test uint initialized to ",
+        immutableTestUint.toString()
+    )
 }
 
 // We recommend this pattern to be able to use async/await everywhere

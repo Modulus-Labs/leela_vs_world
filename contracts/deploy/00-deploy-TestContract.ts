@@ -11,13 +11,13 @@ const deployTestContract: DeployFunction = async function (
 
     console.log("Deploying TestContract on ", network.name)
 
-    let args: string[] = []
+    let args: string[] = ["10"]
 
     const TestContractDeployResponse = await deploy("TestContract", {
         from: deployer,
         args,
         log: true,
-        waitConfirmations: 3,
+        waitConfirmations: 1,
     })
 
     console.log(
@@ -25,7 +25,9 @@ const deployTestContract: DeployFunction = async function (
         TestContractDeployResponse.address
     )
 
-    await verify(TestContractDeployResponse.address, args)
+    if (network.name !== "localhost" && network.name !== "hardhat") {
+        await verify(TestContractDeployResponse.address, args)
+    }
 }
 
 export default deployTestContract
