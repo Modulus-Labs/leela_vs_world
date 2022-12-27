@@ -53,17 +53,29 @@ contract BettingGame is Ownable {
     uint128 public leelaPoolSize;
     bool public gameOngoing; // TODO incorporate this
 
+
     mapping(address => uint96) public accountsPayable;
+    // no tracking list needed, state global across games
+
     /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
+    //state local across games
     mapping(address => uint96) public worldStakes;
+    uint16[] public worldStakesList;
     mapping(address => uint96) public leelaStakes;
+    uint16[] public leelaStakesList;
 
     /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
+    //state local across games
     mapping(address => uint96) public worldShares;
+    uint16[] public worldSharesList;
     mapping(address => uint96) public leelaShares;
+    uint16[] public leelaSharesList;
 
+    /// @dev the total number of shares in the contract, used to calculate the payout
+    uint96 public totalLeelaShares;
+    uint96 public totalWorldShares;
     /// @dev Commited moves from the Chess contract, both the World & Leela.
-    uint16[] public moves; :)
+    uint16[] public moves;
 
     /// @dev moveIndex maps to a mapping of key: move (uint16, valid only) & value: # of votes.
     ///      Limited to 2^16-1 = 65535 votes per move option per moveIndex.
@@ -71,26 +83,21 @@ contract BettingGame is Ownable {
 
     /// @dev moveIndex maps to a dynamic array of all moves voted for the World.
     ///      Used to iterate through worldMoves
-    mapping(uint16 => uint16[]) registeredWorldMoves;
+    uint16[] registeredWorldMoves;
 
-    /// @dev Keeping track of who voted on what move for the World.
-    mapping(uint16 => mapping(address => uint16)) public worldMoveVoters;
+    /// @dev Keeping track of who voted on what move for the World. the key is the move index
+    mapping(uint16 => mapping(address => uint16)) public votersMap;
+    mapping(uint16 => address[]) public votersList;
 
     /// @dev Chess board contract
     Chess public chess;
 
+    /// @dev Leela AI contract
     Leela public leela;
-
-    // if you can't put a dictionary into an event, then just store a map from move to index
-    // also store an array of moves and an array of votes
-    // payout is also gamened
-
-    event data(mapping(uint16 => uint16) movesToVotes, mapping(address => uint96) worldStakes, mapping(address => uint96) leelaStakes,
-    mapping(address => uint96) worldShares, mapping(address => uint96) leelaShares); 
 
     event payout(bool leelaWon);
 
-    event movePlayed(uint16 move, bool isLeela);
+    event movePlayed(uint16 worldMove, uint16 leelaMove);
 
     event stakeMade(address player, bool leelaSide);
 
@@ -171,6 +178,7 @@ contract BettingGame is Ownable {
             unchecked { 
                 worldBets[msg.sender] += msg.value;
                 worldShares[msg.sender] += msg.value*initVal/worldPoolSize;
+                totalWorldShares += msg.value*initVal/worldPoolSize;
                 worldPoolSize += msg.value;
             }
         } else {
@@ -178,10 +186,10 @@ contract BettingGame is Ownable {
             unchecked {
                 leelaBets[msg.sender] += msg.value;
                 leelaShares[msg.sender] += msg.value*initVal/leelaPoolSize;
+                totalLeelaShares += msg.value*initVal/leelaPoolSize;
                 leelaPoolSize += msg.value;
             }
         }
-        emit data(movesToVotes, worldStakes, leelaStakes, worldShares, leelaShares); 
         emit stakeMade(msg.sender, leelaSide);
 
     }
@@ -208,12 +216,11 @@ contract BettingGame is Ownable {
         // NOTE: intentional in adding both stakes to the world's move
         worldMoves[idx][move] += worldStakes[msg.sender]+leelaStakes[msg.sender];
         worldMoveVoters[idx][msg.sender] = move; // TODO MAKE THIS IDX THING BACK
-        //TODO delete all the data events
         emit voteMade(msg.sender, move);
     }
 
     //TODO cleanup function, end game function, timer check, endgame handler plus check, playmove check, grab past moves, 
-    //TODO list of votes, past game states
+
 
     // /// @dev Commits Leela's move
     // function commitLeelaMove(uint16 move) public onlyOwner {
@@ -302,6 +309,7 @@ contract BettingGame is Ownable {
     }
 
     function restMove(){
+        
         // clear move
         //reset the timer
     }
@@ -314,22 +322,25 @@ contract BettingGame is Ownable {
     function checkTimer(){
 
     }
-
-    function claimPayout() public canPayout {
-        uint payoutAmount;
-        // Must cast to uint256 to avoid overflow when multiplying in uint128 or uint96
-        if (gameWinner == Side.World) {
-            require(worldBets[msg.sender] != 0, 'User did not bet on World');
-            payoutAmount = uint(worldBets[msg.sender]) * uint(leelaPoolSize) / uint(worldPoolSize);
-            worldBets[msg.sender] = 0;
-        } else {
-            require(leelaBets[msg.sender] != 0, 'User did not bet on Leela');
-            payoutAmount = uint(leelaBets[msg.sender]) * uint(worldPoolSize) / uint(leelaPoolSize);
-            leelaBets[msg.sender] = 0;
+    function updateAccounts(bool leelaWon) internal {
+        // TODO convert integers to floating numbers when appropriate
+        mapping (address => uint96) winningAccounts = leelaWon ? leelaShares : worldShares;
+        uint256 totalShares = leelaWon? totalLeelaShares : totalWorldShares; // TODO fix this 
+        address[] voters = votersList[gameIndex];
+        for (int i = 0;i<voters.length; i++){
+            address accountShares = voters[i];
+            uint96 totalPayout = leelaPoolSize+worldPoolSize;
+            accountsPayable[account]+= accountShares* (totalPayout)/(totalShares);
         }
-        
+    }
+    function claimPayout() public {
+        // TODO not sure if this logic is correct
+        uint payoutAmount;
+        require(accountsPayable[msg.sender]>=payoutAmount);
+        accountsPayable[msg.sender] -= payoutAmount;
         (bool sent, ) = msg.sender.call{value: payoutAmount}('');
         require(sent, 'Failed to send payout');
+        // don't need to emit an event bc the payout is sent over the blockchain
     }
 
     // for payable, leave as-is

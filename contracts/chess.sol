@@ -94,7 +94,7 @@ contract Chess {
     uint256 constant invalid_move_constant =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-   
+        //TODO past game states on the chess side?
     event movePlayed(uint256 gameState, uint256 leela_state, uint256 world_state, bool leelaColor, bool leelaMove);
     event gameStart();
     event check();
