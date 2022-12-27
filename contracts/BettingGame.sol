@@ -33,12 +33,6 @@ contract BettingGame is Ownable {
     /// @dev For reentrancy guard (use uint8 for gas saving & storage packing vs. bool)
     uint8 private locked = 0;
 
-    /// @dev Game ended flag (0 for false, 1 for true)
-    uint8 public gameEnded = 0;
-
-    /// @dev Game winner flag (0 for the World, 1 for Leela, default 0) (enum is uint8)
-    Side public gameWinner = Side.World;
-
     /// @dev Stake period deadline (uint256 for convenience when using block.timestamp)
     uint256 public stakePeriodEnd;
 
@@ -49,9 +43,9 @@ contract BettingGame is Ownable {
     uint256 public movePeriodDuration = 300;
 
     /// @dev World / Leela pool size (uint128 for storage packing)
-    uint128 public worldPoolSize;
-    uint128 public leelaPoolSize;
-    bool public gameOngoing; // TODO incorporate this
+    uint96 public worldPoolSize;
+    uint96 public leelaPoolSize;
+    uint96 public initVal;
 
 
     mapping(address => uint96) public accountsPayable;
@@ -149,7 +143,7 @@ contract BettingGame is Ownable {
     }
 
     function setPoolSize(uint256 _a) public onlyOwner{
-        require(!gameOngoing, "Cannot modify pool size during game");
+        require((leelaPoolSize == initVal) && (worldPoolSize == initVal), "Cannot modify pool size once pools are nonempty.");
         leelaPoolSize = _a;
         worldPoolSize = _a;
         initVal = _a;
@@ -309,18 +303,21 @@ contract BettingGame is Ownable {
     }
 
     function restMove(){
-        
+        moveIndex++;
         // clear move
         //reset the timer
     }
     function resetGame(){
+        gameIndex++;
+        moveIndex = 0;
+
         // clear game
         //reintilize the other contracts
         //incerement indices
         // emit game start event
     }
     function checkTimer(){
-
+        
     }
     function updateAccounts(bool leelaWon) internal {
         // TODO convert integers to floating numbers when appropriate
@@ -329,7 +326,7 @@ contract BettingGame is Ownable {
         address[] voters = votersList[gameIndex];
         for (int i = 0;i<voters.length; i++){
             address accountShares = voters[i];
-            uint96 totalPayout = leelaPoolSize+worldPoolSize;
+            uint96 totalPayout = leelaPoolSize+worldPoolSize - 2*initVal;
             accountsPayable[account]+= accountShares* (totalPayout)/(totalShares);
         }
     }
