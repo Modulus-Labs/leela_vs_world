@@ -2,9 +2,13 @@ pragma solidity >=0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
+import "./leela.sol";
 import "./chess.sol";
 import "./Utils.sol";
-
+// emit play move events with dict
+// emit staked/voted events with dict and the stake and the move
+// emit game end events with dict
+// call the initilize game with the chess contract
 /// @title BettingGame
 /// @dev Betting game contract for Leela Chess Zero vs. World
 ///      This contract is an individual game engine that includes the betting & payout logic.
@@ -17,9 +21,12 @@ contract BettingGame is Ownable {
     //        ...
 
     /// @dev Minimum stake for a bet
-    uint96 public minStake = 0.01 ether;
+    address constant CHESS_ADDRESS = 0x0; // TO FILL IN
+    uint96 public minStake = 0.01 ether; // should this be MATIC?
 
-    uint16 public moveNumber = 0;
+    uint16 public gameIndex = 0;
+
+    uint16 public moveIndex = 0;
 
     /// @dev For reentrancy guard (use uint8 for gas saving & storage packing vs. bool)
     uint8 private locked = 0;
@@ -29,13 +36,6 @@ contract BettingGame is Ownable {
 
     /// @dev Game winner flag (0 for the World, 1 for Leela, default 0) (enum is uint8)
     Side public gameWinner = Side.World;
-
-    /// @dev Leela's move
-    uint16 public leelaMove;
-
-    /// @dev Last chess.moveIndex when Leela's move was updated.
-    ///      Used to enforce makeMove to be called only after Leela commits a move after the World's move.
-    uint16 public leelaMoveUpdated;
 
     /// @dev Stake period deadline (uint256 for convenience when using block.timestamp)
     uint256 public stakePeriodEnd;
@@ -47,12 +47,16 @@ contract BettingGame is Ownable {
     uint256 public movePeriodDuration = 300;
 
     /// @dev World / Leela pool size (uint128 for storage packing)
-    uint128 public worldPoolSize;
-    uint128 public leelaPoolSize;
+    uint128 public worldPoolSize = 1;
+    uint128 public leelaPoolSize = 1;
 
-    /// @dev User bets on the World / Leela. Private to keep stake size only visible to each user.
-    mapping(address => uint96) private worldBets;
-    mapping(address => uint96) private leelaBets;
+    /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
+    mapping(address => uint96) public worldStakes;
+    mapping(address => uint96) public leelaStakes;
+
+    // /// @dev User shares on the World / Leela. Private to keep stake size only visible to each user.
+    // mapping(address => uint96) public worldShares;
+    // mapping(address => uint96) public leelaShares;
 
     // mapping(uint256 => uint256) validMoves; // not sure what this was intended for
 
@@ -61,7 +65,7 @@ contract BettingGame is Ownable {
 
     /// @dev moveIndex maps to a mapping of key: move (uint16, valid only) & value: # of votes.
     ///      Limited to 2^16-1 = 65535 votes per move option per moveIndex.
-    mapping(uint16 => mapping(uint16 => uint16)) public worldMoves;
+    mapping(uint16 => uint16) public movesToVotes; 
 
     /// @dev moveIndex maps to a dynamic array of all moves voted for the World.
     ///      Used to iterate through worldMoves
@@ -73,6 +77,20 @@ contract BettingGame is Ownable {
     /// @dev Chess board contract
     Chess public chess;
 
+    // if you can't put a dictionary into an event, then just store a map from move to index
+    // also store an array of moves and an array of votes
+    // payout is also gamened
+
+    event data(mapping(uint16 => uint16) movesToVotes, mapping(address => uint96) worldStakes, mapping(address => uint96) leelaStakes); 
+
+    event payout(bool leelaWon);
+
+    event movePlayed(uint16 move);
+
+    event stakeMade(address player, bool leelaSide);
+
+    event voteMade(address player, uint16 move);
+
     modifier nonReentrancy() {
         require(locked == 0, 'ReentrancyGuard: reentrant call');
         locked = 1;
@@ -81,12 +99,12 @@ contract BettingGame is Ownable {
     }
 
     modifier onlyDuringStakePeriod() {
-        require(block.timestamp < stakePeriodEnd, 'Stake period has ended');
+        require(block.timestamp <= stakePeriodEnd, 'Stake period has ended');
         _;
     }
 
     modifier onlyAfterStakingPeriod() {
-        require(stakePeriodEnd != 0 && block.timestamp >= stakePeriodEnd, 'Stake period has not ended or initiated');
+        require(stakePeriodEnd != 0 && block.timestamp > stakePeriodEnd, 'Stake period has not ended or initiated');
         _;
     }
 
@@ -95,14 +113,26 @@ contract BettingGame is Ownable {
         _;
     }
 
-    modifier canPayout() {
-        require(gameEnded, 'Game has not ended');
-        _;
+    // modifier canPayout() {
+    //     require(gameEnded, 'Game has not ended');
+    //     _;
+    // }
+
+    // constructor(address _chess) {
+    //     chess = Chess(_chess);
+    //     chess.initializeGame();
+    // }
+
+    constructor() {
+        chess = Chess(CHESS_ADDRESS); // not sure if this is right
+        chess.initializeGame();
     }
 
-    constructor(address _chess) {
-        chess = Chess(_chess);
-        chess.initializeGame();
+    function getGameIndex() public pure{
+        return gameIndex;
+    }
+    function getMoveIndex() public pure{
+        return moveIndex;
     }
 
     /// @dev Modify staking duration.
@@ -111,43 +141,48 @@ contract BettingGame is Ownable {
     }
 
     /// @dev Start staking period, can be called multiple times to delay the end of staking period.
-    function startStake() public onlyOwner {
+    function startStake() internal{
         stakePeriodEnd = block.timestamp + stakePeriodDuration;
     }
 
     /// @dev Stakes a bet on Leela or World for the game, called by user.
     ///      Only allows bet on one side for each user.
     /// @todo: Only ETH stake or any ERC-20 as well? Below impl is only ETH
-    function addStake(Side side) public payable nonReentrancy onlyDuringStakePeriod {
+    function addStake(bool leelaSide) public payable nonReentrancy onlyDuringStakePeriod {
         require(msg.value >= minStake, 'Received ETH is less than min stake');
 
         // Unchecked because user won't have enough ETH to overflow
-        if (side == Side.World) {
-            require(leelaBets[msg.sender] == 0, 'User already bet on other side');
+        if (!leelaSide) {
+            // require(leelaBets[msg.sender] == 0, 'User already bet on other side');
+            //I like the economics of betting arbitrage. I would love for arbitragers to bet on both sides and collect the reward before game end.
             unchecked { 
                 worldBets[msg.sender] += msg.value;
+                // worldShares[msg.sender] += msg.value/worldPoolSize;
                 worldPoolSize += msg.value;
             }
         } else {
-            require(worldBets[msg.sender] == 0, 'User already bet on other side');
+            // require(worldBets[msg.sender] == 0, 'User already bet on other side');
             unchecked {
                 leelaBets[msg.sender] += msg.value;
+                // leelaShares[msg.sender] += msg.value/leelaPoolSize;
                 leelaPoolSize += msg.value;
             }
         }
+        emit data(movesToVotes, worldStakes, leelaStakes); 
+        emit stakeMade(msg.sender, leelaSide);
+
     }
 
     /// @dev For voting on a move for the World
     /// TODO: Should we give more voting weight for users with more stake? (stake-dependent voting weight)
-    ///       Should we let ONLY the users who staked on the World vote? (because Leela stakers are biased for Leela)
+    ///       Should we let ONLY the users who staked on the World vote? (because Leela stakers are biased for Leela) -- NO
     function voteWorldMove(uint16 move) public nonReentrancy onlyStaker {
-        require(move != 0, 'Invalid move'); // 0 == 0x0000
-        require(worldMoveVoters[idx][msg.sender] == 0, 'User already voted for this move index');
-
         // Verify the move is valid, reverts if invalid.
         // Skip if 0x1000, 0x2000, 0x3000 (request draw, accept draw, resign)
+        require(move != 0, 'Invalid move'); // 0 == 0x0000
+        require(worldMoveVoters[idx][msg.sender] == 0, 'User already voted for this move index');
         if (move != 0x1000 && move != 0x2000 && move != 0x3000) {
-            verifyPlayMove(chess.gameState, move, chess.world_state, chess.leela_state, true);
+            checkMove(chess.gameState, move, chess.world_state, chess.leela_state, true);
         }
 
         uint16 idx = chess.moveIndex; // store in memory to reduce SSLOAD
@@ -160,6 +195,8 @@ contract BettingGame is Ownable {
         // Increment vote count for the move
         worldMoves[idx][move] += 1;
         worldMoveVoters[idx][msg.sender] = move;
+        emit data(movesToVotes, worldStakes, leelaStakes); 
+        emit voteMade(msg.sender, move);
     }
 
     /// @dev Commits Leela's move
@@ -204,7 +241,7 @@ contract BettingGame is Ownable {
 
     /// @dev For executing the most voted move for the World
     /// NOTE: side 0 is the World, 1 is Leela
-    function makeMove(Side side) public nonReentrancy {
+    function makeMove() public nonReentrancy {
         bool isWorld = side == Side.World;
         uint16 move = isWorld ? getWorldMove() : getLeelaMove();
 

@@ -1,8 +1,12 @@
-// SPDX-License-Identifier: UNLICENSED
 
 pragma solidity ^0.7.6;
 import "../libraries/SafeMath.sol";
 import "../libraries/Math.sol";
+
+// SPDX-License-Identifier: UNLICENSED
+// emit the play move events and the start game events
+// betting will emit the end game events
+//optional: emit check events
 
 contract Chess {
     using SafeMath for uint256;
@@ -91,14 +95,18 @@ contract Chess {
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
    
-    event movePlayed(uint256 gameState, uint256 leela_state, uint256 world_state, bool leelaColor);
+    event movePlayed(uint256 gameState, uint256 leela_state, uint256 world_state, bool leelaColor, bool leelaMove);
+    event gameStart();
+    event check();
+
     constructor ()
     { }
 
     function initializeGame()
     public 
     {
-        // require(sender.address == LEELA_ADDRESS || sender.address == WORLD_ADDRESS )
+        // require(sender.address == WORLD_ADDRESS )
+        emit gameStart();
         gameIndex = gameIndex+1; // increment game index
         moveIndex = 0; // resets the move index
         leelaColor = !leelaColor; // alternate colors
@@ -241,7 +249,7 @@ contract Chess {
             world_state = newPlayerState;
             leela_state = newOpponentState;
         } 
-        emit(movePlayed(gameState, leelaState, worldState, leelaTurn))
+        emit(movePlayed(gameState, leelaState, worldState, leelaColor, leelaTurn))
         leelaTurn = !leelaTurn;
         
     }
