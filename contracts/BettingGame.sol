@@ -22,7 +22,9 @@ contract BettingGame is Ownable {
 
     /// @dev Minimum stake for a bet
     address constant CHESS_ADDRESS = 0x0; // TO FILL IN
-    uint96 public minStake = 0.01 ether; // should this be MATIC?
+    address constant LEELA_ADDRESS = 0x0; 
+    uint16 leelaMove;
+    uint96 public minStake = 0.01 ether; // 0.01 * 10^18 ==> ether 10^18
 
     uint16 public gameIndex = 0;
 
@@ -47,21 +49,21 @@ contract BettingGame is Ownable {
     uint256 public movePeriodDuration = 300;
 
     /// @dev World / Leela pool size (uint128 for storage packing)
-    uint128 public worldPoolSize = 1;
-    uint128 public leelaPoolSize = 1;
+    uint128 public worldPoolSize;
+    uint128 public leelaPoolSize;
+    bool public gameOngoing; // TODO incorporate this
 
+    mapping(address => uint96) public accountsPayable;
     /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
     mapping(address => uint96) public worldStakes;
     mapping(address => uint96) public leelaStakes;
 
-    // /// @dev User shares on the World / Leela. Private to keep stake size only visible to each user.
-    // mapping(address => uint96) public worldShares;
-    // mapping(address => uint96) public leelaShares;
-
-    // mapping(uint256 => uint256) validMoves; // not sure what this was intended for
+    /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
+    mapping(address => uint96) public worldShares;
+    mapping(address => uint96) public leelaShares;
 
     /// @dev Commited moves from the Chess contract, both the World & Leela.
-    uint16[] public moves;
+    uint16[] public moves; :)
 
     /// @dev moveIndex maps to a mapping of key: move (uint16, valid only) & value: # of votes.
     ///      Limited to 2^16-1 = 65535 votes per move option per moveIndex.
@@ -77,15 +79,18 @@ contract BettingGame is Ownable {
     /// @dev Chess board contract
     Chess public chess;
 
+    Leela public leela;
+
     // if you can't put a dictionary into an event, then just store a map from move to index
     // also store an array of moves and an array of votes
     // payout is also gamened
 
-    event data(mapping(uint16 => uint16) movesToVotes, mapping(address => uint96) worldStakes, mapping(address => uint96) leelaStakes); 
+    event data(mapping(uint16 => uint16) movesToVotes, mapping(address => uint96) worldStakes, mapping(address => uint96) leelaStakes,
+    mapping(address => uint96) worldShares, mapping(address => uint96) leelaShares); 
 
     event payout(bool leelaWon);
 
-    event movePlayed(uint16 move);
+    event movePlayed(uint16 move, bool isLeela);
 
     event stakeMade(address player, bool leelaSide);
 
@@ -113,28 +118,35 @@ contract BettingGame is Ownable {
         _;
     }
 
-    // modifier canPayout() {
-    //     require(gameEnded, 'Game has not ended');
-    //     _;
-    // }
 
-    // constructor(address _chess) {
-    //     chess = Chess(_chess);
-    //     chess.initializeGame();
-    // }
-
-    constructor() {
-        chess = Chess(CHESS_ADDRESS); // not sure if this is right
+    constructor(address _chess, address _leela, uint96 intialPoolSize) {
+        chess = Chess(_chess); // not sure if this is right
         chess.initializeGame();
+        leela = Leela(_leela);
+        leela.initializeLeela();
+        leelaPoolSize = intialPoolSize;
+        worldPoolSize = intialPoolSize;
+        initVal = intialPoolSize;
     }
 
-    function getGameIndex() public pure{
-        return gameIndex;
-    }
-    function getMoveIndex() public pure{
-        return moveIndex;
+    function setChess(address _chess) public onlyOwner {
+        chess = Chess(_chess);
     }
 
+     function setLeela(address _leela) public onlyOwner {
+        leela = Chess(_leela);
+    }
+
+    function setMinStake(uint256 _minStake) public onlyOwner{
+        minStake = _minStake;
+    }
+
+    function setPoolSize(uint256 _a) public onlyOwner{
+        require(!gameOngoing, "Cannot modify pool size during game");
+        leelaPoolSize = _a;
+        worldPoolSize = _a;
+        initVal = _a;
+    }
     /// @dev Modify staking duration.
     function setStakePeriod(uint256 d) public onlyOwner {
         stakePeriodDuration = d;
@@ -154,21 +166,22 @@ contract BettingGame is Ownable {
         // Unchecked because user won't have enough ETH to overflow
         if (!leelaSide) {
             // require(leelaBets[msg.sender] == 0, 'User already bet on other side');
+            // map address ->
             //I like the economics of betting arbitrage. I would love for arbitragers to bet on both sides and collect the reward before game end.
             unchecked { 
                 worldBets[msg.sender] += msg.value;
-                // worldShares[msg.sender] += msg.value/worldPoolSize;
+                worldShares[msg.sender] += msg.value*initVal/worldPoolSize;
                 worldPoolSize += msg.value;
             }
         } else {
             // require(worldBets[msg.sender] == 0, 'User already bet on other side');
             unchecked {
                 leelaBets[msg.sender] += msg.value;
-                // leelaShares[msg.sender] += msg.value/leelaPoolSize;
+                leelaShares[msg.sender] += msg.value*initVal/leelaPoolSize;
                 leelaPoolSize += msg.value;
             }
         }
-        emit data(movesToVotes, worldStakes, leelaStakes); 
+        emit data(movesToVotes, worldStakes, leelaStakes, worldShares, leelaShares); 
         emit stakeMade(msg.sender, leelaSide);
 
     }
@@ -191,19 +204,22 @@ contract BettingGame is Ownable {
         if (worldMoves[idx][move] == 0) {
             registeredWorldMoves[idx].push(move);
         }
-
         // Increment vote count for the move
-        worldMoves[idx][move] += 1;
-        worldMoveVoters[idx][msg.sender] = move;
-        emit data(movesToVotes, worldStakes, leelaStakes); 
+        // NOTE: intentional in adding both stakes to the world's move
+        worldMoves[idx][move] += worldStakes[msg.sender]+leelaStakes[msg.sender];
+        worldMoveVoters[idx][msg.sender] = move; // TODO MAKE THIS IDX THING BACK
+        //TODO delete all the data events
         emit voteMade(msg.sender, move);
     }
 
-    /// @dev Commits Leela's move
-    function commitLeelaMove(uint16 move) public onlyOwner {
-        leelaMoveUpdated = chess.moveIndex;
-        leelaMove = move;
-    }
+    //TODO cleanup function, end game function, timer check, endgame handler plus check, playmove check, grab past moves, 
+    //TODO list of votes, past game states
+
+    // /// @dev Commits Leela's move
+    // function commitLeelaMove(uint16 move) public onlyOwner {
+    //     leelaMoveUpdated = chess.moveIndex;
+    //     leelaMove = move;
+    // }
 
     /// @dev Get the most voted move for the World
     function getWorldMove() public view returns (uint16) {
@@ -228,41 +244,75 @@ contract BettingGame is Ownable {
             }
         }
 
-        // TODO: Find the mapping from Move index to the actual move accepted by the Chess contract
-
-        // No need to check if move is valid here, since it's already been checked in voteWorldMove
         return move;
     }
 
-    function getLeelaMove() public view returns (uint16) {
-        require(leelaMoveUpdated >= chess.moveIndex, 'Leela has not committed a move yet');
-        return leelaMove;
+    function updateLeelaMove(_leelaMove) public returns (uint16) {
+        require(msg.sender == address(leela));
+        leelaMove = _leelaMove;
     }
 
     /// @dev For executing the most voted move for the World
     /// NOTE: side 0 is the World, 1 is Leela
-    function makeMove() public nonReentrancy {
-        bool isWorld = side == Side.World;
-        uint16 move = isWorld ? getWorldMove() : getLeelaMove();
-
+    function makeMove() internal nonReentrancy {
+        // require (timeout thingie); not neccesary
+        //called by all other functions if timeout if true
+        // bool isWorld = side == Side.World;
+        uint16 worldMove = getWorldMove();
+        // call update leela leela contract
+        //TODO inidialize black white stae, also write a withdraw function and accounts start
+        // leelacontract initalize state, makes a move or not depending on color, and has another function updateleelastate
+        leela.updateMove();
         // uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela
         chess.playMove(
             chess.gameState,
             move,
-            isWorld ? chess.world_state : chess.leela_state,
-            isWorld ? chess.leela_state : chess.world_state,
+            chess.world_state,
+            chess.leela_state,
+            isWorld
+        );
+        bool isGameEnded = chess.checkEndgame();
+        if (isGameEnded){
+            payout(false);
+            emit playedMove(move, 0);
+            emit gameEnded(false);
+            resetGame();
+            moves.push(move);
+            return;
+        }
+        chess.playMove(
+            chess.gameState,
+            leelaMove,
+            chess.leela_state,
+            chess.world_state,
             !isWorld
         );
 
+        emit playedMove(move, leelaMove); //TODO fix the played move mapping format
         moves.push(move);
-
-        if (chess.gameEnded) {
-            endGame(chess.gameWinner);
+        moves.push(leelaMove);
+        bool isGameEnded = chess.checkEndgame();
+        if (isGameEnded){
+            payout(true);
+            resetGame();
+            emit gameEnded(true);
+            return;
         }
+        resetMove();
     }
 
-    function endGame(Side winner) public onlyOwner {
-        gameEnded = 1;
+    function restMove(){
+        // clear move
+        //reset the timer
+    }
+    function resetGame(){
+        // clear game
+        //reintilize the other contracts
+        //incerement indices
+        // emit game start event
+    }
+    function checkTimer(){
+
     }
 
     function claimPayout() public canPayout {
