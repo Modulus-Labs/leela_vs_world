@@ -2,7 +2,8 @@
 pragma solidity ^0.7.6;
 import "../libraries/SafeMath.sol";
 import "../libraries/Math.sol";
-
+import "./betting.sol";
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 // SPDX-License-Identifier: UNLICENSED
 // emit the play move events and the start game events
 // betting will emit the end game events
@@ -11,11 +12,11 @@ import "../libraries/Math.sol";
 contract Chess {
     using SafeMath for uint256;
 
-    address constant WORLD_ADDRESS = 0x0; // address of the betting 
-    address constant LEELA_ADDRESS = 0x0; // to change
-
+    /// @dev Betting contract
+    Betting public betting;
     mapping (uint16 => uint256[]) gameStateLists; // storage of the game state
-    //TODO please implement this
+    //TODO also a world and leela state array? this would be unnecessary probably
+
     uint256 public gameState = 0x0; // gameboard state
 
     uint256 public gameIndex = 0x0; // game number index
@@ -98,17 +99,23 @@ contract Chess {
 
         //TODO past game states on the chess side?
     event movePlayed(uint256 gameState, uint256 leela_state, uint256 world_state, bool leelaColor, bool leelaMove);
-    event gameStart();
-    event check();
+    event check(); // stretch goal?
 
-    constructor ()
-    { }
+    modifier bettingContract() {
+        require(msg.sender == betting, 'May only be called by the betting contract.');
+        _;
+    }
+    constructor (address _betting)
+    { 
+        betting = Betting(_betting);
+    }
 
-    function initializeGame()
-    public 
+    function setBetting(_betting) onlyOwner {
+        betting = Betting(_betting);
+    }
+
+    function initializeGame() bettingContract 
     {
-        // require(sender.address == WORLD_ADDRESS )
-        emit gameStart();
         gameIndex = gameIndex+1; // increment game index
         moveIndex = 0; // resets the move index
         leelaColor = !leelaColor; // alternate colors
@@ -170,12 +177,11 @@ contract Chess {
         @return newGameState the new game state after it's executed.
      */
     function playMove(uint16 move)
-    public
+    bettingContract 
     {
+        require
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
-        // add this line back in when we launch
-        // require((sender.address == WORLD_ADDRESS && !leelaTurn) || (sender.address == LEELA_ADDRESS && leelaTurn))
         if (currentPlayerLeela){
             uint256 playerState = leela_state;
             uint256 opponentState = world_state;
@@ -254,8 +260,6 @@ contract Chess {
         {
             uint8 fromPos = (uint8)((move >> 6) & 0x3f);
             uint8 toPos   = (uint8)(move & 0x3f);
-            // add this line back in when we launch
-            // require(sender.address == WORLD_ADDRESS || sender.address == LEELA_ADDRESS)
             if (currentPlayerLeela){
                 uint256 playerState = leela_state;
                 uint256 opponentState = world_state;

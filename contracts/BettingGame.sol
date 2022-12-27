@@ -5,13 +5,11 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import "./leela.sol";
 import "./chess.sol";
 import "./Utils.sol";
-// emit play move events with dict
-// emit staked/voted events with dict and the stake and the move
-// emit game end events with dict
-// call the initilize game with the chess contract
+
 /// @title BettingGame
 /// @dev Betting game contract for Leela Chess Zero vs. World
 ///      This contract is an individual game engine that includes the betting & payout logic.
+
 contract BettingGame is Ownable {
     /// NOTE: Variables are laid out in this particular order to pack them
     //        in as little storage slots as possible. This saves gas!
@@ -20,69 +18,7 @@ contract BettingGame is Ownable {
     //        slot 1: 96 + 16 + 8 + 8 + 8 + 16 + 16 (88 left)
     //        ...
 
-    /// @dev Minimum stake for a bet
-    address constant CHESS_ADDRESS = 0x0; // TO FILL IN
-    address constant LEELA_ADDRESS = 0x0; 
-    uint16 leelaMove;
-    uint96 public minStake = 0.01 ether; // 0.01 * 10^18 ==> ether 10^18
-
-    uint16 public gameIndex = 0;
-
-    uint16 public moveIndex = 0;
-
-    /// @dev For reentrancy guard (use uint8 for gas saving & storage packing vs. bool)
-    uint8 private locked = 0;
-
-    /// @dev Stake period deadline (uint256 for convenience when using block.timestamp)
-    uint256 public votePeriodEnd;
-
-    /// @dev Stake period duration, default 60 mins
-    uint256 public votePeriodDuration = 3600;
-
-    /// @dev Move period duration, default 5 mins
-    uint256 public movePeriodDuration = 300;
-
-    /// @dev World / Leela pool size (uint128 for storage packing)
-    uint96 public worldPoolSize; 
-    uint96 public leelaPoolSize; 
-    uint96 public initVal;
-
-
-    mapping(address => uint96) public accountsPayable;
-    // no tracking list needed, state global across games
-
-    /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
-    //state local across games
-    mapping (uint16 => mapping(address => uint96)) public worldStakes;
-    // mapping (uint16 => uint16[]) public worldStakesList;
-    mapping (uint16 => mapping(address => uint96)) public leelaStakes;
-    // mapping (uint16 => uint16[]) public leelaStakesList;
-
-    /// @dev User stakes on the World / Leela. Private to keep stake size only visible to each user.
-    //state local across games
-    mapping (uint16 => mapping(address => uint96)) public worldShares;
-    // mapping (uint16 => uint16[]) public worldSharesList;
-    mapping (uint16 => mapping(address => uint96)) public leelaShares;
-    // mapping (uint16 => uint16[]) public leelaSharesList;
-
-    /// @dev the total number of shares in the contract, used to calculate the payout
-    uint96 public totalLeelaShares;
-    mapping (uint16 => uint96) public totalWorldShares;
-
-    bool public leelaColor;
-    /// @dev moveIndex maps to a mapping of key: move (uint16, valid only) & value: # of votes.
-    ///      Limited to 2^16-1 = 65535 votes per move option per moveIndex.
-    mapping (uint16 => mapping (uint16 => mapping(uint16 => uint96))) public movesToVotes; 
-
-    /// @dev moveIndex maps to a dynamic array of all moves voted for the World.
-    ///      Used to iterate through worldMoves
-    mapping (uint16 => mapping (uint16 => uint16[])) registeredMoves; 
-
-    /// @dev Keeping track of who voted on what move for the World. the key is the move index
-    mapping (uint16 => mapping(uint16 => mapping(address => uint16))) public voters;
-    mapping (uint16 => mapping (address => bool)) public votersMap;
-    mapping (uint16 => uint256[]) public votersList;// TODO attatch this
-    // mapping (uint16 => mapping(uint16 => address[])) public votersList;
+    // INTER-GAME VARIABLES
 
     /// @dev Chess board contract
     Chess public chess;
@@ -90,15 +26,80 @@ contract BettingGame is Ownable {
     /// @dev Leela AI contract
     Leela public leela;
 
+    /// @dev Minimum stake size. 
+    uint96 public minStake = 0.01 ether;
+
+    uint16 public gameIndex = 0;
+
+    uint16 public moveIndex = 0;
+
+    /// @dev For reentrancy guard (use uint8 for gas saving & storage packing vs. bool).
+    uint8 private locked = 0;
+
+    /// @dev A map of addresses to their winnings across multiple games. Can be withdrawn from at any time, or stored to minimize gas costs.
+    mapping(address => uint96) public accountsPayable;
+
+    /// @dev Stake period duration, default 60 mins
+    uint256 public votePeriodDuration = 3600;
+
+    /// Initial empty size of betting pools, used for the calculation of shares.
+    uint96 public initVal;
+
+    // INTRA-GAME VARIABLES
+    
+    /// @dev World / Leela pool size (uint128 for storage packing),
+    uint96 public worldPoolSize; 
+    uint96 public leelaPoolSize; 
+
+    /// @dev User stakes on the World / Leela. 
+    mapping (uint16 => mapping(address => uint96)) public worldStakes;
+    mapping (uint16 => mapping(address => uint96)) public leelaStakes;
+
+    /// @dev User shares on the World / Leela.
+    mapping (uint16 => mapping(address => uint96)) public worldShares;
+    mapping (uint16 => mapping(address => uint96)) public leelaShares;
+
+    /// @dev The total number of shares in the contract, used to calculate the payout.
+    uint96 public totalLeelaShares;
+    uint96 public totalWorldShares;
+
+    /// @dev The color Leela is playing in this game -- true if white, false if black.
+    bool public leelaColor;
+
+    // INTRA-MOVE VARIABLES
+
+    /// @dev Stake period deadline, reset at the beginning of each move voting period.
+    uint256 public votePeriodEnd;
+
+    /// @dev gameIndex => moveIndex => moves => number of staked votes.
+    mapping (uint16 => mapping (uint16 => mapping(uint16 => uint96))) public movesToVotes; 
+
+    /// @dev gameIndex => moveIndex => list of all moves that have some votes.
+    mapping (uint16 => mapping (uint16 => uint16[])) registeredMoves; 
+
+    /// @dev gameIndex => moveIndex => voter address => move voted for
+    mapping (uint16 => mapping(uint16 => mapping(address => uint16))) public voters;
+
+    /// @dev gameIndex => "set" of voter addresses 
+    mapping (uint16 => mapping (address => bool)) public votersMap;
+    
+    /// @dev gameIndex => list of voter addresses 
+    mapping (uint16 => uint256[]) public votersList;//
+    
+    //EVENTS
+
+    // A move was played.
     event movePlayed(uint16 worldMove, uint16 leelaMove);
-
+    // Some player staked. 
     event stakeMade(address player, bool leelaSide);
-
+    // A vote was made with stake.
     event voteMade(address player, uint16 move);
-
+    // The game started.
     event gameStart(bool leelaColor);
-
+    // The game ended. 
     event gameEnd(bool leelaWon);
+
+    //MODIFIERS
 
     modifier nonReentrancy() {
         require(locked == 0, 'ReentrancyGuard: reentrant call');
@@ -106,6 +107,8 @@ contract BettingGame is Ownable {
         _;
         locked = 0;
     }
+
+    // CONSTRUCTOR AND VARIABLE SETTING FUNCTIONS
 
     constructor(address _chess, address _leela, uint96 intialPoolSize) {
         chess = Chess(_chess); // not sure if this is right
@@ -117,9 +120,7 @@ contract BettingGame is Ownable {
         initVal = intialPoolSize;
         leelaColor = false;
     }
-    function checkTimer() returns (bool) {
-        return (votePeriodEnd != 0 && block.timestamp > votePeriodEnd);
-    }
+    
     function setChess(address _chess) public onlyOwner {
         chess = Chess(_chess);
     }
@@ -138,27 +139,29 @@ contract BettingGame is Ownable {
         worldPoolSize = _a;
         initVal = _a;
     }
+
+    // ACTION FUNCTIONS 
+
     /// @dev Modify staking duration.
     function setVotePeriod(uint256 d) public onlyOwner {
         votePeriodDuration = d;
     }
 
-    /// @dev Start staking period, can be called multiple times to delay the end of staking period.
+    /// @dev Check if the current timer has expired.
+    function checkTimer() internal returns (bool) {
+        return (votePeriodEnd != 0 && block.timestamp > votePeriodEnd);
+    }
+
+    /// @dev Start staking period.
     function startVoteTimer() internal{
         votePeriodEnd = block.timestamp + votePeriodDuration;
     }
 
     /// @dev Stakes a bet on Leela or World for the game, called by user.
-    ///      Only allows bet on one side for each user.
     /// @todo: Only ETH stake or any ERC-20 as well? Below impl is only ETH
     function addStake(bool leelaSide) public payable nonReentrancy {
         require(msg.value >= minStake, 'Received ETH is less than min stake');
-
-        // Unchecked because user won't have enough ETH to overflow
         if (!leelaSide) {
-            // require(leelaBets[msg.sender] == 0, 'User already bet on other side');
-            // map address ->
-            //I like the economics of betting arbitrage. I would love for arbitragers to bet on both sides and collect the reward before game end.
             unchecked { 
                 worldStakes[gameIndex][msg.sender] += msg.value;
                 worldShares[gameIndex][msg.sender] += msg.value*initVal/worldPoolSize;
@@ -166,7 +169,6 @@ contract BettingGame is Ownable {
                 worldPoolSize += msg.value;
             }
         } else {
-            // require(worldBets[msg.sender] == 0, 'User already bet on other side');
             unchecked {
                 leelaStakes[gameIndex][msg.sender] += msg.value;
                 leelaShares[gameIndex][msg.sender] += msg.value*initVal/leelaPoolSize;
@@ -186,10 +188,7 @@ contract BettingGame is Ownable {
     }
    
     /// @dev For voting on a move for the World
-    /// TODO: Should we give more voting weight for users with more stake? (stake-dependent voting weight)
-    ///       Should we let ONLY the users who staked on the World vote? (because Leela stakers are biased for Leela) -- NO
     function voteWorldMove(uint16 move) public nonReentrancy {
-        // Verify the move is valid, reverts if invalid.
         // Skip if 0x1000, 0x2000, 0x3000 (request draw, accept draw, resign)
         require(move != 0, 'Invalid move'); // 0 == 0x0000
         require(voters[gameIndex][moveIndex][msg.sender] == 0, 'User already voted for this move index');
@@ -201,7 +200,6 @@ contract BettingGame is Ownable {
             registeredMoves[gameIndex][moveIndex].push(move);
         }
         // Increment vote count for the move
-        // NOTE: intentional in adding both stakes to the world's move
         movesToVotes[gameIndex][moveIndex][move] += worldStakes[gameIndex][msg.sender]+leelaStakes[gameIndex][msg.sender];
         voters[gameIndex][moveIndex][msg.sender] = move; 
         emit voteMade(msg.sender, move);
@@ -211,8 +209,13 @@ contract BettingGame is Ownable {
         }
     }
 
-    //TODO cleanup function, end game function, timer check, endgame handler plus check, playmove check, grab past moves, 
-
+    /// @dev allows anyone to call this function to play the next move(s) if the timer has ended.
+    function callTimerOver() public {
+        bool timerOver= checkTimer();
+        if (timeOver) {
+            makeMove();
+        }
+    }
 
     // /// @dev Commits Leela's move
     // function commitLeelaMove(uint16 move) public onlyOwner {
@@ -244,7 +247,6 @@ contract BettingGame is Ownable {
     }
 
     /// @dev For executing the most voted move for the World
-    /// NOTE: side 0 is the World, 1 is Leela
     function makeMove() internal nonReentrancy {
         uint16 worldMove = getWorldMove();
         uint15 _leelaMove = leela.getMove();
@@ -286,11 +288,13 @@ contract BettingGame is Ownable {
         resetMove();
     }
 
+    /// @dev reset the moveIndex and timer.
     function resetMove(){
         moveIndex = moves.length;
         startVoteTimer();
     }
     
+    /// @dev reset the game.
     function resetGame(){
         worldPoolSize = initVal;
         leelaPoolSize = initVal;
