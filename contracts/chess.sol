@@ -14,6 +14,8 @@ contract Chess {
     address constant WORLD_ADDRESS = 0x0; // address of the betting 
     address constant LEELA_ADDRESS = 0x0; // to change
 
+    mapping (uint16 => uint256[]) gameStateLists; // storage of the game state
+    //TODO please implement this
     uint256 public gameState = 0x0; // gameboard state
 
     uint256 public gameIndex = 0x0; // game number index
@@ -119,14 +121,7 @@ contract Chess {
             world_state = 0x383f3cff;
         }
         leelaTurn = leelaColor;
-            
-    }
-
-    function getGameIndex() public pure{
-        return gameIndex;
-    }
-    function getMoveIndex() public pure{
-        return moveIndex;
+        gameStateLists[gameIndex].push(game_state_start);
     }
 
     function convertToCircuit() public pure returns 
@@ -251,7 +246,7 @@ contract Chess {
         } 
         emit(movePlayed(gameState, leelaState, worldState, leelaColor, leelaTurn))
         leelaTurn = !leelaTurn;
-        
+        gameStateLists[gameIndex].push(gameState);
     }
 
     function checkMove(uint16 move, bool currentPlayerLeela)
