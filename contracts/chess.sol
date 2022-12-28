@@ -1,21 +1,34 @@
-// SPDX-License-Identifier: UNLICENSED
 
 pragma solidity ^0.7.6;
 import "../libraries/SafeMath.sol";
 import "../libraries/Math.sol";
+import "./betting.sol";
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+// SPDX-License-Identifier: UNLICENSED
+// emit the play move events and the start game events
+// betting will emit the end game events
+//optional: emit check events
 
 contract Chess {
     using SafeMath for uint256;
 
-    address constant WORLD_ADDRESS = 0x0;
-    address constant LEELA_ADDRESS = 0x0; // to change
-    uint256 public gameState = 0x0; // gameboard state 
+    /// @dev Betting contract
+    Betting public betting;
+    mapping (uint16 => uint256[]) gameStateLists; // storage of the game state
+    //TODO also a world and leela state array? this would be unnecessary probably
+
+    uint256 public gameState = 0x0; // gameboard state
+
     uint256 public gameIndex = 0x0; // game number index
+
     uint256 public moveIndex = 0x0; // move index
+
     bool public leelaColor = false; // originally Leela is playing black
 
+    bool public leelaTurn = false; // is it Leela's turn
+
     /** @dev    Initial white state:
-                    0f: 15 (non-king) pieces left
+                    
                     00: Queen-side rook at a1 position
                     07: King-side rook at h1 position
                     04: King at e1 position
@@ -24,7 +37,7 @@ contract Chess {
     uint32 world_state = 0x000704ff;
 
         /** @dev    Initial black state:
-                    0f: 15 (non-king) pieces left
+                    
                     38: Queen-side rook at a8 position
                     3f: King-side rook at h8 position
                     3c: King at e8 position
@@ -39,7 +52,7 @@ contract Chess {
     uint8 constant rook_const   = 0x4; // 100
     uint8 constant queen_const  = 0x5; // 101
     uint8 constant king_const   = 0x6; // 110
-    uint8 constant type_mask_const   = 0x7;
+    uint8 constant type_mask_const   = 0x7; //111
     uint8 constant color_const  = 0x8;
 
     uint8 constant piece_bit_size = 4;
@@ -59,7 +72,6 @@ contract Chess {
     uint32 constant king_move_mask   = 0x80800000;
 
     uint16 constant pieces_left_bit = 32;
-
 
 
     uint8 constant king_white_start_pos = 0x04;
@@ -85,12 +97,24 @@ contract Chess {
     uint256 constant invalid_move_constant =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-   
+        //TODO past game states on the chess side?
+    event movePlayed(uint256 gameState, uint256 leela_state, uint256 world_state, bool leelaColor, bool leelaMove);
+    event check(); // stretch goal?
 
-    constructor ()
-    { }
-    function initializeGame()
-    internal
+    modifier bettingContract() {
+        require(msg.sender == betting, 'May only be called by the betting contract.');
+        _;
+    }
+    constructor (address _betting)
+    { 
+        betting = Betting(_betting);
+    }
+
+    function setBetting(_betting) onlyOwner {
+        betting = Betting(_betting);
+    }
+
+    function initializeGame() bettingContract 
     {
         gameIndex = gameIndex+1; // increment game index
         moveIndex = 0; // resets the move index
@@ -103,12 +127,45 @@ contract Chess {
             leela_state = 0x000704ff; // reset white and black states
             world_state = 0x383f3cff;
         }
-            
+        leelaTurn = leelaColor;
+        gameStateLists[gameIndex].push(game_state_start);
     }
-    function convertToCircruit() public pure returns 
-    (uint256[][]){
-        uint256[][] answer = [];
-        
+
+    function convertToCircuit() public pure returns 
+    (uint256 [][][]){
+        uint256 memory board[112][8][8];
+        for (uint k = 0; k<8; k++){
+            for (uint i = 0; i<8; i++){
+                for (uint j = 0; j<8; j++){
+                    uint8 piece = gameState[8*i+j];
+                    if (piece != 0){
+                        piece = (piece>8)? piece-3: piece-1;
+                        board[piece+k*13][i][j] = 1;
+                    }
+                }
+            }
+        } // wp = 0, ...bp = 6. bk = 11
+        uint32 white_state = (leelaColor)? leela_state: world_state;
+        uint32 black_state = (leelaColor)? world_state: leela_state;
+        bool white_king = ((white_state >> 8) && ff == 3c);
+        bool white_king_rook = ((white_state >> 16) && ff == 3f);
+        bool white_queen_rook = ((white_state >> 24) && ff == 38);
+        bool black_king = ((black_state >> 8) && ff == 04);
+        bool black_king = ((black_state >> 16) && ff == 07);
+        bool black_king = ((black_state >> 24) && ff == 00);
+        for (uint i = 0; i<8; i++){
+            for (uint j = 0; j<8; j++){
+                board[104][i][j] = white_king && white_king_rook; // white king side castling, white queen side castling 
+                board[105][i][j] = white_king && white_queen_rook;
+                board[106][i][j] = black_king && black_queen_rook; // black queen side castling, black king side castling
+                board[107][i][j] = black_king && black_king_rook;
+                board[108][i][j] = leelaTurn;
+                board[109][i][j] = false;
+                board[101][i][j] = false;
+                board[111][i][j] = true;
+            }
+        }
+        return board;
     }
     /**
         @dev Calculates the outcome of a single move given the current game state.
@@ -119,15 +176,20 @@ contract Chess {
         @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
-    function playMove(uint256 gameState, uint16 move, uint32 playerState, uint32 opponentState, bool currentPlayerLeela)
-    public
+    function playMove(uint16 move)
+    bettingContract 
     {
+        require
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
-
-        // add this line back in when we launch
-        // require(sender.address == WORLD_ADDRESS || sender.address == LEELA_ADDRESS)
-
+        if (currentPlayerLeela){
+            uint256 playerState = leela_state;
+            uint256 opponentState = world_state;
+        }
+        else{
+            uint256 playerState = world_state;
+            uint256 opponentState = start_state;
+        }
         require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(gameState, fromPos);
         // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
@@ -180,7 +242,7 @@ contract Chess {
         newOpponentState = opponentState | en_passant_const;
         require (!checkForCheck(gameState, opponentState), "You can't make a move that keeps you in check.");
         gameState = newGameState;
-        if (currentPlayerLeela){
+        if (leelaTurn){
             leela_state = newPlayerState;
             world_state = newOpponentState;
         }
@@ -188,8 +250,61 @@ contract Chess {
             world_state = newPlayerState;
             leela_state = newOpponentState;
         } 
-        
+        emit(movePlayed(gameState, leelaState, worldState, leelaColor, leelaTurn))
+        leelaTurn = !leelaTurn;
+        gameStateLists[gameIndex].push(gameState);
     }
+
+    function checkMove(uint16 move, bool currentPlayerLeela)
+        public pure returns (bool)
+        {
+            uint8 fromPos = (uint8)((move >> 6) & 0x3f);
+            uint8 toPos   = (uint8)(move & 0x3f);
+            if (currentPlayerLeela){
+                uint256 playerState = leela_state;
+                uint256 opponentState = world_state;
+            }
+            else{
+                uint256 playerState = world_state;
+                uint256 opponentState = start_state;
+            }
+            require(fromPos != toPos, "You must move the piece at least one step.");
+            uint8 fromPiece = pieceAtPosition(gameState, fromPos);
+            // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
+            uint8 fromType = fromPiece & type_mask_const;
+            newPlayerState = playerState;
+            newOpponentState = opponentState;
+            if (fromType == pawn_const)
+            {
+                return checkPawnValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, uint32 opponentState, bool currentTurnBlack);
+            }
+        
+            else if (fromType == knight_const)
+            {
+                return checkKnightValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            }
+            else if (fromType == bishop_const)
+            {
+                return checkBishopValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            }
+            else if (fromType == rook_const)
+            {
+                return checkRookValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            }
+            else if (fromType == queen_const)
+            {
+                return checkQueenValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            }
+            else if (fromType == king_const)
+            {
+                return checkKingValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            }
+            else
+            {
+                return false;
+            }
+            
+        }
 
     /**
         @dev Calculates the outcome of a single move of a pawn given the current game state.
