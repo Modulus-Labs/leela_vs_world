@@ -119,6 +119,8 @@ contract BettingGame is Ownable {
         worldPoolSize = intialPoolSize;
         initVal = intialPoolSize;
         leelaColor = false;
+        leelaTurn = false; // reset this at rest game
+
     }
     
     function setChess(address _chess) public onlyOwner {
@@ -137,15 +139,15 @@ contract BettingGame is Ownable {
         require((leelaPoolSize == initVal) && (worldPoolSize == initVal), "Cannot modify pool size once pools are nonempty.");
         leelaPoolSize = _a;
         worldPoolSize = _a;
-        initVal = _a;
+        initVal = _a;// dont  need require
     }
-
-    // ACTION FUNCTIONS 
 
     /// @dev Modify staking duration.
     function setVotePeriod(uint256 d) public onlyOwner {
         votePeriodDuration = d;
     }
+
+    // ACTION FUNCTIONS 
 
     /// @dev Check if the current timer has expired.
     function checkTimer() internal returns (bool) {
@@ -164,7 +166,7 @@ contract BettingGame is Ownable {
         if (!leelaSide) {
             unchecked { 
                 worldStakes[gameIndex][msg.sender] += msg.value;
-                worldShares[gameIndex][msg.sender] += msg.value*initVal/worldPoolSize;
+                worldShares[gameIndex][msg.sender] += msg.value*initVal/worldPoolSize; 
                 totalWorldShares += msg.value*initVal/worldPoolSize;
                 worldPoolSize += msg.value;
             }
@@ -192,9 +194,11 @@ contract BettingGame is Ownable {
         // Skip if 0x1000, 0x2000, 0x3000 (request draw, accept draw, resign)
         require(move != 0, 'Invalid move'); // 0 == 0x0000
         require(voters[gameIndex][moveIndex][msg.sender] == 0, 'User already voted for this move index');
+
         if (move != 0x1000 && move != 0x2000 && move != 0x3000) {
-            checkMove(chess.gameState, move, chess.world_state, chess.leela_state, true);
+            require(checkMove(chess.gameState, move, chess.world_state, chess.leela_state, true), "Submitted invalid move.");
         }
+
         // Save the move if it's the first vote for the move
         if (movesToVotes[gameIndex][moveIndex][move] == 0) {
             registeredMoves[gameIndex][moveIndex].push(move);
@@ -226,14 +230,11 @@ contract BettingGame is Ownable {
     /// @dev Get the most voted move for the World
     function getWorldMove() public view returns (uint16) {
         uint16 move; // default 0x0000
-
         // store vars in memory to minimize storage reads (SSLOAD)
-        uint16 idx = chess.moveIndex;
         uint16[] memory registered = registeredMoves[gameIndex][moveIndex];
         uint16 maxVotes = 0;
-
         for (uint32 i = 0; i < registered.length;) {
-            uint16 votes = movesToVotes[gameIndex][registered[i]];
+            uint16 votes = movesToVotes[gameIndex][moveIndex][registered[i]];
             if (votes > maxVotes) {
                 move = registered[i];
                 maxVotes = votes;
@@ -242,7 +243,6 @@ contract BettingGame is Ownable {
                 i++; // save gas since # of moves per moveIndex won't overflow 2^32-1
             }
         }
-
         return move;
     }
 
