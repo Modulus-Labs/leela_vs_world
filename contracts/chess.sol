@@ -312,10 +312,10 @@ contract Chess {
             {
                 return false;
             }
-            if (newGameState != invalid_move_constant){
+            if ((newGameState != invalid_move_constant) && !checkForCheck(newGameState, opponentState)){
                 return true;
             }
-                return false;
+            return false;
         }
     /**
         @dev Calculates the outcome of a single move of a pawn given the current game state.
