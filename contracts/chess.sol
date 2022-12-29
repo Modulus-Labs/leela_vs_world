@@ -8,14 +8,14 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 // emit the play move events and the start game events
 // betting will emit the end game events
 //optional: emit check events
-
+// TODO do leela turn and leela color logic (no leela turn in betting)
 contract Chess {
     using SafeMath for uint256;
 
     /// @dev Betting contract
     Betting public betting;
-    mapping (uint16 => uint256[]) gameStateLists; // storage of the game state
-    //TODO also a world and leela state array? this would be unnecessary probably
+    mapping (uint16 => uint256[]) public gameStateLists; // storage of the game state
+    //TODO store the pieces too
 
     uint256 public gameState = 0x0; // gameboard state
 
