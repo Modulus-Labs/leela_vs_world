@@ -191,7 +191,6 @@ contract Chess {
         require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(boardState, fromPos);
         bool currentTurnBlack = (!leelaTurn && leelaColor) || (leelaTurn && !leelaColor);
-        // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
         uint8 fromType = fromPiece & type_mask_const;
         uint32 newPlayerState = playerState;
         uint32 newOpponentState = opponentState;
@@ -275,28 +274,48 @@ contract Chess {
             require(fromPos != toPos, "You must move the piece at least one step.");
             uint8 fromPiece = pieceAtPosition(gameState, fromPos);
             // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
-            uint8 pieceType = fromPiece & type_mask_const;
+            uint8 fromType = fromPiece & type_mask_const;
             uint32 newPlayerState = playerState;
-            uint32 newOpponentState = opponentState;
-            if ((pieceType == king_const) && checkKingValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+            uint256 newGameState;
+            if (fromType == pawn_const)
+            {
+                (newGameState, newPlayerState) =
+                    verifyExecutePawnMove(boardState, fromPos, toPos, (uint8)(move >> 12), currentTurnBlack, playerState, opponentState);
+            }
+            else if (fromType == knight_const)
+            {
+                newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos, currentTurnBlack);
+            }
+            else if (fromType == bishop_const)
+            {
+                newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos, currentTurnBlack);
+            }
+            else if (fromType == rook_const)
+            {
+                newGameState = verifyExecuteRookMove(boardState, fromPos, toPos, currentTurnBlack);
+                // Reset playerState if necessary when one of the rooks move
+                if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
+                    newPlayerState =  playerState | rook_king_side_move_mask;
+                } else if (fromPos == (uint8)(playerState >> rook_queen_side_move_bit)) {
+                    newPlayerState =  playerState | rook_queen_side_move_mask;
+                }
+            }
+            else if (fromType == queen_const)
+            {
+            newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos, currentTurnBlack);
+            }
+            else if (fromType == king_const)
+            {
+                (newGameState, newPlayerState) = verifyExecuteKingMove(boardState, fromPos, toPos, currentTurnBlack, playerState);
+            }
+            else
+            {
+                return false;
+            }
+            if (newGameState != invalid_move_constant){
                 return true;
             }
-            else if ((pieceType == pawn_const) && checkPawnValidMoves(gameState, pos, playerState, opponentState, currentTurnBlack)) {
-                return true;
-            }
-            else if ((pieceType == knight_const) && checkKnightValidMoves(gameState, pos, playerState, currentTurnBlack)) {
-                return true;
-            }
-            else if ((pieceType == rook_const) && checkRookValidMoves(gameState, pos, playerState, currentTurnBlack)) {
-                return true;
-            }
-            else if ((pieceType == bishop_const) && checkBishopValidMoves(gameState, pos, playerState, currentTurnBlack)) {
-                return true;
-            }
-            else if ((pieceType == queen_const) && checkQueenValidMoves(gameState, pos, playerState, currentTurnBlack)) {
-                return true;
-            }
-            return false;
+                return false;
         }
     /**
         @dev Calculates the outcome of a single move of a pawn given the current game state.
