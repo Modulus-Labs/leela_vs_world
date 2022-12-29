@@ -200,7 +200,7 @@ contract BettingGame is Ownable {
  
        // Save the move if it's the first vote for the move
        if (movesToVotes[gameIndex][moveIndex][move] == 0) {
-           registeredMoves.push(move);
+           registeredMoves[gameIndex][moveIndex].push(move);
        }
        // Increment vote count for the move
        movesToVotes[gameIndex][moveIndex][move] += worldStakes[gameIndex][msg.sender]+leelaStakes[gameIndex][msg.sender];
@@ -300,7 +300,7 @@ contract BettingGame is Ownable {
        for (uint i = 0;i<listVoters.length; i++){
            uint256 accountShares = winningAccounts[listVoters[i]];
            uint256 totalPayout = leelaPoolSize+worldPoolSize - 2*initVal;
-           accountsPayable[account]+= accountShares* (totalPayout)/(totalShares);
+           accountsPayable[msg.sender]+= accountShares* (totalPayout)/(totalShares);
        }
    }
    function claimPayout() public {
