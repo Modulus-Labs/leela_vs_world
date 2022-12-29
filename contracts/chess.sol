@@ -19,9 +19,9 @@ contract Chess {
 
     uint256 public boardState = 0x0; // gameboard state
 
-    uint256 public gameIndex = 0x0; // game number index
+    uint16 public gameIndex = 0x0; // game number index
 
-    uint256 public moveIndex = 0x0; // move index
+    uint16 public moveIndex = 0x0; // move index
 
     bool public leelaColor = false; // originally Leela is playing black
 
@@ -131,7 +131,7 @@ contract Chess {
         gameStateLists[gameIndex].push(game_state_start);
     }
 
-    function convertToCircuit() public pure returns 
+    function convertToCircuit() public view returns 
     (uint256 [][][]){
         uint256 memory board[112][8][8];
         for (uint k = 0; k<8; k++){
@@ -178,20 +178,24 @@ contract Chess {
     {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
+        uint32 playerState;
+        uint32 opponentState;
         if (leelaTurn){
-            uint256 playerState = leela_state;
-            uint256 opponentState = world_state;
+            playerState = leela_state;
+            opponentState = world_state;
         }
         else{
-            uint256 playerState = world_state;
-            uint256 opponentState = start_state;
+            playerState = world_state;
+            opponentState = leela_state;
         }
         require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(boardState, fromPos);
+        bool currentTurnBlack = (!leelaTurn && leelaColor) || (leelaTurn && !leelaColor);
         // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
         uint8 fromType = fromPiece & type_mask_const;
-        newPlayerState = playerState;
-        newOpponentState = opponentState;
+        uint32 newPlayerState = playerState;
+        uint32 newOpponentState = opponentState;
+        uint256 newGameState;
         if (fromType == pawn_const)
         {
             (newGameState, newPlayerState) =
@@ -252,25 +256,28 @@ contract Chess {
     }
 
     function checkMove(uint16 move)
-        public pure returns (bool)
+        public view returns (bool)
         {
             uint256 gameState = boardState;
             uint8 fromPos = (uint8)((move >> 6) & 0x3f);
             uint8 toPos   = (uint8)(move & 0x3f);
+            uint32 playerState;
+            uint32 opponentState;
+            bool currentTurnBlack = (!leelaTurn && leelaColor) || (leelaTurn && !leelaColor);
             if (leelaTurn){
-                uint256 playerState = leela_state;
-                uint256 opponentState = world_state;
+                playerState = leela_state;
+                opponentState = world_state;
             }
             else{
-                uint256 playerState = world_state;
-                uint256 opponentState = start_state;
+                playerState = world_state;
+                opponentState = leela_state;
             }
             require(fromPos != toPos, "You must move the piece at least one step.");
             uint8 fromPiece = pieceAtPosition(gameState, fromPos);
             // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
             uint8 pieceType = fromPiece & type_mask_const;
-            newPlayerState = playerState;
-            newOpponentState = opponentState;
+            uint32 newPlayerState = playerState;
+            uint32 newOpponentState = opponentState;
             if ((pieceType == king_const) && checkKingValidMoves(gameState, pos, playerState, currentTurnBlack)) {
                 return true;
             }
@@ -524,7 +531,6 @@ contract Chess {
     returns (bool)
     {
         uint256 newGameState;
-        uint256 newPlayerState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Queen's movement */
 
@@ -608,7 +614,6 @@ contract Chess {
     returns (bool)
     {
         uint256 newGameState;
-        uint256 newPlayerState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Bishop's movement */
 
@@ -656,7 +661,6 @@ contract Chess {
     returns (bool)
     {
         uint256 newGameState;
-        uint256 newPlayerState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Rook's movement */
 
@@ -921,16 +925,18 @@ contract Chess {
         @return outcome can be 0 for inconclusive/only check, 1 stalemate, 2 checkmate
      */
     function checkEndgame()
-    public pure
+    public view
     returns (uint8) {
-        gameState = boardState;
+        uint256 gameState = boardState;
+        uint32 playerState;
+        uint32 opponentState;
         if (leelaTurn){
-            uint256 playerState = leela_state;
-            uint256 opponentState = world_state;
+            playerState = leela_state;
+            opponentState = world_state;
         }
         else{
-            uint256 playerState = world_state;
-            uint256 opponentState = start_state;
+            playerState = world_state;
+            opponentState = leela_state;
         }
         uint8 kingPiece = (uint8)(gameState >> ((uint8)(playerState >> king_pos_bit) << piece_pos_shift_bit)) & 0xF;
         assert((kingPiece & (~color_const)) == king_const);
