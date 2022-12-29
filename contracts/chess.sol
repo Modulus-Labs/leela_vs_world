@@ -1,7 +1,7 @@
 
 pragma solidity ^0.8.0;
-import "../SafeMath.sol";
-import "../Math.sol";
+import "./SafeMath.sol";
+import "./Math.sol";
 import "./betting.sol";
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 // SPDX-License-Identifier: UNLICENSED
