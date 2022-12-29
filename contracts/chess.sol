@@ -179,7 +179,6 @@ contract Chess {
     function playMove(uint16 move)
     bettingContract 
     {
-        require
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
         if (currentPlayerLeela){
@@ -250,7 +249,7 @@ contract Chess {
             world_state = newPlayerState;
             leela_state = newOpponentState;
         } 
-        emit(movePlayed(gameState, leelaState, worldState, leelaColor, leelaTurn))
+        emit movePlayed(gameState, leela_state, world_state, leelaColor, leelaTurn);
         leelaTurn = !leelaTurn;
         gameStateLists[gameIndex].push(gameState);
     }
@@ -271,41 +270,29 @@ contract Chess {
             require(fromPos != toPos, "You must move the piece at least one step.");
             uint8 fromPiece = pieceAtPosition(gameState, fromPos);
             // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
-            uint8 fromType = fromPiece & type_mask_const;
+            uint8 pieceType = fromPiece & type_mask_const;
             newPlayerState = playerState;
             newOpponentState = opponentState;
-            if (fromType == pawn_const)
-            {
-                return checkPawnValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, uint32 opponentState, bool currentTurnBlack);
+            if ((pieceType == king_const) && checkKingValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+                return true;
             }
-        
-            else if (fromType == knight_const)
-            {
-                return checkKnightValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            else if ((pieceType == pawn_const) && checkPawnValidMoves(gameState, pos, playerState, opponentState, currentTurnBlack)) {
+                return true;
             }
-            else if (fromType == bishop_const)
-            {
-                return checkBishopValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            else if ((pieceType == knight_const) && checkKnightValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+                return true;
             }
-            else if (fromType == rook_const)
-            {
-                return checkRookValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            else if ((pieceType == rook_const) && checkRookValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+                return true;
             }
-            else if (fromType == queen_const)
-            {
-                return checkQueenValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            else if ((pieceType == bishop_const) && checkBishopValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+                return true;
             }
-            else if (fromType == king_const)
-            {
-                return checkKingValidMoves(uint256 gameState, uint8 fromPos, uint32 playerState, bool currentTurnBlack);
+            else if ((pieceType == queen_const) && checkQueenValidMoves(gameState, pos, playerState, currentTurnBlack)) {
+                return true;
             }
-            else
-            {
-                return false;
-            }
-            
+            return false;
         }
-
     /**
         @dev Calculates the outcome of a single move of a pawn given the current game state.
              Returns invalid_move_constant for invalid movement.
