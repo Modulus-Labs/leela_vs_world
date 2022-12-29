@@ -1,5 +1,5 @@
 
-pragma solidity ^0.7.6;
+pragma solidity ^0.8.0;
 import "../libraries/SafeMath.sol";
 import "../libraries/Math.sol";
 import "./betting.sol";
@@ -15,7 +15,7 @@ contract Chess {
     /// @dev Betting contract
     Betting public betting;
     mapping (uint16 => uint256[]) public gameStateLists; // storage of the game state
-    //TODO store the pieces too
+    //#frontend
 
     uint256 public boardState = 0x0; // gameboard state
 
@@ -87,7 +87,7 @@ contract Chess {
     uint8 constant draw_outcome      = 0x1;
     uint8 constant white_win_outcome = 0x2;
     uint8 constant black_win_outcome = 0x3;
-
+    /// @dev the game state is stored as 64 4 bit integers representing pieces. The game board iterates A8-H8, A7-H7, ... , A1-H1. 
     uint256 constant game_state_start =
         0xcbaedabc99999999000000000000000000000000000000001111111143265234;
 
@@ -131,42 +131,42 @@ contract Chess {
         gameStateLists[gameIndex].push(game_state_start);
     }
 
-    function convertToCircuit() public view returns 
-    (uint256 [][][]){
-        uint256 memory board[112][8][8];
-        for (uint k = 0; k<8; k++){
-            for (uint i = 0; i<8; i++){
-                for (uint j = 0; j<8; j++){
-                    uint8 piece = boardState[8*i+j];
-                    if (piece != 0){
-                        piece = (piece>8)? piece-3: piece-1;
-                        board[piece+k*13][i][j] = 1;
-                    }
-                }
-            }
-        } // wp = 0, ...bp = 6. bk = 11
-        uint32 white_state = (leelaColor)? leela_state: world_state;
-        uint32 black_state = (leelaColor)? world_state: leela_state;
-        bool white_king = ((white_state >> 8) && ff == 3c);
-        bool white_king_rook = ((white_state >> 16) && ff == 3f);
-        bool white_queen_rook = ((white_state >> 24) && ff == 38);
-        bool black_king = ((black_state >> 8) && ff == 04);
-        bool black_king = ((black_state >> 16) && ff == 07);
-        bool black_king = ((black_state >> 24) && ff == 00);
-        for (uint i = 0; i<8; i++){
-            for (uint j = 0; j<8; j++){
-                board[104][i][j] = white_king && white_king_rook; // white king side castling, white queen side castling 
-                board[105][i][j] = white_king && white_queen_rook;
-                board[106][i][j] = black_king && black_queen_rook; // black queen side castling, black king side castling
-                board[107][i][j] = black_king && black_king_rook;
-                board[108][i][j] = leelaTurn;
-                board[109][i][j] = false;
-                board[101][i][j] = false;
-                board[111][i][j] = true;
-            }
-        }
-        return board;
-    }
+    // function convertToCircuit() public view returns 
+    // (uint256 [][][]){
+    //     uint256 memory board[112][8][8];
+    //     for (uint k = 0; k<8; k++){
+    //         for (uint i = 0; i<8; i++){
+    //             for (uint j = 0; j<8; j++){
+    //                 uint8 piece = boardState[8*i+j];
+    //                 if (piece != 0){
+    //                     piece = (piece>8)? piece-3: piece-1;
+    //                     board[piece+k*13][i][j] = 1;
+    //                 }
+    //             }
+    //         }
+    //     } // wp = 0, ...bp = 6. bk = 11
+    //     uint32 white_state = (leelaColor)? leela_state: world_state;
+    //     uint32 black_state = (leelaColor)? world_state: leela_state;
+    //     bool white_king = ((white_state >> 8) && ff == 3c);
+    //     bool white_king_rook = ((white_state >> 16) && ff == 3f);
+    //     bool white_queen_rook = ((white_state >> 24) && ff == 38);
+    //     bool black_king = ((black_state >> 8) && ff == 04);
+    //     bool black_king = ((black_state >> 16) && ff == 07);
+    //     bool black_king = ((black_state >> 24) && ff == 00);
+    //     for (uint i = 0; i<8; i++){
+    //         for (uint j = 0; j<8; j++){
+    //             board[104][i][j] = white_king && white_king_rook; // white king side castling, white queen side castling 
+    //             board[105][i][j] = white_king && white_queen_rook;
+    //             board[106][i][j] = black_king && black_queen_rook; // black queen side castling, black king side castling
+    //             board[107][i][j] = black_king && black_king_rook;
+    //             board[108][i][j] = leelaTurn;
+    //             board[109][i][j] = false;
+    //             board[101][i][j] = false;
+    //             board[111][i][j] = true;
+    //         }
+    //     }
+    //     return board;
+    // }
     /**
        
         @param move is the move to execute: 16-bit var, high word = from pos, low word = to pos
@@ -310,7 +310,7 @@ contract Chess {
             }
             else
             {
-                return false;
+                return false; //TODO write descriptive erros functions?
             }
             if ((newGameState != invalid_move_constant) && !checkForCheck(newGameState, opponentState)){
                 return true;

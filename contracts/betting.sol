@@ -4,7 +4,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  
 import "./leela.sol";
 import "./chess.sol";
- 
+// SPDX-License-Identifier: UNLICENSED
 /// @title BettingGame
 /// @dev Betting game contract for Leela Chess Zero vs. World
 ///      This contract is an individual game engine that includes the betting & payout logic.
@@ -278,7 +278,7 @@ contract BettingGame is Ownable {
        }
        startVoteTimer();
    }
-  
+  //TODO make the checkmove into a try function? chat with jdub
    /// @dev reset the game.
    function resetGame() internal{
        worldPoolSize = initVal;
