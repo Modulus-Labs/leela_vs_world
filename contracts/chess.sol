@@ -17,7 +17,7 @@ contract Chess {
     mapping (uint16 => uint256[]) public gameStateLists; // storage of the game state
     //TODO store the pieces too
 
-    uint256 public gameState = 0x0; // gameboard state
+    uint256 public boardState = 0x0; // gameboard state
 
     uint256 public gameIndex = 0x0; // game number index
 
@@ -137,7 +137,7 @@ contract Chess {
         for (uint k = 0; k<8; k++){
             for (uint i = 0; i<8; i++){
                 for (uint j = 0; j<8; j++){
-                    uint8 piece = gameState[8*i+j];
+                    uint8 piece = boardState[8*i+j];
                     if (piece != 0){
                         piece = (piece>8)? piece-3: piece-1;
                         board[piece+k*13][i][j] = 1;
@@ -168,20 +168,17 @@ contract Chess {
         return board;
     }
     /**
-        @dev Calculates the outcome of a single move given the current game state.
-             Reverts for invalid movement.
-        @param gameState current game state on which to perform the movement.
+       
         @param move is the move to execute: 16-bit var, high word = from pos, low word = to pos
                 move can also be: resign, request draw, accept draw.
-        @param currentTurnBlack true if it's black turn
-        @return newGameState the new game state after it's executed.
+      
      */
     function playMove(uint16 move)
     bettingContract 
     {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos   = (uint8)(move & 0x3f);
-        if (currentPlayerLeela){
+        if (leelaTurn){
             uint256 playerState = leela_state;
             uint256 opponentState = world_state;
         }
@@ -190,7 +187,7 @@ contract Chess {
             uint256 opponentState = start_state;
         }
         require(fromPos != toPos, "You must move the piece at least one step.");
-        uint8 fromPiece = pieceAtPosition(gameState, fromPos);
+        uint8 fromPiece = pieceAtPosition(boardState, fromPos);
         // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
         uint8 fromType = fromPiece & type_mask_const;
         newPlayerState = playerState;
@@ -198,19 +195,19 @@ contract Chess {
         if (fromType == pawn_const)
         {
             (newGameState, newPlayerState) =
-                verifyExecutePawnMove(gameState, fromPos, toPos, (uint8)(move >> 12), currentTurnBlack, playerState, opponentState);
+                verifyExecutePawnMove(boardState, fromPos, toPos, (uint8)(move >> 12), currentTurnBlack, playerState, opponentState);
         }
         else if (fromType == knight_const)
         {
-            newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos, currentTurnBlack);
+            newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos, currentTurnBlack);
         }
         else if (fromType == bishop_const)
         {
-            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos, currentTurnBlack);
+            newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos, currentTurnBlack);
         }
         else if (fromType == rook_const)
         {
-            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos, currentTurnBlack);
+            newGameState = verifyExecuteRookMove(boardState, fromPos, toPos, currentTurnBlack);
             // Reset playerState if necessary when one of the rooks move
             if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
                 newPlayerState =  playerState | rook_king_side_move_mask;
@@ -220,11 +217,11 @@ contract Chess {
         }
         else if (fromType == queen_const)
         {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos, currentTurnBlack);
+            newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos, currentTurnBlack);
         }
         else if (fromType == king_const)
         {
-            (newGameState, newPlayerState) = verifyExecuteKingMove(gameState, fromPos, toPos, currentTurnBlack, playerState);
+            (newGameState, newPlayerState) = verifyExecuteKingMove(boardState, fromPos, toPos, currentTurnBlack, playerState);
         }
         else
         {
@@ -239,8 +236,8 @@ contract Chess {
             }
         }
         newOpponentState = opponentState | en_passant_const;
-        require (!checkForCheck(gameState, opponentState), "You can't make a move that keeps you in check.");
-        gameState = newGameState;
+        require (!checkForCheck(boardState, opponentState), "You can't make a move that keeps you in check.");
+        boardState = newGameState;
         if (leelaTurn){
             leela_state = newPlayerState;
             world_state = newOpponentState;
@@ -249,17 +246,18 @@ contract Chess {
             world_state = newPlayerState;
             leela_state = newOpponentState;
         } 
-        emit movePlayed(gameState, leela_state, world_state, leelaColor, leelaTurn);
+        emit movePlayed(boardState, leela_state, world_state, leelaColor, leelaTurn);
         leelaTurn = !leelaTurn;
-        gameStateLists[gameIndex].push(gameState);
+        gameStateLists[gameIndex].push(boardState);
     }
 
-    function checkMove(uint16 move, bool currentPlayerLeela)
+    function checkMove(uint16 move)
         public pure returns (bool)
         {
+            uint256 gameState = boardState;
             uint8 fromPos = (uint8)((move >> 6) & 0x3f);
             uint8 toPos   = (uint8)(move & 0x3f);
-            if (currentPlayerLeela){
+            if (leelaTurn){
                 uint256 playerState = leela_state;
                 uint256 opponentState = world_state;
             }
@@ -922,9 +920,18 @@ contract Chess {
         @param playerState State of the player
         @return outcome can be 0 for inconclusive/only check, 1 stalemate, 2 checkmate
      */
-    function checkEndgame(uint256 gameState, uint32 playerState, uint32 opponentState)
+    function checkEndgame()
     public pure
     returns (uint8) {
+        gameState = boardState;
+        if (leelaTurn){
+            uint256 playerState = leela_state;
+            uint256 opponentState = world_state;
+        }
+        else{
+            uint256 playerState = world_state;
+            uint256 opponentState = start_state;
+        }
         uint8 kingPiece = (uint8)(gameState >> ((uint8)(playerState >> king_pos_bit) << piece_pos_shift_bit)) & 0xF;
         assert((kingPiece & (~color_const)) == king_const);
         bool legalMoves = searchPiece(gameState, playerState, opponentState, color_const & kingPiece, 0, 256);

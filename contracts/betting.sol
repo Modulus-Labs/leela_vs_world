@@ -195,12 +195,12 @@ contract BettingGame is Ownable {
        require(voters[gameIndex][moveIndex][msg.sender] == 0, 'User already voted for this move index');
  
        if (move != 0x1000 && move != 0x2000 && move != 0x3000) {
-           require(chess.checkMove(chess.gameState, move, chess.world_state, chess.leela_state, true), "Submitted invalid move.");
+           require(chess.checkMove(move), "Submitted invalid move.");
        }
  
        // Save the move if it's the first vote for the move
        if (movesToVotes[gameIndex][moveIndex][move] == 0) {
-           moves.push(move);
+           registeredMoves.push(move);
        }
        // Increment vote count for the move
        movesToVotes[gameIndex][moveIndex][move] += worldStakes[gameIndex][msg.sender]+leelaStakes[gameIndex][msg.sender];
@@ -251,11 +251,7 @@ contract BettingGame is Ownable {
        uint15 _leelaMove = leela.getMove();
        leelaMove = _leelaMove;
        chess.playMove(
-           chess.gameState,
-           move,
-           chess.world_state,
-           chess.leela_state,
-           isWorld
+        worldMove
        );
        moveIndex++;
        bool isGameEnded = chess.checkEndgame();
@@ -267,11 +263,7 @@ contract BettingGame is Ownable {
            return;
        }
        chess.playMove(
-           chess.gameState,
-           leelaMove,
-           chess.leela_state,
-           chess.world_state,
-           !isWorld
+           leelaMove
        );
        moveIndex++;
        emit movePlayed(worldMove, leelaMove);
