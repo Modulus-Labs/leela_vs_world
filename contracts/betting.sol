@@ -77,7 +77,7 @@ contract BettingGame is Ownable {
    mapping (uint16 => mapping (uint16 => mapping(uint16 => uint256))) public movesToVotes;
  
    /// @dev gameIndex => moveIndex => list of all moves that have some votes.
-   mapping (uint16 => mapping (uint16 => uint16[])) registeredMoves;
+   mapping (uint16 => mapping (uint16 => uint16[])) public registeredMoves;
  
    /// @dev gameIndex => moveIndex => voter address => move voted for
    mapping (uint16 => mapping(uint16 => mapping(address => uint16))) public voters;
