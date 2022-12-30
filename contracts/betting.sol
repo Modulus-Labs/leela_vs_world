@@ -1,6 +1,6 @@
 pragma solidity >=0.8.0;
  
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Ownable} from '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
  
 import "./leela.sol";
 import "./chess.sol";
@@ -109,33 +109,38 @@ contract BettingGame is Ownable {
        _;
        locked = 0;
    }
- 
+//     modifier onlyOwner() {
+//       require(msg.sender == owner, "Not owner");
+//       _;
+//    }
    // CONSTRUCTOR AND VARIABLE SETTING FUNCTIONS
  
    constructor(address _chess, address _leela, uint256 initialPoolSize) {
        chess = Chess(_chess); // not sure if this is right
        chess.initializeGame();
        leela = Leela(_leela);
-       moves = leela.initializeLeela();
+       registeredMoves[0][0] = leela.initializeLeela();
        leelaPoolSize = initialPoolSize;
        worldPoolSize = initialPoolSize;
        initVal = initialPoolSize;
        leelaColor = false;
+       gameIndex = 0;
+       moveIndex = 0;
    }
   
-   function setChess(address _chess) public onlyOwner {
+   function setChess(address _chess) public onlyOwner {//onlyOwner
        chess = Chess(_chess);
    }
  
-    function setLeela(address _leela) public onlyOwner {
-       leela = Chess(_leela);
+    function setLeela(address _leela) public onlyOwner {//onlyOwner
+       leela = Leela(_leela);
    }
  
-   function setMinStake(uint256 _minStake) public onlyOwner{
+   function setMinStake(uint256 _minStake) public onlyOwner {//onlyOwner
        minStake = _minStake;
    }
  
-   function setPoolSize(uint256 _a) public onlyOwner{
+   function setPoolSize(uint256 _a) public onlyOwner {//onlyOwner
        require((leelaPoolSize == initVal) && (worldPoolSize == initVal), "Cannot modify pool size once pools are nonempty.");
        leelaPoolSize = _a;
        worldPoolSize = _a;
@@ -143,7 +148,7 @@ contract BettingGame is Ownable {
    }
  
    /// @dev Modify staking duration.
-   function setVotePeriod(uint256 d) public onlyOwner {
+   function setVotePeriod(uint256 d) public onlyOwner {//onlyOwner
        votePeriodDuration = d;
    }
  
@@ -248,14 +253,14 @@ contract BettingGame is Ownable {
    /// @dev For executing the most voted move for the World
    function makeMove() internal nonReentrancy {
        uint16 worldMove = getWorldMove();
-       uint15 _leelaMove = leela.getMove();
+       uint16 _leelaMove = leela.getMove();
        leelaMove = _leelaMove;
        chess.playMove(
         worldMove
        );
        moveIndex++;
-       bool isGameEnded = chess.checkEndgame();
-       if (isGameEnded){
+       uint8 isGameEnded = chess.checkEndgame();
+       if (isGameEnded != 0){
            updateAccounts(false);
            emit movePlayed(worldMove, 0);
            emit gameEnd(false);
@@ -270,7 +275,7 @@ contract BettingGame is Ownable {
        registeredMoves[gameIndex][moveIndex].push(worldMove);
        registeredMoves[gameIndex][moveIndex].push(leelaMove);
        isGameEnded = chess.checkEndgame();
-       if (isGameEnded){
+       if (isGameEnded == 0){
            updateAccounts(true);
            resetGame();
            emit gameEnd(true);
