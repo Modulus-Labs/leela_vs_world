@@ -1,7 +1,7 @@
 pragma solidity >=0.8.0;
  
 import {Ownable} from '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
- 
+import "../node_modules/hardhat-console/contracts/console.sol";
 import "./leela.sol";
 import "./chess.sol";
 // SPDX-License-Identifier: UNLICENSED
@@ -116,10 +116,15 @@ contract BettingGame is Ownable {
    // CONSTRUCTOR AND VARIABLE SETTING FUNCTIONS
  
    constructor(address _chess, address _leela, uint256 initialPoolSize) {
-       chess = Chess(_chess); // not sure if this is right
-       chess.initializeGame();
+       console.log("Hello World 0");
+       chess = Chess(_chess); // not sure if this is right <- something is wrong with this logic
+       console.log("Hello World 1");
        leela = Leela(_leela);
+       console.log("Hello World 2");
        registeredMoves[0][0] = leela.initializeLeela();
+       console.log("Hello World 3");
+       chess.initializeGame();
+       console.log("Hello World 4");
        leelaPoolSize = initialPoolSize;
        worldPoolSize = initialPoolSize;
        initVal = initialPoolSize;
@@ -128,19 +133,19 @@ contract BettingGame is Ownable {
        moveIndex = 0;
    }
   
-   function setChess(address _chess) public onlyOwner {//onlyOwner
+   function setChess(address _chess) public onlyOwner {
        chess = Chess(_chess);
    }
  
-    function setLeela(address _leela) public onlyOwner {//onlyOwner
+    function setLeela(address _leela) public onlyOwner {
        leela = Leela(_leela);
    }
  
-   function setMinStake(uint256 _minStake) public onlyOwner {//onlyOwner
+   function setMinStake(uint256 _minStake) public onlyOwner {
        minStake = _minStake;
    }
  
-   function setPoolSize(uint256 _a) public onlyOwner {//onlyOwner
+   function setPoolSize(uint256 _a) public onlyOwner {
        require((leelaPoolSize == initVal) && (worldPoolSize == initVal), "Cannot modify pool size once pools are nonempty.");
        leelaPoolSize = _a;
        worldPoolSize = _a;
@@ -148,7 +153,7 @@ contract BettingGame is Ownable {
    }
  
    /// @dev Modify staking duration.
-   function setVotePeriod(uint256 d) public onlyOwner {//onlyOwner
+   function setVotePeriod(uint256 d) public onlyOwner {
        votePeriodDuration = d;
    }
  
@@ -311,7 +316,7 @@ contract BettingGame is Ownable {
    function claimPayout() public {
        // TODO not sure if this logic is correct
        uint payoutAmount;
-       require(accountsPayable[msg.sender]>=payoutAmount);
+       require(accountsPayable[msg.sender]>=payoutAmount, "must have money in account");
        accountsPayable[msg.sender] -= payoutAmount;
        (bool sent, ) = msg.sender.call{value: payoutAmount}('');
        require(sent, 'Failed to send payout.');
