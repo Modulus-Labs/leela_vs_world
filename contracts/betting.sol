@@ -163,7 +163,9 @@ contract BettingGame is Ownable {
    function checkTimer() internal view returns (bool) {
        return (votePeriodEnd != 0 && block.timestamp > votePeriodEnd);
    }
- 
+    function getTimeLeft() public view returns (uint256){
+        return (votePeriodEnd - block.timestamp);
+    }
    /// @dev Start staking period.
    function startVoteTimer() internal{
        votePeriodEnd = block.timestamp + votePeriodDuration;
