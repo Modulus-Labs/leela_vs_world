@@ -4,19 +4,20 @@ import "./safemath.sol";
 import "./math.sol";
 import "./betting.sol";
 import {Ownable} from '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
+import "../node_modules/hardhat-console/contracts/console.sol";
+
 // SPDX-License-Identifier: UNLICENSED
 // emit the play move events and the start game events
 // betting will emit the end game events
 //optional: emit check events
 // TODO do leela turn and leela color logic (no leela turn in betting)
-contract Chess {
+contract Chess is Ownable{
     using SafeMath for uint256;
     // using BettingGame for Betting;
     /// @dev Betting contract
     BettingGame public betting;
     mapping (uint16 => uint256[]) public gameStateLists; // storage of the game state
     //#frontend
-    address owner;
     uint256 public boardState = 0x0; // gameboard state
 
     uint16 public gameIndex = 0x0; // game number index
@@ -105,10 +106,7 @@ contract Chess {
         require(msg.sender == address(betting), 'May only be called by the betting contract.');
         _;
     }
-    modifier onlyOwner {
-      require(msg.sender == owner);
-      _;
-    }
+    
     constructor (address _betting)
     { 
         betting = BettingGame(payable(_betting));
@@ -118,11 +116,15 @@ contract Chess {
         betting = BettingGame(payable(_betting));
     }
 
-    function initializeGame() bettingContract public
+    function initializeGame() public bettingContract
     {
+        console.log("Hello World 5");
         gameIndex = gameIndex+1; // increment game index
+        console.log("Hello World 6");
         moveIndex = 0; // resets the move index
+        console.log("Hello World 7");
         leelaColor = !leelaColor; // alternate colors
+        console.log("Hello World 8");
         if (!leelaColor){
             world_state = 0x000704ff; // world state is white if Leela is playing black
             leela_state = 0x383f3cff;
@@ -131,7 +133,9 @@ contract Chess {
             leela_state = 0x000704ff; // reset white and black states
             world_state = 0x383f3cff;
         }
+        console.log("Hello World 9");
         leelaTurn = leelaColor;
+        console.log("Hello World 10");
         gameStateLists[gameIndex].push(game_state_start);
     }
 

@@ -3,12 +3,10 @@ node_modules
 coverage
 coverage.json
 typechain
-package-lock.json
-package.json
-scripts
-test
-hardhat-config.json
+typechain-types
 
-#Hardhat files
+# Hardhat files
 cache
 artifacts
+
+.DS_Store
