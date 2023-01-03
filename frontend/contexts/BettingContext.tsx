@@ -62,22 +62,27 @@ export const BettingContextProvider = ({
     try {
       let newValidMoves: ChessMoveBet[];
       // TODO: interact with contract to fetch valid moves
+
       newValidMoves = [
         {
           move: 'Rdf8',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('7.6'),
         },
         {
           move: 'Qh4e1',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('1.0'),
         },
         {
           move: 'Bxe5',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('0.4'),
         },
         {
           move: 'Nf3',
           amount: ethers.utils.parseEther('0.2'),
+        },
+        {
+          move: 'Df2',
+          amount: ethers.utils.parseEther('0.1'),
         },
       ];
       console.log('newValidMoves: ', newValidMoves);
@@ -106,33 +111,37 @@ export const BettingContextProvider = ({
     return () => clearInterval(prizePoolIncrmementor);
   }, []);
 
-  // Placeholder to simulate the changing bids on next moves
-  useEffect(() => {
-    const bidInterval = setInterval(() => {
-      const randomIndex = Math.floor(validMoves.length * Math.random());
-      setValidMoves((currValidMoves) => {
-        currValidMoves[randomIndex].amount = currValidMoves[
-          randomIndex
-        ].amount.add(ethers.utils.parseEther('0.5'));
-        if (
-          currValidMoves[randomIndex].amount.gte(ethers.utils.parseEther('5'))
-        ) {
-          const resetNewMoves = currValidMoves.map(({ move }) => ({
-            move,
-            amount: ethers.utils.parseEther('0.5'),
-          }));
-          return [...resetNewMoves];
-        }
-        currValidMoves = currValidMoves
-          .sort((moveA, moveB) =>
-            moveA.amount.sub(moveB.amount).gte('0') ? 1 : -1
-          )
-          .reverse();
-        return [...currValidMoves];
-      });
-    }, 500);
-    return () => clearInterval(bidInterval);
-  }, [initialValidMovesIsSet]);
+  // // Placeholder to simulate the changing bids on next moves
+  // useEffect(() => {
+  //   const bidInterval = setInterval(() => {
+  //     const randomIndex = Math.floor(validMoves.length * Math.random());
+
+  //     setValidMoves((currValidMoves) => {
+  //       currValidMoves[randomIndex].amount = currValidMoves[
+  //         randomIndex
+  //       ].amount.add(ethers.utils.parseEther('0.5'));
+
+  //       if (currValidMoves[randomIndex].amount.gte(ethers.utils.parseEther('5'))) {
+  //         const resetNewMoves = currValidMoves.map(({ move }) => ({
+  //           move,
+  //           amount: ethers.utils.parseEther('0.5'),
+  //         }));
+  //         return [...resetNewMoves];
+  //       }
+        
+  //       currValidMoves = currValidMoves
+  //         .sort((moveA, moveB) =>
+  //           moveA.amount.sub(moveB.amount).gte('0') ? 1 : -1
+  //         )
+  //         .reverse();
+        
+  //       return [...currValidMoves];
+  //     });
+  //   }, 500);
+
+  //   return () => clearInterval(bidInterval);
+
+  // }, [initialValidMovesIsSet]);
 
   // ----------
 

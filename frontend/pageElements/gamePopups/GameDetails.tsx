@@ -2,6 +2,7 @@ import { motion, Variants } from 'framer-motion';
 import Image from 'next/image';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useArcadeMachineContext } from '../../contexts/ArcadeMachineContext';
+import { useBettingContext } from '../../contexts/BettingContext';
 import { GamePopup } from './GamePopup';
 
 const ButtonVariants: Variants = {
@@ -38,9 +39,9 @@ const LeelaWorldButton: FC<LeelaWorldButtonProps> = ({
 };
 
 export const GameDetails: FC = () => {
-  const { setShowGameDetails, setShowGameInstructions, prizePoolAmount } =
+  const { setShowGameDetails, setShowGameInstructions } =
     useArcadeMachineContext();
-
+  const {prizePoolAmount} = useBettingContext();
   const [powerAmount, setPowerAmount] = useState('0');
 
   return (
