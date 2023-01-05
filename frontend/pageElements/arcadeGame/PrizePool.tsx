@@ -8,7 +8,7 @@ export const PrizePool: FC = () => {
   return (
     <div className="relative h-full w-full bg-[url(/PrizePoolDisplay.svg)] bg-contain bg-no-repeat">
       <p className="absolute left-44 top-2 bg-transparent font-bold">
-        {prizePoolAmount.toFixed(1)} ETH
+        {prizePoolAmount.toFixed(1)} MATIC
       </p>
       <div className="absolute left-2 top-9 right-4 h-5">
         <motion.div

@@ -126,10 +126,15 @@ contract BettingGame is Ownable {
        chess.initializeGame();
        console.log("Hello World 4");
        leelaPoolSize = initialPoolSize;
+       console.log("Hello World 11");
        worldPoolSize = initialPoolSize;
+       console.log("Hello World 12");
        initVal = initialPoolSize;
+       console.log("Hello World 13");
        leelaColor = false;
+       console.log("Hello World 14");
        gameIndex = 0;
+       console.log("Hello World 15");
        moveIndex = 0;
    }
   
@@ -313,6 +318,7 @@ contract BettingGame is Ownable {
            accountsPayable[msg.sender]+= accountShares* (totalPayout)/(totalShares);
        }
    }
+   
    function claimPayout() public {
        // TODO not sure if this logic is correct
        uint payoutAmount;

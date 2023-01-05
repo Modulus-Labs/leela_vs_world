@@ -8,14 +8,16 @@ import { VotingPanel } from '../pageElements/arcadeGame/votingPanel/VotingPanel'
 import { useArcadeMachineContext } from '../contexts/ArcadeMachineContext';
 import { GameDetails } from '../pageElements/gamePopups/GameDetails';
 import { GameInstructions } from '../pageElements/gamePopups/GameInstructions';
+import { GameEarnings } from '../pageElements/gamePopups/GameEarnings';
 import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
 import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModulousLabs';
 import { useMediaQueryContext } from '../contexts/MediaQueryContext';
 import { ScreenTooSmall } from '../pageElements/ScreenTooSmall';
+import { ArcadeFooter } from '../pageElements/arcadeGame/ArcadeFooter';
 
 export default function Home() {
   const { isDesktop } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails } = useArcadeMachineContext();
+  const { showGameInstructions, showGameDetails, showGameEarnings } = useArcadeMachineContext();
 
   if (isDesktop) {
     return <ScreenTooSmall />;
@@ -36,6 +38,7 @@ export default function Home() {
           <ArcadeHeader />
           <CreatedByModulousLabs />
           <ArcadeControls />
+          <ArcadeFooter />
           <div className="relative mx-[16.5rem] mt-10  h-[410px]">
             {showGameDetails && (
               <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
@@ -45,6 +48,11 @@ export default function Home() {
             {showGameInstructions && (
               <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
                 <GameInstructions />
+              </div>
+            )}
+            {showGameEarnings && (
+              <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
+                <GameEarnings />
               </div>
             )}
             <div className="relative grid grid-cols-2 gap-x-2 px-7 pt-2">

@@ -49,7 +49,7 @@ export const GameDetails: FC = () => {
       <div className="relative mx-auto mt-4 h-24 w-[80%] bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
         <div className="ml-36 flex w-60 flex-col gap-y-1 pt-8 text-sm">
           <div className="border-2 border-off-white px-2 text-off-white">
-            {prizePoolAmount.toFixed(2)} ETH
+            {prizePoolAmount.toFixed(2)} MATIC
           </div>
           <div className="border-2 border-off-white px-2 text-off-white">
             10%

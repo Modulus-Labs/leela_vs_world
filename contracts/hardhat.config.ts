@@ -4,19 +4,34 @@ import "hardhat-gas-reporter";
 import "hardhat-tracer"
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.17",
+  solidity: {
+    version: "0.8.17",
+    settings: { 
+      optimizer: { 
+        enabled: true, 
+        runs: 500, 
+        details: { 
+          yul: false }, 
+        }, 
+      },
+
+  },
+
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
       gas: "auto",
       gasPrice: "auto",
       gasMultiplier: 4,
-    }
+    },
+    
   },
+
   gasReporter: {
     enabled: true,
-  }
+  },
 
+  
 };
 
 export default config;
