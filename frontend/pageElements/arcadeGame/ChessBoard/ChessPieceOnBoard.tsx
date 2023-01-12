@@ -70,7 +70,7 @@ export const ChessPieceOnBoard: FC<ChessPieceOnBoardProps> = ({
   }
 
   let chessPieceColor = '';
-  if (chessPiece < 16) {
+  if (chessPiece > 5) {
     chessPieceColor = 'bg-off-black text-off-white';
   } else {
     chessPieceColor = 'bg-off-white text-off-black';

@@ -55,12 +55,10 @@ export const ChessBoard: FC = () => {
   return (
     <div className="pr-[3.8rem]">
       <div className="grid-col-8 grid h-[17rem] w-full grid-rows-8 bg-[url(/ChessBoard.svg)] bg-contain bg-no-repeat pl-4 pb-4">
-        {Object.keys(selectedChessBoard).map((chessPieceKey) => {
-          const chessPiece = Number(chessPieceKey) as ChessPiece;
-          const { row, column } = selectedChessBoard[chessPiece];
+        {selectedChessBoard.map(({ chessPiece, row, column }, index) => {
           return (
             <ChessPieceOnBoard
-              key={chessPieceKey}
+              key={index}
               chessPiece={chessPiece}
               row={row}
               column={column}

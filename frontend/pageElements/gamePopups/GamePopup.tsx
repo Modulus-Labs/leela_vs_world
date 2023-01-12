@@ -37,14 +37,14 @@ export const GamePopup: FC<GamePopupProps> = ({ children, onClick }) => {
       variants={BackgroundVariants}
       initial="hidden"
       animate="show"
-      className="relative h-72 w-[500px] bg-[url(/ChessboardBackground.svg)] bg-contain bg-no-repeat"
+      className="relative min-h-[650px] w-[1150px] bg-[url(/ChessboardBackground.svg)] bg-contain bg-no-repeat pt-[50px]"
     >
-      <div className="absolute right-0 top-0">
+      <div className="absolute right-[15px] top-[15px]">
         <motion.button
           variants={ButtonVariants}
           initial="initial"
           whileTap="tap"
-          className="relative h-7 w-7"
+          className="relative h-[50px] w-[50px]"
           onClick={onClick}
         >
           <Image

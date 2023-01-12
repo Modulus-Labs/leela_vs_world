@@ -79,8 +79,23 @@ export const BettingContextProvider = ({
           move: 'Nf3',
           amount: ethers.utils.parseEther('0.2'),
         },
+        {
+          move: 'Qh4xe1',
+          amount: ethers.utils.parseEther('0.2'),
+        },
+        {
+          move: 'Be5',
+          amount: ethers.utils.parseEther('0.2'),
+        },
+        {
+          move: 'Nc6',
+          amount: ethers.utils.parseEther('0.2'),
+        },
+        {
+          move: 'e8Q',
+          amount: ethers.utils.parseEther('0.2'),
+        },
       ];
-      console.log('newValidMoves: ', newValidMoves);
       setValidMoves([...newValidMoves]);
       setInitialValidMovesIsSet(true);
     } catch (error) {

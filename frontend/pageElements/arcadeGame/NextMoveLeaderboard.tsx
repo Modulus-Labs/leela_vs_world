@@ -14,17 +14,17 @@ export const NextMoveLeaderboard: FC = () => {
   if (validMoves.length === 0) return null;
 
   return (
-    <div className="h-36 w-full bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-3 pt-8 pb-4">
-      <div className="flex flex-col justify-between">
+    <div className="h-full w-full bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-[20px] pt-[65px] pb-[22.5px]">
+      <div className="h-full overflow-y-scroll">
         {validMoves.map(({ move, amount }, index) => (
           <div
             key={move}
             className={clsx(
-              'flex flex-row justify-between px-2',
+              'flex h-[25%] flex-row items-center justify-between px-[15px] text-3xl',
               index % 2 === 0 && 'bg-emerald-green'
             )}
           >
-            <p className="font-bold">{move}</p>
+            <p>{move}</p>
             <p>{ethers.utils.formatEther(amount)} ETH</p>
           </div>
         ))}

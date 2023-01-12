@@ -1,3 +1,4 @@
+import { BigNumber, Contract } from 'ethers';
 import {
   createContext,
   Dispatch,
@@ -7,14 +8,24 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { CHESS_TEST_CONTRACT_ADDRESS } from '../contracts/ContractAddresses';
 import {
   BOARD_0,
   BOARD_1,
 } from '../pageElements/arcadeGame/ChessBoard/ChessBoardDefaults';
-import { ChessBoardData, ChessPiece } from '../types/Chess.type';
+import {
+  ChessBoardData,
+  ChessColumnMapping,
+  ChessPiece,
+  ChessPieceMapping,
+  ChessRow,
+} from '../types/Chess.type';
+import ChessTestArtifact from '../contracts/ChessTest.json';
+import { useSigner } from 'wagmi';
 
 interface ChessGameContextInterface {
   selectedChessBoard: ChessBoardData;
+  getChessBoardFromContract: () => Promise<void>;
 
   canKeepGoingBackInHistory: () => boolean;
   goBackOneBoardInHistory: () => void;
@@ -32,8 +43,17 @@ export const ChessGameContextProvider = ({
 }: {
   children: ReactNode;
 }) => {
+  const { data: signer } = useSigner();
+
+  const ChessTestContract = new Contract(
+    CHESS_TEST_CONTRACT_ADDRESS,
+    ChessTestArtifact.abi,
+    signer || undefined
+  );
+
   const [currChessBoard, setCurrChessBoard] = useState<ChessBoardData>(BOARD_0);
   const [prevChessBoards, setPrevChessBoards] = useState<ChessBoardData[]>([
+    BOARD_0,
     BOARD_1,
   ]);
 
@@ -54,40 +74,37 @@ export const ChessGameContextProvider = ({
     }
   }, [selectedChessBoardIndex]);
 
-  // Move pawns up and down one space
   useEffect(() => {
-    // 8 - 15 B_PAWN
-    // 24 - 31 W_PAWN
-    const movePawnInterval = setInterval(() => {
-      let chessPieceNum = Math.floor(turnNum % 16);
-      if (chessPieceNum % 2 === 0) {
-        chessPieceNum = chessPieceNum / 2 + 8;
-      } else {
-        chessPieceNum = (chessPieceNum - 1) / 2 + 24;
-      }
-      const newCurrChessBoard = currChessBoard;
-      const chosenChessPiece = newCurrChessBoard[chessPieceNum as ChessPiece];
-      switch (chosenChessPiece.row) {
-        case 2:
-          chosenChessPiece.row = 3;
-          break;
-        case 3:
-          chosenChessPiece.row = 2;
-          break;
-        case 6:
-          chosenChessPiece.row = 7;
-          break;
-        case 7:
-          chosenChessPiece.row = 6;
-          break;
-      }
-      newCurrChessBoard[chessPieceNum as ChessPiece] = chosenChessPiece;
-      setCurrChessBoard({ ...newCurrChessBoard });
-      setTurnNum(turnNum + 1);
-    }, 250);
+    if (signer) {
+      getChessBoardFromContract();
+    }
+  }, [signer]);
 
-    return () => clearInterval(movePawnInterval);
-  });
+  // Temporarily sets the test chess contract to be the most recent prev chess game
+  const getChessBoardFromContract = async () => {
+    try {
+      const gameState = (await ChessTestContract.getGameState()) as BigNumber[];
+      let newBoard: ChessBoardData = [];
+      for (let i = 0; i < gameState.length; i++) {
+        if (gameState[i].eq('0')) continue;
+        const chessPiece = ChessPieceMapping[gameState[i].toString()];
+        const row = (((Math.floor(i / 8) + 8) % 8) + 1) as ChessRow;
+        const column = ChessColumnMapping[i % 8];
+        newBoard.push({
+          chessPiece,
+          row,
+          column,
+        });
+      }
+      console.log(newBoard);
+      console.log(gameState);
+      const newPrevChessBoards = [...prevChessBoards];
+      newPrevChessBoards[0] = newBoard;
+      setPrevChessBoards([...newPrevChessBoards]);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const canKeepGoingBackInHistory = (): boolean => {
     // (prevChessBoards.length + 1) == number of chess boards including current chess board
@@ -114,10 +131,51 @@ export const ChessGameContextProvider = ({
     }
   };
 
+  // --- Simulations ---
+
+  // Move pawns up and down one space
+  useEffect(() => {
+    // 8 - 15 B_PAWN
+    // 24 - 31 W_PAWN
+    const movePawnInterval = setInterval(() => {
+      let chessPieceNum = Math.floor(turnNum % 16);
+      if (chessPieceNum % 2 === 0) {
+        chessPieceNum = chessPieceNum / 2 + 8;
+      } else {
+        chessPieceNum = (chessPieceNum - 1) / 2 + 24;
+      }
+      const newCurrChessBoard = currChessBoard;
+      const chosenChessPiece = newCurrChessBoard[chessPieceNum];
+      switch (chosenChessPiece.row) {
+        case 2:
+          chosenChessPiece.row = 3;
+          break;
+        case 3:
+          chosenChessPiece.row = 2;
+          break;
+        case 6:
+          chosenChessPiece.row = 7;
+          break;
+        case 7:
+          chosenChessPiece.row = 6;
+          break;
+      }
+      newCurrChessBoard[chessPieceNum] = chosenChessPiece;
+      setCurrChessBoard([...newCurrChessBoard]);
+      setTurnNum(turnNum + 1);
+    }, 250);
+
+    return () => clearInterval(movePawnInterval);
+  });
+
+  // --------------
+
   return (
     <ChessGameContext.Provider
       value={{
         selectedChessBoard,
+
+        getChessBoardFromContract,
 
         canKeepGoingBackInHistory,
         goBackOneBoardInHistory,

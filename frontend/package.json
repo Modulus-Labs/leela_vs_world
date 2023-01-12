@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@rainbow-me/rainbowkit": "^0.8.1",
     "@types/node": "18.11.9",
     "@types/react": "18.0.25",
     "@types/react-dom": "18.0.9",
@@ -23,7 +24,8 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-responsive": "^9.0.0",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.4",
+    "wagmi": "^0.10.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.47.0",

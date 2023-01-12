@@ -2,6 +2,7 @@ import { motion, Variants } from 'framer-motion';
 import Image from 'next/image';
 import { FC, MouseEventHandler, useState } from 'react';
 import { useArcadeMachineContext } from '../../contexts/ArcadeMachineContext';
+import { useBettingContext } from '../../contexts/BettingContext';
 import { GamePopup } from './GamePopup';
 
 const ButtonVariants: Variants = {
@@ -30,7 +31,7 @@ const LeelaWorldButton: FC<LeelaWorldButtonProps> = ({
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-5 w-20"
+      className="h-[50px] w-[175px]"
     >
       <Image fill src={buttonImageUrl} alt="" />
     </motion.button>
@@ -38,53 +39,56 @@ const LeelaWorldButton: FC<LeelaWorldButtonProps> = ({
 };
 
 export const GameDetails: FC = () => {
-  const { setShowGameDetails, setShowGameInstructions, prizePoolAmount } =
+  const { setShowGameDetails, setShowGameInstructions } =
     useArcadeMachineContext();
+  const { prizePoolAmount } = useBettingContext();
 
   const [powerAmount, setPowerAmount] = useState('0');
 
   return (
     <GamePopup onClick={() => setShowGameDetails(false)}>
-      <div className="relative mx-auto mt-4 h-24 w-[80%] bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
-        <div className="ml-36 flex w-60 flex-col gap-y-1 pt-8 text-sm">
-          <div className="border-2 border-off-white px-2 text-off-white">
-            {prizePoolAmount.toFixed(2)} ETH
-          </div>
-          <div className="border-2 border-off-white px-2 text-off-white">
-            10%
-          </div>
-        </div>
-      </div>
-      <div className="relative mx-auto mt-2 h-24 w-[80%] bg-[url(/BuyPowerDisplay.svg)] bg-contain bg-no-repeat">
-        <div className="pt-8 text-sm">
-          <input
-            value={powerAmount}
-            onChange={(e) => setPowerAmount(e.target.value)}
-            className="absolute left-[9.5rem] w-20 border-2 border-off-white bg-transparent px-2 text-off-white outline-none"
-          />
-          <div className="absolute left-36 top-14">
-            <LeelaWorldButton
-              buttonImageUrl="/LeelaButton.svg"
-              onClick={() => console.log('Leela')}
-            />
-          </div>
-          <div className="absolute left-64 top-14">
-            <LeelaWorldButton
-              buttonImageUrl="/WorldButton.svg"
-              onClick={() => console.log('World')}
-            />
+      <div className="mx-[107.5px]">
+        <div className="relative mx-auto flex h-[230px] w-full flex-col bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
+          <div className="ml-[350px] mt-[80px] mr-[30px] flex flex-col text-4xl">
+            <div className="flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
+              {prizePoolAmount.toFixed(2)} ETH
+            </div>
+            <div className="mt-[10px] flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
+              10%
+            </div>
           </div>
         </div>
+        <div className="relative mx-auto mt-[5px] h-[230px] w-full bg-[url(/BuyPowerDisplay.svg)] bg-contain bg-no-repeat">
+          <div>
+            <input
+              value={powerAmount}
+              onChange={(e) => setPowerAmount(e.target.value)}
+              className="absolute top-[82.5px] left-[360px] w-[190px] border-2 border-off-white bg-transparent px-2 text-4xl text-off-white outline-none"
+            />
+            <div className="absolute left-[350px] top-[142.5px]">
+              <LeelaWorldButton
+                buttonImageUrl="/LeelaButton.svg"
+                onClick={() => console.log('Leela')}
+              />
+            </div>
+            <div className="absolute left-[610px] top-[142.5px]">
+              <LeelaWorldButton
+                buttonImageUrl="/WorldButton.svg"
+                onClick={() => console.log('World')}
+              />
+            </div>
+          </div>
+        </div>
+        <motion.button
+          variants={ButtonVariants}
+          initial="initial"
+          whileTap="tap"
+          onClick={() => setShowGameInstructions(true)}
+          className="relative mx-auto mt-2 block h-[95px] w-[500px]"
+        >
+          <Image fill src="/HowDoesThisWorkButton.svg" alt="" />
+        </motion.button>
       </div>
-      <motion.button
-        variants={ButtonVariants}
-        initial="initial"
-        whileTap="tap"
-        onClick={() => setShowGameInstructions(true)}
-        className="relative mx-auto mt-2 block h-10 w-56"
-      >
-        <Image fill src="/HowDoesThisWorkButton.svg" alt="" />
-      </motion.button>
     </GamePopup>
   );
 };

@@ -1,33 +1,28 @@
+import { BigNumber } from "ethers"
+import { ethers, getNamedAccounts } from "hardhat"
 import { DeployFunction } from "hardhat-deploy/dist/types"
 import { HardhatRuntimeEnvironment } from "hardhat/types"
+import { TestContract__factory } from "../typechain-types"
 import { verify } from "../utils/verify"
 
 const deployTestContract: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment
 ) {
-    const { deployments, getNamedAccounts, network } = hre
-    const { deploy } = deployments
+    const { network } = hre
     const { deployer } = await getNamedAccounts()
 
-    console.log("Deploying TestContract on ", network.name)
+    console.log("Deploying TestContract on", network.name)
 
-    let args: string[] = ["10"]
+    const TestContractDeployFactory: TestContract__factory =
+        await ethers.getContractFactory("TestContract", deployer)
 
-    const TestContractDeployResponse = await deploy("TestContract", {
-        from: deployer,
-        args,
-        log: true,
-        waitConfirmations: 1,
-    })
+    let args = BigNumber.from("10")
 
-    console.log(
-        "Deployed TestContract to: ",
-        TestContractDeployResponse.address
-    )
+    const TestContractContract = await TestContractDeployFactory.deploy(args)
 
-    if (network.name !== "localhost" && network.name !== "hardhat") {
-        await verify(TestContractDeployResponse.address, args)
-    }
+    console.log("Deployed TestContract to: ", TestContractContract.address)
+
+    await verify(TestContractContract.address, [args])
 }
 
 export default deployTestContract
