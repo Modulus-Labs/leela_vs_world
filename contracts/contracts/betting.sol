@@ -1,9 +1,10 @@
 pragma solidity >=0.8.0;
  
 import {Ownable} from '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
-import "../node_modules/hardhat-console/contracts/console.sol";
+//import "../node_modules/hardhat-console/contracts/console.sol";
 import "./leela.sol";
-import "./chess.sol";
+import "./IChess.sol";
+
 // SPDX-License-Identifier: UNLICENSED
 /// @title BettingGame
 /// @dev Betting game contract for Leela Chess Zero vs. World
@@ -20,7 +21,7 @@ contract BettingGame is Ownable {
    // INTER-GAME VARIABLES
  
    /// @dev Chess board contract
-   Chess public chess;
+   IChess public chess;
  
    /// @dev Leela AI contract
    Leela public leela;
@@ -42,7 +43,7 @@ contract BettingGame is Ownable {
    uint256 public votePeriodDuration = 3600;
  
    /// Initial empty size of betting pools, used for the calculation of shares.
-   uint256 public initVal;
+   uint256 private initVal;
  
    // INTRA-GAME VARIABLES
   
@@ -74,7 +75,7 @@ contract BettingGame is Ownable {
    uint16 public leelaMove;
  
    /// @dev gameIndex => moveIndex => moves => number of staked votes.
-   mapping (uint16 => mapping (uint16 => mapping(uint16 => uint256))) public movesToVotes;
+   mapping (uint16 => mapping (uint16 => mapping(uint16 => uint256))) private movesToVotes;
  
    /// @dev gameIndex => moveIndex => list of all moves that have some votes.
    mapping (uint16 => mapping (uint16 => uint16[])) public registeredMoves;
@@ -83,10 +84,10 @@ contract BettingGame is Ownable {
    mapping (uint16 => mapping(uint16 => mapping(address => uint16))) public voters;
  
    /// @dev gameIndex => "set" of voter addresses
-   mapping (uint16 => mapping (address => bool)) public votersMap;
+   mapping (uint16 => mapping (address => bool)) private votersMap;
   
    /// @dev gameIndex => list of voter addresses
-   mapping (uint16 => address[]) public votersList;//
+   mapping (uint16 => address[]) private votersList;//
   
    //EVENTS
  
@@ -115,31 +116,24 @@ contract BettingGame is Ownable {
 //    }
    // CONSTRUCTOR AND VARIABLE SETTING FUNCTIONS
  
-   constructor(address _chess, address _leela, uint256 initialPoolSize) {
-       console.log("Hello World 0");
-       chess = Chess(_chess); // not sure if this is right <- something is wrong with this logic
-       console.log("Hello World 1");
-       leela = Leela(_leela);
-       console.log("Hello World 2");
+   constructor() {
+   }
+
+   function initialize(address _chess, address _leela, uint256 initialPoolSize) public onlyOwner{
+        chess = IChess(_chess); // not sure if this is right 
+        leela = Leela(_leela);
        registeredMoves[0][0] = leela.initializeLeela();
-       console.log("Hello World 3");
        chess.initializeGame();
-       console.log("Hello World 4");
        leelaPoolSize = initialPoolSize;
-       console.log("Hello World 11");
        worldPoolSize = initialPoolSize;
-       console.log("Hello World 12");
        initVal = initialPoolSize;
-       console.log("Hello World 13");
        leelaColor = false;
-       console.log("Hello World 14");
        gameIndex = 0;
-       console.log("Hello World 15");
        moveIndex = 0;
    }
   
    function setChess(address _chess) public onlyOwner {
-       chess = Chess(_chess);
+       chess = IChess(_chess);
    }
  
     function setLeela(address _leela) public onlyOwner {
