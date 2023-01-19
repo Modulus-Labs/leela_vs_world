@@ -16,13 +16,13 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useChessGameContext } from '../contexts/ChessGameContext';
 
 export default function Home() {
-  const { isDesktop } = useMediaQueryContext();
+  const { isMobile } = useMediaQueryContext();
   const { showGameInstructions, showGameDetails } = useArcadeMachineContext();
   const { getChessBoardFromContract } = useChessGameContext();
 
-  // if (isDesktop) {
-  //   return <ScreenTooSmall />;
-  // }
+  if (isMobile) {
+    return <ScreenTooSmall />;
+  }
 
   return (
     <div className="flex h-screen flex-row items-end justify-center bg-off-black">
