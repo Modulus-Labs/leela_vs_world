@@ -6,11 +6,11 @@ export const PrizePool: FC = () => {
   const { prizePoolAmount, MAX_PRIZE_POOL } = useBettingContext();
 
   return (
-    <div className="relative h-full w-full bg-[url(/PrizePoolDisplay.svg)] bg-contain bg-no-repeat">
-      <p className="absolute left-44 top-2 bg-transparent font-bold">
+    <div className="relative h-full w-full bg-[url(/PrizePoolDisplay.svg)] bg-contain bg-no-repeat text-4xl">
+      <p className="absolute left-[325px] top-[20px]  bg-transparent">
         {prizePoolAmount.toFixed(1)} ETH
       </p>
-      <div className="absolute left-2 top-9 right-4 h-5">
+      <div className="absolute top-[72.5px] left-[0px] h-[35px] w-full px-[17px]">
         <motion.div
           animate={{
             width: (prizePoolAmount / MAX_PRIZE_POOL) * 100 + '%',

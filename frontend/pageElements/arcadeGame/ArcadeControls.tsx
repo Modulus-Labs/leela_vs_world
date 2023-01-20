@@ -3,8 +3,8 @@ import { FC } from 'react';
 
 export const ArcadeControls: FC = () => {
   return (
-    <div className="absolute bottom-56 left-0 right-0 ">
-      <div className="relative flex h-28 w-full flex-row justify-center">
+    <div className="flex h-full w-full flex-row items-center justify-center">
+      <div className="relative flex h-full w-full">
         <Image priority fill src="/ArcadeControls.svg" alt="" />
       </div>
     </div>

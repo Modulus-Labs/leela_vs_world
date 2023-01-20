@@ -22,16 +22,7 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: "0.6.0",
-            },
-            {
-                version: "0.7.6",
-            },
-            {
                 version: "0.8.9",
-            },
-            {
-                version: "0.8.13",
             },
         ],
     },
@@ -58,13 +49,13 @@ const config: HardhatUserConfig = {
             default: 1,
         },
     },
-    gasReporter: {
-        enabled: true,
-        outputFile: "gas-report.txt",
-        noColors: true,
-        currency: "USD",
-        coinmarketcap: COINMARKETCAP_API_KEY,
-    },
+    // gasReporter: {
+    //     enabled: true,
+    //     outputFile: "gas-report.txt",
+    //     noColors: true,
+    //     currency: "USD",
+    //     coinmarketcap: COINMARKETCAP_API_KEY,
+    // },
     mocha: {
         timeout: 300 * 1000,
     },

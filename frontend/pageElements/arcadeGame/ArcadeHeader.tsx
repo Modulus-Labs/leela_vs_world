@@ -26,7 +26,7 @@ const HeaderButton: FC<HeaderButtonProps> = ({ children, onClick }) => {
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-inherit cursor relative w-32"
+      className="h-inherit cursor relative w-[250px] flex-shrink-0"
     >
       {children}
     </motion.button>
@@ -37,11 +37,11 @@ export const ArcadeHeader: FC = () => {
   const { setShowGameDetails } = useArcadeMachineContext();
 
   return (
-    <div className="flex h-24 flex-row justify-center gap-x-5">
+    <div className="flex h-[inherit] w-full flex-row justify-between gap-x-10">
       <HeaderButton onClick={() => setShowGameDetails(true)}>
         <Image priority fill src="/WhatsThisButton.svg" alt="What's This?" />
       </HeaderButton>
-      <div className="relative h-full w-96">
+      <div className="relative h-full w-full flex-grow">
         <Image priority fill src="/MainLogo.svg" alt="Leela vs The World" />
       </div>
 
@@ -50,7 +50,7 @@ export const ArcadeHeader: FC = () => {
           console.log('Strategize on Discord');
         }}
       >
-        <a href={process.env.DISCORD_LINK} target="_blank" rel="no-referrer">
+        <a href={process.env.DISCORD_LINK!} target="_blank" rel="no-referrer">
           <Image
             priority
             fill

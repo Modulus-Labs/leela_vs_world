@@ -1,7 +1,12 @@
-import { run } from "hardhat"
+import { network, run } from "hardhat"
 
 export const verify = async (contractAddress: string, args: any[]) => {
     console.log("Verifying contract...")
+
+    if (network.name === "hardhat") {
+        console.log("No need to verify, on hardhat network")
+        return
+    }
 
     try {
         await run("verify:verify", {
