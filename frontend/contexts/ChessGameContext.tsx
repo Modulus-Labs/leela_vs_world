@@ -49,6 +49,7 @@ export const ChessGameContextProvider = ({
 
   // Action to start a move
   const startMove = (square: Square) => {
+    console.log('startMove', square);
     // FIXME: stop initializing so many Chess
     const chess = new Chess(currChessBoard.fen);
     const rawValidMoves: Move[] = chess.moves({

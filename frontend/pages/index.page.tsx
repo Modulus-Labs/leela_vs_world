@@ -12,13 +12,10 @@ import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
 import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModulousLabs';
 import { useMediaQueryContext } from '../contexts/MediaQueryContext';
 import { ScreenTooSmall } from '../pageElements/ScreenTooSmall';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useChessGameContext } from '../contexts/ChessGameContext';
 
 export default function Home() {
   const { isMobile } = useMediaQueryContext();
   const { showGameInstructions, showGameDetails } = useArcadeMachineContext();
-  const { getChessBoardFromContract } = useChessGameContext();
 
   if (isMobile) {
     return <ScreenTooSmall />;
@@ -44,6 +41,7 @@ export default function Home() {
           </div>
 
           <div className="relative mx-auto mt-[100px] grid h-[775px] w-[1375px] grid-cols-2 gap-x-10 px-10 py-5">
+            {/* Popups */}
             {!showGameInstructions && showGameDetails && (
               <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
                 <GameDetails />
@@ -54,11 +52,14 @@ export default function Home() {
                 <GameInstructions />
               </div>
             )}
-            <div className="col-span-1">
+
+            <div className="col-span-1 flex flex-col">
               <div className="mb-[12px] h-[133px]">
                 <NextMoveTimer />
               </div>
-              {/* <ChessBoard /> */}
+              <div className="h-[600px] w-[600px] self-end">
+                <ChessBoard />
+              </div>
             </div>
             <div className="col-span-1 flex flex-col">
               <div className="mb-[20px] h-[125px]">
