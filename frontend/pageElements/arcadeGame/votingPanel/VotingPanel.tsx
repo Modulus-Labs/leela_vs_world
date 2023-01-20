@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { RetroButton } from './RetroButton';
 import { RetroDropdown } from './RetroDropdown';
 import { useBettingContext } from '../../../contexts/BettingContext';
-import { ChessPlayer } from '../../../types/Chess.type';
+import { CHESS_PLAYER } from '../../../types/Chess.type';
 
 export const VotingPanel: FC = () => {
   const {
@@ -24,9 +24,9 @@ export const VotingPanel: FC = () => {
           text={playerOption}
           onClick={() => {
             setPlayerOption(
-              playerOption === ChessPlayer.LEELA
-                ? ChessPlayer.WORLD
-                : ChessPlayer.LEELA
+              playerOption === CHESS_PLAYER.LEELA
+                ? CHESS_PLAYER.WORLD
+                : CHESS_PLAYER.LEELA
             );
           }}
         />

@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { CHESS_PLAYER } from '../types/Chess.type';
 
 interface BettingContextInterface {
   timeToNextMove: number;
@@ -17,8 +18,8 @@ interface BettingContextInterface {
   setPrizePoolAmount: Dispatch<SetStateAction<number>>;
   MAX_PRIZE_POOL: number;
 
-  // playerOption: ChessPlayer;
-  // setPlayerOption: Dispatch<SetStateAction<ChessPlayer>>;
+  playerOption: CHESS_PLAYER;
+  setPlayerOption: Dispatch<SetStateAction<CHESS_PLAYER>>;
 
   validMoves: any[];
   selectedMoveIndex: number;
@@ -41,9 +42,9 @@ export const BettingContextProvider = ({
   const [timeToNextMove, setTimeToNextMove] = useState(60 * 10); // seconds
 
   const [prizePoolAmount, setPrizePoolAmount] = useState(2);
-  // const [playerOption, setPlayerOption] = useState<ChessPlayer>(
-  //   ChessPlayer.LEELA
-  // );
+  const [playerOption, setPlayerOption] = useState<CHESS_PLAYER>(
+    CHESS_PLAYER.LEELA
+  );
 
   const [initialValidMovesIsSet, setInitialValidMovesIsSet] = useState(false); // used for simulating bid changes
   const [validMoves, setValidMoves] = useState<any[]>([]);
@@ -160,8 +161,8 @@ export const BettingContextProvider = ({
         setPrizePoolAmount,
         MAX_PRIZE_POOL,
 
-        // playerOption,
-        // setPlayerOption,
+        playerOption,
+        setPlayerOption,
 
         validMoves,
         selectedMoveIndex,

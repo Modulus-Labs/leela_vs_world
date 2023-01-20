@@ -55,7 +55,7 @@ export const ChessGameContextProvider = ({
     const rawValidMoves: Move[] = chess.moves({
       square,
       verbose: true,
-    });
+    }) as Move[];
 
     const newChessBoard = {
       ...currChessBoard,

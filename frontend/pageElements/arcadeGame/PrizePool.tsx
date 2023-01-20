@@ -7,7 +7,7 @@ export const PrizePool: FC = () => {
 
   return (
     <div className="relative h-full w-full bg-[url(/PrizePoolDisplay.svg)] bg-contain bg-no-repeat text-4xl">
-      <p className="absolute left-[325px] top-[20px]  bg-transparent font-bold">
+      <p className="absolute left-[325px] top-[20px]  bg-transparent">
         {prizePoolAmount.toFixed(1)} ETH
       </p>
       <div className="absolute top-[72.5px] left-[0px] h-[35px] w-full px-[17px]">

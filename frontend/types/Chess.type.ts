@@ -32,3 +32,8 @@ export interface MovedBoardState {
 }
 
 export type BoardState = IdleBoardState | MovingBoardState | MovedBoardState;
+
+export enum CHESS_PLAYER {
+  LEELA = 'leela',
+  WORLD = 'world',
+}

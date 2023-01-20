@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-tailwind-boilerplate",
+  "name": "leela-world-chess",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,6 +14,7 @@
     "@types/react": "18.0.25",
     "@types/react-dom": "18.0.9",
     "axios": "^1.2.1",
+    "chess.js": "1.0.0-alpha.0",
     "clsx": "^1.2.1",
     "eslint": "^8.30.0",
     "eslint-config-next": "13.0.4",
