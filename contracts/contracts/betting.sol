@@ -1,7 +1,7 @@
 pragma solidity >=0.8.0;
  
 import {Ownable} from '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
-//import "../node_modules/hardhat-console/contracts/console.sol";
+ 
 import "./leela.sol";
 import "./IChess.sol";
 
@@ -117,34 +117,35 @@ contract BettingGame is Ownable {
    // CONSTRUCTOR AND VARIABLE SETTING FUNCTIONS
  
    constructor() {
+       
    }
 
-   function initialize(address _chess, address _leela, uint256 initialPoolSize) public onlyOwner{
-        chess = IChess(_chess); // not sure if this is right 
-        leela = Leela(_leela);
-       registeredMoves[0][0] = leela.initializeLeela();
-       chess.initializeGame();
-       leelaPoolSize = initialPoolSize;
-       worldPoolSize = initialPoolSize;
-       initVal = initialPoolSize;
-       leelaColor = false;
-       gameIndex = 0;
-       moveIndex = 0;
+   function initialize(address _chess, address _leela, uint256 initialPoolSize) public {
+    chess = IChess(_chess); // not sure if this is right
+    chess.initializeGame();
+    leela = Leela(_leela);
+    registeredMoves[0][0] = leela.initializeLeela();
+    leelaPoolSize = initialPoolSize;
+    worldPoolSize = initialPoolSize;
+    initVal = initialPoolSize;
+    leelaColor = false;
+    gameIndex = 0;
+    moveIndex = 0;
    }
   
-   function setChess(address _chess) public onlyOwner {
+   function setChess(address _chess) public onlyOwner {//onlyOwner
        chess = IChess(_chess);
    }
- 
-    function setLeela(address _leela) public onlyOwner {
+   
+   function setLeela(address _leela) public onlyOwner {//onlyOwner
        leela = Leela(_leela);
    }
  
-   function setMinStake(uint256 _minStake) public onlyOwner {
+   function setMinStake(uint256 _minStake) public onlyOwner {//onlyOwner
        minStake = _minStake;
    }
  
-   function setPoolSize(uint256 _a) public onlyOwner {
+   function setPoolSize(uint256 _a) public onlyOwner {//onlyOwner
        require((leelaPoolSize == initVal) && (worldPoolSize == initVal), "Cannot modify pool size once pools are nonempty.");
        leelaPoolSize = _a;
        worldPoolSize = _a;
@@ -152,7 +153,7 @@ contract BettingGame is Ownable {
    }
  
    /// @dev Modify staking duration.
-   function setVotePeriod(uint256 d) public onlyOwner {
+   function setVotePeriod(uint256 d) public onlyOwner {//onlyOwner
        votePeriodDuration = d;
    }
  
@@ -162,11 +163,12 @@ contract BettingGame is Ownable {
    function checkTimer() internal view returns (bool) {
        return (votePeriodEnd != 0 && block.timestamp > votePeriodEnd);
    }
-    function getTimeLeft() public view returns (uint256){
-        return (votePeriodEnd - block.timestamp);
+   
+   function getTimeLeft() public view returns (uint256){
+    return (votePeriodEnd - block.timestamp);
     }
    /// @dev Start staking period.
-   function startVoteTimer() internal{
+   function startVoteTimer() public{
        votePeriodEnd = block.timestamp + votePeriodDuration;
    }
  
@@ -318,7 +320,7 @@ contract BettingGame is Ownable {
    function claimPayout() public {
        // TODO not sure if this logic is correct
        uint payoutAmount;
-       require(accountsPayable[msg.sender]>=payoutAmount, "must have money in account");
+       require(accountsPayable[msg.sender]>=payoutAmount);
        accountsPayable[msg.sender] -= payoutAmount;
        (bool sent, ) = msg.sender.call{value: payoutAmount}('');
        require(sent, 'Failed to send payout.');

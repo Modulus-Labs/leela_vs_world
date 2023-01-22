@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import hre, { ethers } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Unit Tests: Leela Vs. World", function () {
 
@@ -85,7 +86,7 @@ describe("Unit Tests: Leela Vs. World", function () {
             await chessGame.deployed();
 
             //testing intitalize method
-            bettingGame.initialize(chessGame.address, leelaDep.address, 1, {gasLimit: 1000000});
+            bettingGame.initialize(chessGame.address, leelaDep.address, 1000, {gasLimit: 1000000});
 
             return bettingGame
             
@@ -148,17 +149,38 @@ describe("Unit Tests: Leela Vs. World", function () {
             expect((await bettingGame.setPoolSize(2000)).data.slice(71)).is.equal("7d0");
             
         })
+        
+        /*
+        * this test will automatically fail unless modifying the contract
+        * for testing purposes only
+        */
+        it("Testing getTimeLeft", async function () {
+
+            const bettingGame  = await loadFixture(deployContractAndInitialize);
+
+            //testing getTimeLeft method
+            await bettingGame.setVotePeriod(30);
+            await bettingGame.startVoteTimer();
+            await bettingGame.getTimeLeft();
+            expect(await (await bettingGame.getTimeLeft()).toString()).is.equal("30");
+            await time.increase(10);
+            expect(await (await bettingGame.getTimeLeft()).toString()).is.equal("20");
+            expect(bettingGame.getTimeLeft());
+
+            
+        })
 
         it("Testing addStake method", async function () {
 
             const bettingGame  = await loadFixture(deployContractAndInitialize);
 
             //testing addStake method
-            bettingGame.setMinStake(ethers.utils.parseEther(".1"));
-            expect(bettingGame.addStake(false,  {value: ethers.utils.parseEther(".1")}));
-            expect(bettingGame.addStake(true,  {value: ethers.utils.parseEther(".00001")}));
-            bettingGame.setMinStake(ethers.utils.parseEther("1"));
-            expect(bettingGame.addStake(false, {value: ethers.utils.parseEther(".01")})); //Double check this test with someone else
+            await bettingGame.setPoolSize(ethers.utils.parseEther("1000"));
+            await bettingGame.setMinStake(ethers.utils.parseEther("1"));
+            expect(await bettingGame.addStake(false,  {value: ethers.utils.parseEther("1"), gasLimit: 1000000}));
+            expect(await bettingGame.addStake(true,  {value: ethers.utils.parseEther("2"), gasLimit: 1000000}));
+            await bettingGame.setMinStake(ethers.utils.parseEther("4"));
+            await expect(bettingGame.addStake(false, {value: ethers.utils.parseEther("3"), gasLimit: 1000000})).to.be.reverted;
             
         })
 
@@ -167,9 +189,55 @@ describe("Unit Tests: Leela Vs. World", function () {
             const bettingGame  = await loadFixture(deployContractAndInitialize);
 
             //testing voteWorldMove method
-            expect(bettingGame.voteWorldMove(0));
+            //testing invalid move
+            await expect(bettingGame.voteWorldMove(0, {gasLimit: 100000})).to.be.reverted;
+            //testing a valid move
+            //await bettingGame.voteWorldMove(100, {gasLimit: 100000}); //not working
 
             
+        })
+
+        it("Testing callTimerOver", async function () {
+
+            const bettingGame  = await loadFixture(deployContractAndInitialize);
+
+            //testing callTimerOver method
+            //testing vote timer over
+            await bettingGame.setVotePeriod(30, {gasLimit: 100000});
+            await bettingGame.startVoteTimer({gasLimit: 100000});
+            await time.increase(30);
+            await bettingGame.getTimeLeft({gasLimit: 100000});
+            await bettingGame.callTimerOver({gasLimit: 100000}); //does not work
+            //testing vote timer not over
+            //await bettingGame.setVotePeriod(30, {gasLimit: 100000});
+            //await bettingGame.startVoteTimer({gasLimit: 100000});
+            //await time.increase(10);
+            //await bettingGame.getTimeLeft({gasLimit: 100000});
+            //await bettingGame.callTimerOver({gasLimit: 100000});
+
+            
+        })
+
+        it("Testing getWorldMove", async function () {
+
+            const bettingGame  = await loadFixture(deployContractAndInitialize);
+
+            //testing getWorldMove method
+            await bettingGame.getWorldMove();
+            expect(await bettingGame.getWorldMove()).is.equal(0); //defualt value
+
+            
+        })
+
+        it("Testing claimPayout", async function () {
+
+            const bettingGame  = await loadFixture(deployContractAndInitialize);
+
+            //testing claimPayout method
+            expect((await bettingGame.claimPayout()).value.toString()).to.equal("0");
+            await bettingGame.setPoolSize(100);
+            await bettingGame.addStake(true,  {value: ethers.utils.parseEther("2"), gasLimit: 1000000});
+
         })
 
     })

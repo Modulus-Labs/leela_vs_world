@@ -3,7 +3,9 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-gas-reporter";
 import "hardhat-tracer";
 import 'hardhat-contract-sizer';
+require ('dotenv').config();
 
+const { API_URL, PRIVATE_KEY } = process.env;
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.17",
@@ -25,7 +27,10 @@ const config: HardhatUserConfig = {
       gasPrice: "auto",
       gasMultiplier: 4,
     },
-    
+    polygon_mumbai: {
+      url: API_URL,
+      accounts: [`0x${PRIVATE_KEY}`]
+    }
   },
 
   gasReporter: {
