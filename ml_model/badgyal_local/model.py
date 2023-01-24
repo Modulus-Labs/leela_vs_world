@@ -17,12 +17,14 @@ QUANTIZE_FACTOR = 1024 ** 2
 # SIGMOID_PIECEWISE_BOUND = 2.654 # From numeric approximation
 SIGMOID_PIECEWISE_BOUND = 2
 
+SAVE_GATHER_INDEX_AS_JSON = True
+
 # --- Hacky af, but it works ---
 max_abs_intermediate_value = -1
 
 # --- Also hacky af, but it works ---
 all_intermediate_values = OrderedDict()
-SAVE_INTERMEDIATE_VALUES = True
+SAVE_INTERMEDIATE_VALUES = False
 SAVE_INTERMEDIATE_VALUES_VERBOSE = True
 
 def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor], do_print=False):
@@ -64,10 +66,12 @@ def cursed_sigmoid(x: torch.Tensor, quantize_factor=QUANTIZE_FACTOR):
     upper[x < piecewise_bound] = 0
     upper[x > piecewise_bound] = quantize_factor
 
+    # --- Otherwise, use approximation x / 4 + 0.5 ---
+    middle = near_zero_sigmoid_approx(middle)
+
     # --- Set anything not in range of `-piecewise_bound, piecewise_bound` to 0
     middle[x < -1 * piecewise_bound] = 0
     middle[x > piecewise_bound] = 0
-    middle = near_zero_sigmoid_approx(middle)
     # print((x / QUANTIZE_FACTOR).round().sigmoid() * QUANTIZE_FACTOR)
 
     return (middle + upper)
@@ -91,20 +95,21 @@ def cursed_batchnorm(x: torch.Tensor, batchnorm_module: nn.BatchNorm2d, quantize
     # coeff = torch.round(gamma / torch.sqrt(var_x))
 
     coeff = torch.round((gamma * quantize_factor) / torch.sqrt(var_x + batchnorm_module.eps))
-    subtracted_mean = x - e_x
+    subtracted_mean = x + e_x
     subtracted_mean_times_coeff = subtracted_mean * coeff
-    normalized_first_term = torch.trunc(subtracted_mean_times_coeff / quantize_factor)
+    unnormalized_result = subtracted_mean_times_coeff + beta
+    normalized_result = torch.trunc(unnormalized_result / quantize_factor)
 
     # --- Check if any of these are too large ---
     print_max_abs_value("cursed_batchnorm", {
         "x": x,
         "subtracted_mean": subtracted_mean,
         "subtracted_mean_times_coeff": subtracted_mean_times_coeff,
-        "normalized_first_term": normalized_first_term,
-        "normalized_first_term + beta": normalized_first_term + beta
+        "unnormalized_result": unnormalized_result,
+        "normalized_result": normalized_result,
     })
 
-    return normalized_first_term + beta
+    return normalized_result
 
     # return ((x - e_x) / torch.sqrt(var_x)) * gamma + beta
     # return torch.trunc(batchnorm_module(x))
@@ -153,6 +158,7 @@ class Net(nn.Module):
 
         blocks = [(f'block{i+1}', ResidualBlock(channels, se_ratio, i)) for i in range(residual_blocks)]
         self.residual_stack = nn.Sequential(OrderedDict(blocks))
+        print(blocks)
 
         if classicalPolicy:
             # print(f"Using classical policy head")
@@ -189,9 +195,9 @@ class Net(nn.Module):
                 # print(f"Just quantized layer: {name}!")
             if isinstance(module, nn.BatchNorm2d):
                 module.weight = nn.Parameter(torch.round(module.weight * QUANTIZE_FACTOR))
-                module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR))
+                module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR ** 2))
                 # module.eps = nn.Parameter(round(module.eps * QUANTIZE_FACTOR))
-                module.running_mean = nn.Parameter(torch.round(module.running_mean * QUANTIZE_FACTOR))
+                module.running_mean = nn.Parameter(torch.round(-1 * module.running_mean * QUANTIZE_FACTOR))
                 module.running_var = nn.Parameter(torch.round(module.running_var * QUANTIZE_FACTOR ** 2))
                 # print(f"Just quantized layer: {name}!")
 
@@ -406,8 +412,22 @@ class PolicyHead(nn.Module):
         x = x.contiguous()
         x = x.view(x.size(0), -1)
         # print(f"After reshape! x.shape: {x.shape}")
-        # print(self.policy_map.expand(x.size(0), self.policy_map.size(1)).shape)
-        x = x.gather(dim=1, index=self.policy_map.expand(x.size(0), self.policy_map.size(1)))
+        gather_index = self.policy_map.expand(x.size(0), self.policy_map.size(1))
+        # print(f"Gather index shape: {gather_index.shape}")
+        # print(gather_index[:, :5])
+        # print(x[0][896], x[0][960], x[0][1024], x[0][1088], x[0][1152])
+        x = x.gather(dim=1, index=gather_index)
+        print(x.shape)
+        # print(x[:, :5])
+        # print(x[0])
+
+        if SAVE_GATHER_INDEX_AS_JSON:
+            json_obj = {
+                "gather_index": export_parameter_to_flattened_list(gather_index),
+            }
+            print(f"Saving gather index as a list to gather_index.json...")
+            with open("gather_index.json", "w") as f:
+                json.dump(json_obj, f)
 
         if QUANTIZE_NETWORKS:
             print_max_abs_value("policy head gather", {
@@ -657,11 +677,14 @@ class SqueezeExcitation(nn.Module):
             # --- End reference ---
 
             # --- Compute scaled sigmoid ---
+            print(f"Scale.shape: {scale.shape}")
             scale_sigmoid = cursed_sigmoid(scale)
+            print(f"scale_sigmoid.shape: {scale_sigmoid.shape}")
             save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scale_sigmoid", scale_sigmoid)
 
             # --- Multiply by input ---
             scaled_x_in = scale_sigmoid * x_in
+            # print(f"scaled_x_in.shape: {scaled_x_in.shape}")
             save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scaled_x_in", scaled_x_in)
 
             # --- Re-normalize ---
@@ -669,7 +692,10 @@ class SqueezeExcitation(nn.Module):
             save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized", quantized)
 
             # --- Add shift term ---
+            # print(f"shift.shape: {shift.shape}")
             quantized_and_shifted = quantized + shift
+            # print(f"quantized_and_shifted.shape: {quantized_and_shifted.shape}")
+            print("========================")
             save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized_and_shifted", quantized_and_shifted)
 
             print_max_abs_value("SE sigmoid with scale and shift", {
