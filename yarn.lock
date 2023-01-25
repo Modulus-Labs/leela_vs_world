@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-chess.js@^1.0.0-beta.2:
-  version "1.0.0-beta.2"
-  resolved "https://registry.yarnpkg.com/chess.js/-/chess.js-1.0.0-beta.2.tgz#ace0d3e4c932a09d8561aff4c875e00265262cd5"
-  integrity sha512-B8G0PpTTUWvc5vRZDHmV9U+2i5+N583o+irxZwVNIVleXUBrkZC1TEdp6kMsnEs/QmhOHbKrmAr+8nz7zZOs6g==
+"chess.js@^1.0.0-beta.2":
+  "integrity" "sha512-B8G0PpTTUWvc5vRZDHmV9U+2i5+N583o+irxZwVNIVleXUBrkZC1TEdp6kMsnEs/QmhOHbKrmAr+8nz7zZOs6g=="
+  "resolved" "https://registry.npmjs.org/chess.js/-/chess.js-1.0.0-beta.2.tgz"
+  "version" "1.0.0-beta.2"

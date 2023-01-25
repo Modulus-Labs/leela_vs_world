@@ -39,8 +39,90 @@ export const ChessGameContextProvider = ({
 }) => {
   const { data: signer } = useSigner();
 
+  const getFen = () => {
+    // const currGameState = getCurrentChessBoard().toString(16);
+    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
+    // const leelaColor = getLeelaColor;
+    const leelaColor = false; //false [=] leela is black
+    // const leelaTurn = getTurn;
+    const leelaTurn = false; //false [=] not leela turn
+    // const moveIndex = getMoveIndex;
+    const moveIndex = 1;
+    const currMove = leelaColor == leelaTurn? 'w': 'b';
+    let ret = "";
+    for(let c = 0; c<8;c++) {
+      let numSpaces = 0;
+      for(let r = 0; r<8;r++) {
+        if(currGameState.charAt(c*8+r) != '0') {
+          console.log(currGameState.charAt(c*8+r),numSpaces);
+          if(numSpaces>0) {
+            console.log(numSpaces);
+            ret+=numSpaces.toString();
+            numSpaces = 0;
+          }
+        } else {
+          numSpaces+=1;
+          continue;
+        }
+        switch(currGameState.charAt(c*8+r)) {
+          case '1':
+            ret+='P';
+            break;
+          case '2':
+            ret+='B';
+            break;
+          case '3':
+            ret+='N';
+            break;
+          case '4':
+            ret+='R';
+            break;
+          case '5':
+            ret+='K';
+            break;
+          case '6':
+            ret+='Q';
+            break;
+          case '9':
+            ret+='p';
+            break;
+          case 'a':
+            ret+='b';
+            break;
+          case 'b':
+            ret+='n';
+            break;
+          case 'c':
+            ret+='r';
+            break;
+          case 'd':
+            ret+='k';
+            break;
+          case 'e':
+            ret+='q';
+            break;
+        }
+      }
+      if(numSpaces>0) {
+        console.log(numSpaces);
+        ret+=numSpaces.toString();
+        numSpaces = 0;
+      }
+      ret+='/';
+    }
+    ret = ret.slice(0,-1);
+    ret+=' '+currMove;
+    // need to deal with enpassant
+    ret+=' '+'-';
+    ret+=' '+'-';
+    ret+=' 0';
+    ret+=' '+moveIndex.toString();
+    console.log(ret.toString());
+    return ret.toString();
+  }
+
   const [currChessBoard, setCurrChessBoard] = useState<BoardState>({
-    fen: 'rnbq1bnr/ppppkppp/4p3/8/8/4P3/PPPPKPPP/RNBQ1BNR w - - 2 3',
+    fen: getFen(),
     moveState: MOVE_STATE.IDLE,
     moveFrom: null,
     moveTo: null,
@@ -52,7 +134,7 @@ export const ChessGameContextProvider = ({
     console.log('startMove', square);
     // FIXME: stop initializing so many Chess
     const chess = new Chess(currChessBoard.fen);
-    const rawValidMoves: Move[] = chess.moves({
+    const rawcurrGameStateidMoves: Move[] = chess.moves({
       square,
       verbose: true,
     }) as Move[];
@@ -61,7 +143,7 @@ export const ChessGameContextProvider = ({
       ...currChessBoard,
       moveState: MOVE_STATE.MOVING,
       moveFrom: square,
-      validMoves: rawValidMoves.map((move) => move.to),
+      validMoves: rawcurrGameStateidMoves.map((move) => move.to),
     } as MovingBoardState;
 
     setCurrChessBoard({ ...newChessBoard });

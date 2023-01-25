@@ -12,7 +12,7 @@ describe("TestContract", function () {
 
         // Run all deploy scripts with the "all" tag
         await deployments.fixture("all")
-        testContract = await ethers.getContract("TestContract", deployer)
+        testContract = await ethers.getContractAt("TestContract", deployer)
     })
 
     describe("testUint", function () {

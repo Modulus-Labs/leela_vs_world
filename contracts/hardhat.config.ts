@@ -11,7 +11,7 @@ import { HardhatUserConfig } from "hardhat/types"
 import "@nomicfoundation/hardhat-toolbox"
 
 const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL || "https://eth-rinkeby"
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0xkey"
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "0xb6acbf01457f7575fa404c0d6ed6db1260c17d6e747debd61555e5e3a8a5c921"
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "key"
 
