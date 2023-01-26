@@ -40,12 +40,14 @@ export const ChessGameContextProvider = ({
   const { data: signer } = useSigner();
 
   const getFen = () => {
-    // const currGameState = getCurrentChessBoard().toString(16);
-    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
+    // TODO: get currGameState from the contract 
+
+    // const currGameState = getCurrentChessBoard().toString(16); 
+    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";  // dummy value
     // const leelaColor = getLeelaColor;
-    const leelaColor = false; //false [=] leela is black
+    const leelaColor = false;  // dummy value; false [=] leela is black
     // const leelaTurn = getTurn;
-    const leelaTurn = false; //false [=] not leela turn
+    const leelaTurn = false; //dummy value; false [=] not leela turn
     // const moveIndex = getMoveIndex;
     const moveIndex = 1;
     const currMove = leelaColor == leelaTurn? 'w': 'b';
