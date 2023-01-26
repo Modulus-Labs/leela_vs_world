@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.nn.init as init
 import math
 
@@ -10,6 +11,8 @@ import badgyal_local.net as proto_net
 import badgyal_local.proto.net_pb2 as pb
 
 import json
+
+torch.set_default_dtype(torch.float64)
 
 # --- Ryan's addendum ---
 QUANTIZE_NETWORKS = True
@@ -24,14 +27,14 @@ max_abs_intermediate_value = -1
 
 # --- Also hacky af, but it works ---
 all_intermediate_values = OrderedDict()
-SAVE_INTERMEDIATE_VALUES = False
+SAVE_INTERMEDIATE_VALUES = True
 SAVE_INTERMEDIATE_VALUES_VERBOSE = True
 
-def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor], do_print=False):
+def print_max_abs_value(context: str, named_tensors: dict[str, torch.Tensor], do_print=True):
     """
     For sanitychecking.
     """
-    return
+    # return
     global max_abs_intermediate_value
     if do_print:
         print(f"\n--- Printing max values for {context} ---")
@@ -116,14 +119,30 @@ def cursed_batchnorm(x: torch.Tensor, batchnorm_module: nn.BatchNorm2d, quantize
 
 
 def export_parameter_to_flattened_list(module_parameter: nn.Parameter):
-    return list(round(x.item()) for x in module_parameter.flatten())
+    return list(math.floor(x.item()) for x in module_parameter.flatten())
 
 
-def save_chw_tensor_to_cwh(name: str, tensor: torch.Tensor, dim_check=True):
+def save_tensor_helper(storage_subdict: dict, name: str, flattened_list: list):
     """
-    Writes the tensor to the global storage var.
-    Assumes input tensor is in (1, C, H, W) and writes as (1, C, W, H)
-    (but flattened), UNLESS `dim_check` is set to false.
+    Recursive helper fn for saving.
+    """
+    if "." not in name:
+        storage_subdict[name] = flattened_list
+    else:
+        key, subname = name.split(".", maxsplit=1)
+        if key not in storage_subdict:
+            storage_subdict[key] = dict()
+        save_tensor_helper(storage_subdict[key], subname, flattened_list)
+
+
+def save_tensor_for_halo2(name: str, tensor: torch.Tensor, dim_check=True, conv_weight=False):
+    """
+    Writes flattened version of tensor if `dim_check` is set to True to global storage var.
+
+    NOTE: Conv (weight) is (C_out, C_in, H, W) --> (C_in, H, W, C_out)
+        .permute(3, 0, 1, 2)
+    NOTE: Conv data is (1, C, H, W) --> (1, C, W, H)
+        .permute(0, 1, 3, 2)
     """
     global all_intermediate_values
     if SAVE_INTERMEDIATE_VALUES:
@@ -135,9 +154,14 @@ def save_chw_tensor_to_cwh(name: str, tensor: torch.Tensor, dim_check=True):
                 tensor = tensor.unsqueeze(0)
             if len(tensor.shape) != 4:
                 raise RuntimeError(f"You goofed! Tensor is not 4-dimensional. Name: {name} | Tensor shape: {tensor.shape}")
-            all_intermediate_values[name] = export_parameter_to_flattened_list(tensor.transpose(2, 3))
+            if conv_weight:
+                tensor_list_repr = export_parameter_to_flattened_list(tensor.permute(3, 0, 1, 2))
+            else:
+                tensor_list_repr = export_parameter_to_flattened_list(tensor.permute(0, 1, 3, 2))
+            save_tensor_helper(all_intermediate_values, name, tensor_list_repr)
         else:
-            all_intermediate_values[name] = export_parameter_to_flattened_list(tensor)
+            tensor_list_repr = export_parameter_to_flattened_list(tensor)
+            save_tensor_helper(all_intermediate_values, name, tensor_list_repr)
 
 
 def save_all_intermediate_tensors(filename: str):
@@ -153,6 +177,7 @@ class Net(nn.Module):
     def __init__(self, residual_channels, residual_blocks, policy_channels, se_ratio, classical=False, classicalPolicy=False):
         super().__init__()
         channels = residual_channels
+        self.residual_blocks = residual_blocks
 
         self.conv_block = ConvBlock(112, channels, 3, padding=1)
 
@@ -189,16 +214,16 @@ class Net(nn.Module):
         print(f"Quantizing model weights! Quantize factor: {QUANTIZE_FACTOR}")
         for name, module in self.named_modules():
             if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
-                module.weight = nn.Parameter(torch.round(module.weight * QUANTIZE_FACTOR))
+                module.weight = nn.Parameter(torch.round(module.weight * QUANTIZE_FACTOR).double())
                 if module.bias is not None:
-                    module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR ** 2))
+                    module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR ** 2).double())
                 # print(f"Just quantized layer: {name}!")
             if isinstance(module, nn.BatchNorm2d):
-                module.weight = nn.Parameter(torch.round(module.weight * QUANTIZE_FACTOR))
-                module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR ** 2))
+                module.weight = nn.Parameter(torch.round(module.weight * QUANTIZE_FACTOR).double())
+                module.bias = nn.Parameter(torch.round(module.bias * QUANTIZE_FACTOR ** 2).double())
                 # module.eps = nn.Parameter(round(module.eps * QUANTIZE_FACTOR))
-                module.running_mean = nn.Parameter(torch.round(-1 * module.running_mean * QUANTIZE_FACTOR))
-                module.running_var = nn.Parameter(torch.round(module.running_var * QUANTIZE_FACTOR ** 2))
+                module.running_mean = nn.Parameter(torch.round(-1 * module.running_mean * QUANTIZE_FACTOR).double())
+                module.running_var = nn.Parameter(torch.round(module.running_var * QUANTIZE_FACTOR ** 2).double())
                 # print(f"Just quantized layer: {name}!")
 
     def set_model_name(self, model_name: str):
@@ -218,10 +243,10 @@ class Net(nn.Module):
         # --- Quantize model inputs ---
         if QUANTIZE_NETWORKS:
             max_abs_intermediate_value = -1
-            x = torch.round(x * QUANTIZE_FACTOR)
+            x = torch.round(x * QUANTIZE_FACTOR).double()
 
         # --- Save input if needed ---
-        save_chw_tensor_to_cwh("input", x)
+        save_tensor_for_halo2("input", x)
 
         # --- Check if any of these are too large ---
         print_max_abs_value("initial x", {
@@ -233,6 +258,10 @@ class Net(nn.Module):
 
         # --- Compute policy head ---
         policy = self.policy_head(x)
+
+        # --- Save policy head as output ---
+        save_tensor_for_halo2("output", policy, dim_check=False)
+
         if QUANTIZE_NETWORKS:
             policy = policy / QUANTIZE_FACTOR
 
@@ -240,18 +269,83 @@ class Net(nn.Module):
         if QUANTIZE_NETWORKS:
             value = value / QUANTIZE_FACTOR
 
-        # if QUANTIZE_NETWORKS:
-            # print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
+        if QUANTIZE_NETWORKS:
+            print(f"\n----- Max over everything!!! {max_abs_intermediate_value} -----\n")
 
         if SAVE_INTERMEDIATE_VALUES:
-            save_all_intermediate_tensors(f"{self.model_name}_intermediates.json")
+            save_all_intermediate_tensors(f"{self.model_name}_intermediates_new.json")
 
         return policy, value
+
+    
+    def setup_json_dict_for_halo2(self):
+        json_dict = OrderedDict()
+        json_dict["conv_block"] = dict()
+        json_dict["residual_stack"] = OrderedDict()
+        for res_block_number in range(1, self.residual_blocks + 1):
+            json_dict["residual_stack"][f"block{res_block_number}"] = dict()
+        json_dict["policy_head"] = dict()
+        json_dict["value_head"] = dict()
+        return json_dict
+
+
+    def compute_correct_subdict(self, json_dict, name):
+        """
+        Returns exactly where the module should be saved within the json_dict
+        given the name.
+        """
+        print(f"Computing subdict/saving weights for {name}...")
+        if name[:len("conv_block")] == "conv_block":
+            op_name = name.split(".")[-1]
+            if op_name not in json_dict["conv_block"]:
+                json_dict["conv_block"][op_name] = dict()
+            return json_dict["conv_block"][op_name]
+        elif name[:len("residual_stack")] == "residual_stack":
+            # --- Squeeze-excitation ---
+            if ".se." in name:
+                _, block_name, _, se, op_name = name.split(".")
+                if se not in json_dict["residual_stack"][block_name]:
+                    json_dict["residual_stack"][block_name][se] = dict()
+                if op_name not in json_dict["residual_stack"][block_name][se]:
+                    json_dict["residual_stack"][block_name][se][op_name] = dict()
+                return json_dict["residual_stack"][block_name][se][op_name]
+            # --- Other block component ---
+            else:
+                _, block_name, _, op_name = name.split(".")
+                if op_name not in json_dict["residual_stack"][block_name]:
+                    json_dict["residual_stack"][block_name][op_name] = dict()
+                return json_dict["residual_stack"][block_name][op_name]
+        elif name[:len("policy_head")] == "policy_head":
+            op_name = name.split(".")[-1]
+            # --- Either conv block or not ---
+            if "conv_block" in name:
+                if "conv_block" not in json_dict["policy_head"]:
+                    json_dict["policy_head"]["conv_block"] = dict()
+                if op_name not in json_dict["policy_head"]["conv_block"]:
+                    json_dict["policy_head"]["conv_block"][op_name] = dict()
+                return json_dict["policy_head"]["conv_block"][op_name]
+            else:
+                if op_name not in json_dict["policy_head"]:
+                    json_dict["policy_head"][op_name] = dict()
+                return json_dict["policy_head"][op_name]
+        elif name[:len("value_head")] == "value_head":
+            op_name = name.split(".")[-1]
+            # --- Either conv block or not ---
+            if "conv_block" in name:
+                if "conv_block" not in json_dict["value_head"]:
+                    json_dict["value_head"]["conv_block"] = dict()
+                if op_name not in json_dict["value_head"]["conv_block"]:
+                    json_dict["value_head"]["conv_block"][op_name] = dict()
+                return json_dict["value_head"]["conv_block"][op_name]
+            else:
+                if op_name not in json_dict["value_head"]:
+                    json_dict["value_head"][op_name] = dict()
+                return json_dict["value_head"][op_name]
+
 
     def export_to_json_for_halo2(self):
         """
         Returns JSON format for Halo2 model weight saving.
-
         Format:
         {
             "name": None or {
@@ -263,40 +357,40 @@ class Net(nn.Module):
                 "beta": int,
             }
         }
-
-        TODO(ryancao): Transpose weights and biases to match what Nick wants
         """
-        ret = OrderedDict()
+        json_dict = self.setup_json_dict_for_halo2()
+        print(json_dict.keys())
         for name, module in self.named_modules():
-            print(name)
+
+            # --- Block types ---
             if isinstance(module, nn.Conv2d):
-                ret[name] = {
-                    # C_o, C_i, H, W --> C_i, W, H, C_o
-                    "weight": export_parameter_to_flattened_list(module.weight.permute(1, 3, 2, 0)),
-                    "weight_shape": list(module.weight.permute(1, 3, 2, 0).shape)
-                }
+                # --- Get effective save path ---
+                json_subdict = self.compute_correct_subdict(json_dict, name)
+                
+                # C_o, C_i, H, W --> C_i, W, H, C_o
+                json_subdict["weight"] = export_parameter_to_flattened_list(module.weight.permute(1, 3, 2, 0))
+                json_subdict["weight_shape"] = list(module.weight.permute(1, 3, 2, 0).shape)
                 if module.bias is not None:
-                    ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
+                    json_subdict["bias"] = export_parameter_to_flattened_list(module.bias)
             elif isinstance(module, nn.Linear):
-                ret[name] = {
-                    "weight": export_parameter_to_flattened_list(module.weight),
-                    "weight_shape": list(module.weight.shape)
-                }
+                # --- Get effective save path ---
+                json_subdict = self.compute_correct_subdict(json_dict, name)
+                json_subdict["weight"] = export_parameter_to_flattened_list(module.weight)
+                json_subdict["weight_shape"] = list(module.weight.shape)
                 if module.bias is not None:
-                    ret[name]["bias"] = export_parameter_to_flattened_list(module.bias)
+                    json_subdict["bias"] = export_parameter_to_flattened_list(module.bias)
             elif isinstance(module, nn.BatchNorm2d):
+                # --- Get effective save path ---
+                json_subdict = self.compute_correct_subdict(json_dict, name)
                 beta, gamma = module.bias, module.weight
                 var_x, e_x = module.running_var, module.running_mean
                 coeff = torch.round((gamma * QUANTIZE_FACTOR) / (torch.sqrt(var_x + module.eps)))
-
-                ret[name] = {
-                    "coeff": export_parameter_to_flattened_list(coeff),
-                    "e_x": export_parameter_to_flattened_list(e_x),
-                    "beta": export_parameter_to_flattened_list(beta)
-                }
+                json_subdict["coeff"] = export_parameter_to_flattened_list(coeff),
+                json_subdict["e_x"] = export_parameter_to_flattened_list(e_x),
+                json_subdict["beta"] = export_parameter_to_flattened_list(beta)
             else:
-                ret[name] = None
-        return ret
+                print(f"Skipping module with name: {name}")
+        return json_dict
 
     def conv_and_linear_weights(self):
         return [m.weight for m in self.modules() if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear)]
@@ -407,7 +501,7 @@ class PolicyHead(nn.Module):
                 "x": x,
             })
             x = torch.round(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh(f"policy_head.conv", x)
+        save_tensor_for_halo2(f"policy_head.conv", x)
 
         x = x.contiguous()
         x = x.view(x.size(0), -1)
@@ -433,7 +527,7 @@ class PolicyHead(nn.Module):
             print_max_abs_value("policy head gather", {
                 "x": x,
             })
-        save_chw_tensor_to_cwh("policy_head.gather", x, dim_check=False)
+        save_tensor_for_halo2("policy_head.gather", x, dim_check=False)
 
         # print(f"After gather! x.shape: {x.shape}")
         return x
@@ -537,18 +631,18 @@ class ResidualBlock(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.conv1", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.conv1", x)
 
         # --- Batchnorm, then round ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.layers.get_submodule("bn1"))
         else:
             x = self.layers.get_submodule("bn1")(x)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.bn1", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.bn1", x)
 
         # --- ReLU # 1 ---
         x = self.layers.get_submodule("relu")(x)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.relu1", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.relu1", x)
 
         # --- Conv #2 ---
         x = self.layers.get_submodule("conv2")(x)
@@ -557,14 +651,14 @@ class ResidualBlock(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.conv2", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.conv2", x)
 
         # --- Batchnorm #2 ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.layers.get_submodule("bn2"))
         else:
             x = self.layers.get_submodule("bn2")(x)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.bn2", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.bn2", x)
 
         # --- SE ---
         x = self.layers.get_submodule("se")(x)
@@ -575,10 +669,10 @@ class ResidualBlock(nn.Module):
             print_max_abs_value("residual block after SE and residual", {
                 "x": x,
             })
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.residual", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.residual", x)
 
         x = self.relu2(x)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.relu2", x)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.relu2", x)
 
         return x
 
@@ -595,27 +689,50 @@ class ConvBlock(nn.Sequential):
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
 
         # --- Conv, then normalize ---
+        # print(self.conv.weight.shape)
+        # print(self.conv.weight)
+        # print(x)
+        # print(x.shape)
+
+        # --- Manually do the first conv thingy ---
+        conv_slice = self.conv.weight[0]
+        # print(f"First conv slice")
+        # print(conv_slice, conv_slice.shape)
+        # x_slice = F.pad(x, pad=[1, 1, 1, 1], mode="constant", value=0)[0, :, :3, :3]
+        # print(f"First x slice")
+        # print(x_slice, x_slice.shape)
+        # hadamard = conv_slice * x_slice
+        # print(f"Hadamard")
+        # print(hadamard, hadamard.shape)
+        # print(f"Result")
+        # print(hadamard.sum())
+        # print(hadamard.sum().item())
+
         x = self.conv(x)
+        # print(x[0, 0, 0, 0])
+        # print(x[0, 0, 0, 0].item())
+
+        # print(x.shape)
         if QUANTIZE_NETWORKS:
             print_max_abs_value("conv block post conv", {
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh("conv_block.conv", x)
+        save_tensor_for_halo2("conv_block.conv", x)
 
         # --- Batchnorm, then normalize ---
         if QUANTIZE_NETWORKS:
             x = cursed_batchnorm(x, self.bn)
         else:
             x = self.bn(x)
-        save_chw_tensor_to_cwh("conv_block.bn", x)
+        save_tensor_for_halo2("conv_block.bn", x)
 
         # --- ReLU ---
         x = self.relu(x)
-        save_chw_tensor_to_cwh("conv_block.relu", x)
+        save_tensor_for_halo2("conv_block.relu", x)
 
         return x
 
@@ -643,7 +760,7 @@ class SqueezeExcitation(nn.Module):
             print_max_abs_value("SE block post pooling", {
                 "x": x,
             })
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.pool", x, dim_check=False)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.pool", x, dim_check=False)
 
         x = self.lin1(x)
         if QUANTIZE_NETWORKS:
@@ -651,10 +768,10 @@ class SqueezeExcitation(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.lin1", x, dim_check=False)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.lin1", x, dim_check=False)
 
         x = self.relu(x)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.relu", x, dim_check=False)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.relu", x, dim_check=False)
 
         x = self.lin2(x)
         if QUANTIZE_NETWORKS:
@@ -662,12 +779,12 @@ class SqueezeExcitation(nn.Module):
                 "x": x,
             })
             x = torch.trunc(x / QUANTIZE_FACTOR)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.lin2", x, dim_check=False)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.lin2", x, dim_check=False)
 
         x = x.view(n, 2 * c, 1, 1)
         scale, shift = x.chunk(2, dim=1)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scale", scale)
-        save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.shift", shift)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.scale", scale)
+        save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.shift", shift)
 
         # TODO(ryancao): Is this actually circuit-friendly?
         if QUANTIZE_NETWORKS:
@@ -680,23 +797,23 @@ class SqueezeExcitation(nn.Module):
             print(f"Scale.shape: {scale.shape}")
             scale_sigmoid = cursed_sigmoid(scale)
             print(f"scale_sigmoid.shape: {scale_sigmoid.shape}")
-            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scale_sigmoid", scale_sigmoid)
+            save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.scale_sigmoid", scale_sigmoid)
 
             # --- Multiply by input ---
             scaled_x_in = scale_sigmoid * x_in
             # print(f"scaled_x_in.shape: {scaled_x_in.shape}")
-            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.scaled_x_in", scaled_x_in)
+            save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.scaled_x_in", scaled_x_in)
 
             # --- Re-normalize ---
             quantized = torch.trunc(scaled_x_in / QUANTIZE_FACTOR)
-            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized", quantized)
+            save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.quantized", quantized)
 
             # --- Add shift term ---
             # print(f"shift.shape: {shift.shape}")
             quantized_and_shifted = quantized + shift
             # print(f"quantized_and_shifted.shape: {quantized_and_shifted.shape}")
             print("========================")
-            save_chw_tensor_to_cwh(f"residual_block_{self.block_number}.se_layer.quantized_and_shifted", quantized_and_shifted)
+            save_tensor_for_halo2(f"residual_block_{self.block_number}.se_layer.quantized_and_shifted", quantized_and_shifted)
 
             print_max_abs_value("SE sigmoid with scale and shift", {
                 "scale_sigmoid": scale_sigmoid,

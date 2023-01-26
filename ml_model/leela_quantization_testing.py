@@ -6,6 +6,9 @@ import sunfish
 import os
 import json
 
+import torch
+torch.set_default_dtype(torch.float64)
+
 # --------- Leela stuff ---------
 PIECE_REPLACEMENTS = {
     'R': '♜',

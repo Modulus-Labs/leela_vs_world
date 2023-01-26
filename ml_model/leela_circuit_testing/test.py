@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import json
 import math
+
+torch.manual_seed(42)
 
 def export_parameter_to_flattened_list(module_parameter: nn.Parameter):
   return list(math.floor(x.item()) for x in module_parameter.flatten())
@@ -9,19 +12,29 @@ def export_parameter_to_flattened_list(module_parameter: nn.Parameter):
 def test_conv(with_bias: bool=False):
   # --- Default: C, H, W ---
   # --- Desired: C, W, H ---
-  x = torch.randint(int(-1e6), int(1e6), (4 * 16 * 16,)).reshape(4, 16, 16).float()
+  x = torch.randint(int(-1e6), int(1e6), (112 * 8 * 8,)).reshape(112, 8, 8).double()
 
   # --- Default: C_out, C_in, H, W ---
   # --- Desired: C_in, W, H, C_out ---
-  conv2d = nn.Conv2d(4, 4, 3, padding=1, bias=with_bias)
-  conv2d_weight = torch.randint(int(-1e6), int(1e6), (4 * 4 * 3 * 3,)).float().reshape(4, 4, 3, 3)
+  conv2d = nn.Conv2d(112, 120, 3, padding=1, bias=with_bias)
+  conv2d_weight = torch.randint(int(-1e6), int(1e6), (112 * 120 * 3 * 3,)).double().reshape(120, 112, 3, 3)
   conv2d.weight = nn.Parameter(conv2d_weight)
 
   if with_bias:
-    conv2d_bias = torch.randint(int(-1e12), int(1e12), (4,))
+    conv2d_bias = torch.randint(int(-1e12), int(1e12), (2,)).double()
     conv2d.bias = nn.Parameter(conv2d_bias)
 
   out = conv2d(x)
+
+  # print(f"Input: (C_in, H, W)")
+  # print(F.pad(x, (1, 1, 1, 1), "constant", 0))
+  # print(f"Weight: (C_out, C_in, H, W)")
+  # print(conv2d.weight)
+  # print(f"Weight: (C_in, W, H, C_out)")
+  # print(conv2d.weight.permute(1, 3, 2, 0))
+  # print(f"Output: (C_out, H, W)")
+  print(out)
+  print(list(x.item() for x in out.flatten()))
 
   json_dict = {
     "input": export_parameter_to_flattened_list(x.permute(0, 2, 1)),
@@ -236,7 +249,8 @@ def main():
   # test_distributed_add()
   # test_cursed_batchnorm()
   # test_adaptive_2d_avgpool()
-  test_cursed_sigmoid()
+  # test_cursed_sigmoid()
+  test_conv()
   print(f"All done!")
 
 if __name__ == "__main__":
