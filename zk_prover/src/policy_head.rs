@@ -3,7 +3,7 @@ use halo2_machinelearning::{nn_ops::{
         linear::{
             batchnorm::{BatchnormChip, BatchnormChipParams, BatchnormConfig},
             conv::{
-                Conv3DLayerChip, Conv3DLayerConfig, Conv3DLayerConfigParams, Conv3DLayerParams,
+                Conv3DLayerChip, Conv3DLayerConfig, Conv3DLayerParams,
             },
             dist_add_fixed::{
                 DistributedAddFixedChip, DistributedAddFixedChipParams, DistributedAddFixedConfig,
@@ -16,14 +16,14 @@ use halo2_machinelearning::{nn_ops::{
     },
     vector_ops::gather::gather,
     ColumnAllocator, InputSizeConfig, NNLayer,
-}, felt_to_i64};
+}};
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
     plonk::{Advice, ConstraintSystem, Error as PlonkError, Fixed},
 };
 
-use ndarray::{Array1, Array3, Axis};
+use ndarray::{Array1, Array3};
 
 #[derive(Clone, Debug)]
 pub struct PolicyHeadConfig<F: FieldExt> {

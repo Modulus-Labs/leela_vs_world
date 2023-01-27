@@ -1,18 +1,18 @@
-use std::time::Instant;
 
-use halo2_machinelearning::{felt_from_i64, felt_to_i64};
-use halo2_proofs::{plonk::{Error as PlonkError, keygen_vk, keygen_pk, create_proof, verify_proof}, circuit::Value, dev::MockProver, halo2curves::bn256::{Fr, Bn256}, poly::{kzg::{commitment::ParamsKZG, multiopen::{ProverSHPLONK, VerifierSHPLONK}, strategy::SingleStrategy}, commitment::ParamsProver}, transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer, Blake2bRead, TranscriptReadBuffer}};
-use ndarray::{Array1, Array};
 
-use leela_circuit::{input_parsing::read_input, LeelaCircuit, OUTPUT};
+use halo2_machinelearning::{felt_from_i64};
+use halo2_proofs::{plonk::{Error as PlonkError}, circuit::Value, halo2curves::bn256::{Fr}, poly::{commitment::ParamsProver}};
+use ndarray::{Array};
 
-use rand::rngs::OsRng;
+use leela_circuit::{input_parsing::read_input, LeelaCircuit};
+
+
 
 fn main() -> Result<(), PlonkError> {
     const PREFIX: &str = "/home/ubuntu/leela_zk/";
     let params = read_input(PREFIX, "bgnet.json");
 
-    let (input, output): (Vec<Fr>, Vec<Fr>) = {
+    let (input, _output): (Vec<Fr>, Vec<Fr>) = {
         let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "bgnet_intermediates_new.json").unwrap();
         let inputs = json::parse(&inputs_raw).unwrap();
         let input: Vec<_> = inputs["input"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
@@ -20,7 +20,7 @@ fn main() -> Result<(), PlonkError> {
         let outputs: Vec<_> = inputs["output"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
         (input, outputs)
     };
-    let input_values: Vec<_> = input.clone().into_iter().map(|x| Value::known(x)).collect();
+    let input_values: Vec<_> = input.into_iter().map(Value::known).collect();
     let input_array = Array::from_shape_vec((112, 8, 8), input_values).unwrap();
 
 

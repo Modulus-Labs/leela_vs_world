@@ -2,28 +2,23 @@ use halo2_machinelearning::{nn_ops::{
     lookup_ops::DecompTable,
     matrix_ops::{
         linear::{
-            batchnorm::{BatchnormChip, BatchnormChipParams, BatchnormConfig},
-            conv::{
-                Conv3DLayerChip, Conv3DLayerConfig, Conv3DLayerConfigParams, Conv3DLayerParams,
-            },
-            dist_add::{self, DistributedAddChip, DistributedAddConfig},
+            dist_add::{DistributedAddChip, DistributedAddConfig},
             dist_mul::{DistributedMulChip, DistributedMulConfig},
         },
         non_linear::{
             avg_pool::{AvgPool2DChip, AvgPool2DChipConfig, AvgPool2DConfig},
             norm_2d::{Normalize2dChip, Normalize2dConfig},
-            relu_norm_2d::{ReluNorm2DChip, ReluNorm2DConfig},
         },
     },
     vector_ops::{
         linear::fc::{FcChip, FcChipConfig, FcConfig, FcParams},
         non_linear::{
-            eltwise_ops::{DecompConfig as EltwiseConfig, NormalizeChip, NormalizeReluChip},
+            eltwise_ops::{NormalizeChip, NormalizeReluChip},
             sigmoid::{SigmoidChip, SigmoidChipConfig, SigmoidConfig},
         },
     },
     ColumnAllocator, DecompConfig, InputSizeConfig, NNLayer,
-}, felt_to_i64};
+}};
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
@@ -154,7 +149,7 @@ impl<F: FieldExt> NNLayer<F> for SqueezeExcitationBlockChip<F> {
 
         let sigmoid_config = SigmoidChipConfig {
             range_table: config_params.range_table.clone(),
-            norm_chip: norm_chip.clone(),
+            norm_chip,
         };
         let sigmoid_chip =
             SigmoidChip::configure(meta, sigmoid_config, advice_allocator, fixed_allocator);

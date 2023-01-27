@@ -4,7 +4,7 @@ use halo2_machinelearning::{nn_ops::{
         linear::{
             batchnorm::{BatchnormChip, BatchnormChipParams, BatchnormConfig},
             conv::{
-                Conv3DLayerChip, Conv3DLayerConfig, Conv3DLayerConfigParams, Conv3DLayerParams,
+                Conv3DLayerChip, Conv3DLayerConfig, Conv3DLayerParams,
             },
             residual_add::{ResidualAdd2DChip, ResidualAdd2DConfig},
         },
@@ -15,7 +15,7 @@ use halo2_machinelearning::{nn_ops::{
         },
     },
     ColumnAllocator, DecompConfig, InputSizeConfig, NNLayer,
-}, felt_to_i64};
+}};
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
@@ -27,7 +27,7 @@ use crate::squeeze_excitation::{
     SqueezeExcitationBlockConfig,
 };
 
-use ndarray::{Array3, Axis};
+use ndarray::{Array3};
 
 #[derive(Clone, Debug)]
 pub struct ResidualBlockConfig<F: FieldExt> {
@@ -122,7 +122,7 @@ impl<F: FieldExt> NNLayer<F> for ResidualBlockChip<F> {
             input_height: 8,
             input_width: 8,
             input_depth: 128,
-            range_table: range_table.clone(),
+            range_table,
         };
         let relu_chip = Relu2DChip::configure(meta, relu_params, advice_allocator, fixed_allocator);
 

@@ -19,7 +19,7 @@ use halo2_proofs::{
     plonk::{Advice, ConstraintSystem, Error as PlonkError, Fixed},
 };
 
-use ndarray::{Array3, Axis};
+use ndarray::{Array3};
 
 #[derive(Clone, Debug)]
 pub struct ConvBlockConfig<F: FieldExt> {

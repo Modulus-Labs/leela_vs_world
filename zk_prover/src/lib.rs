@@ -8,19 +8,19 @@ use conv_block::{ConvBlockChipParams, ConvBlockChipConfig, ConvBlockConfig, Conv
 use halo2_machinelearning::{nn_ops::{
     matrix_ops::{
         linear::{
-            batchnorm::{BatchnormChipParams, BatchnormConfig, BatchnormChip}, conv::{Conv3DLayerParams, Conv3DLayerConfig, Conv3DLayerChip, Conv3DLayerConfigParams},
+            batchnorm::{BatchnormChipParams, BatchnormChip}, conv::{Conv3DLayerParams, Conv3DLayerChip, Conv3DLayerConfigParams},
             dist_add_fixed::DistributedAddFixedChipParams,
         },
-        non_linear::{norm_2d::{Normalize2dConfig, Normalize2DChipConfig, Normalize2dChip}, relu_norm_2d::{ReluNorm2DConfig, ReluNorm2DChipConfig, ReluNorm2DChip}},
+        non_linear::{norm_2d::{Normalize2DChipConfig, Normalize2dChip}, relu_norm_2d::{ReluNorm2DChipConfig, ReluNorm2DChip}},
     },
     vector_ops::linear::fc::FcParams, ColumnAllocator, NNLayer, InputSizeConfig, lookup_ops::DecompTable, DefaultDecomp,
-}, felt_to_i64};
+}};
 use halo2_proofs::{
-    arithmetic::{FieldExt, Field},
-    circuit::{Layouter, SimpleFloorPlanner, Value, floor_planner::V1},
-    plonk::{Advice, Circuit, Column, ConstraintSystem, Error as PlonkError, Instance, Fixed, FloorPlanner, Any}, dev::MockProver, halo2curves::{Group, bn256::Fr},
+    arithmetic::{FieldExt},
+    circuit::{Layouter, SimpleFloorPlanner, Value},
+    plonk::{Advice, Circuit, Column, ConstraintSystem, Error as PlonkError, Instance, Fixed}, halo2curves::{bn256::Fr},
 };
-use ndarray::{Array, Array3, Array1, Axis};
+use ndarray::{Array, Array3};
 use once_cell::sync::OnceCell;
 use policy_head::{PolicyHeadChipParams, PolicyHeadConfig, PolicyHeadChipConfig, PolicyHeadChip};
 use residual_block::{ResidualBlockChipParams, ResidualBlockConfig, ResidualBlockChipConfig, ResidualBlockChip};
@@ -56,7 +56,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
 
     fn without_witnesses(&self) -> Self {
         let conv_params = Conv3DLayerParams {
-            kernals: Array::from_shape_simple_fn((128, 3, 3, 128), || Value::unknown()),
+            kernals: Array::from_shape_simple_fn((128, 3, 3, 128), Value::unknown),
         };
         let bn_params = BatchnormChipParams {
             scalars: Array::from_shape_simple_fn(128, || {
@@ -65,7 +65,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         };
         let conv_block = ConvBlockChipParams {
             conv_params: Conv3DLayerParams {
-                kernals: Array::from_shape_simple_fn((112, 3, 3, 128), || Value::unknown()),
+                kernals: Array::from_shape_simple_fn((112, 3, 3, 128), Value::unknown),
             },
             bn_params: bn_params.clone(),
         };
@@ -95,11 +95,11 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         let policy_head = PolicyHeadChipParams {
             conv_1_params: conv_params,
             conv_2_params: Conv3DLayerParams {
-                kernals: Array::from_shape_simple_fn((128, 3, 3, 80), || Value::unknown()),
+                kernals: Array::from_shape_simple_fn((128, 3, 3, 80), Value::unknown),
             },
             bn_params,
             bias_params: DistributedAddFixedChipParams {
-                scalars: Array::from_shape_simple_fn(80, || Value::unknown()),
+                scalars: Array::from_shape_simple_fn(80, Value::unknown),
             },
             gather_map: input_parsing::GATHER_MAP.to_vec().into(),
         };
@@ -109,7 +109,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
             policy_head,
         };
         LeelaCircuit {
-            input: Array::from_shape_simple_fn((112, 8, 8), || Value::unknown()),
+            input: Array::from_shape_simple_fn((112, 8, 8), Value::unknown),
             params: leela_params,
         }
     }
@@ -138,7 +138,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         let residual_block_params = ResidualBlockChipConfig { norm_relu_chip: relu_chip.clone(), norm_chip: norm_chip.clone(), bn_chip: bn_chip.clone(), conv_chip: conv_chip.clone(), range_table: range_table.clone() };
         let residual_chip = ResidualBlockChip::configure(meta, residual_block_params, &mut advice_allocator, &mut fixed_allocator);
 
-        let policy_head_params = PolicyHeadChipConfig { norm_relu_chip: relu_chip.clone(), norm_chip: norm_chip.clone(), bn_chip: bn_chip.clone(), conv_chip: conv_chip.clone() };
+        let policy_head_params = PolicyHeadChipConfig { norm_relu_chip: relu_chip, norm_chip, bn_chip, conv_chip };
         let policy_head_chip = PolicyHeadChip::configure(meta, policy_head_params, &mut advice_allocator, &mut fixed_allocator);
 
         let input_advice = {let col = meta.advice_column(); meta.enable_equality(col); col};
@@ -174,7 +174,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
 
         let conv_block_output = conv_block_chip.add_layer(&mut layouter, inputs, self.params.conv_block.clone());
 
-        let residual_output = self.params.residuals.iter().enumerate().fold(conv_block_output, |accum, (index, residual_params)| {
+        let residual_output = self.params.residuals.iter().enumerate().fold(conv_block_output, |accum, (_index, residual_params)| {
             residual_chip.add_layer(&mut layouter, accum?, residual_params.clone())
         })?;
 
@@ -195,8 +195,8 @@ mod tests {
     use std::iter;
 
     use halo2_machinelearning::{felt_from_i64, felt_to_i64};
-    use halo2_proofs::{plonk::{Error as PlonkError, Circuit, ConstraintSystem}, circuit::{Value, SimpleFloorPlanner, floor_planner::{V1Pass, V1}}, dev::MockProver, halo2curves::{bn256::Fr, group::ff::PrimeField}};
-    use ndarray::{Array1, Array};
+    use halo2_proofs::{plonk::{Error as PlonkError}, circuit::{Value}, dev::MockProver, halo2curves::{bn256::Fr, group::ff::PrimeField}};
+    use ndarray::{Array};
 
     use crate::{input_parsing::read_input, LeelaCircuit, OUTPUT};
     #[test]
@@ -212,7 +212,7 @@ mod tests {
             let outputs: Vec<_> = inputs["output"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
             (input, outputs)
         };
-        let input_values: Vec<_> = input.clone().into_iter().map(|x| Value::known(x)).collect();
+        let input_values: Vec<_> = input.clone().into_iter().map(Value::known).collect();
         let input_array = Array::from_shape_vec((112, 8, 8), input_values).unwrap();
 
 
@@ -223,12 +223,12 @@ mod tests {
 
         let input_instance = vec![input, output];
 
-        let mut prover = MockProver::run(17, &circuit, input_instance).unwrap();
+        let _prover = MockProver::run(17, &circuit, input_instance).unwrap();
 
         OUTPUT.get().unwrap().iter().map(|output| {
-            output.map(|x| felt_to_i64(x))
+            output.map(felt_to_i64)
         }).enumerate().for_each(|(index, output_calc)| {
-            println!("output calc for index {} is {:?}", index, output_calc);
+            println!("output calc for index {index} is {output_calc:?}");
         });
 
 
@@ -254,6 +254,6 @@ mod tests {
         )
         .collect();
 
-        println!("output raw: {:?}", output);
+        println!("output raw: {output:?}");
     }
 }
