@@ -8,34 +8,63 @@ import { CHESS_PLAYER, MovedBoardState, MOVE_STATE } from '../../../types/Chess.
 import { useChessGameContext } from '../../../contexts/ChessGameContext';
 import { Square } from 'chess.js';
 
-const getAlgebraicNotation = (moveFrom: string, moveTo: string, fen: string) => {
+const getAlgebraicNotation = (moveFrom: string | null, moveTo: string| null, fen: string) => {
+  const convertFenWithEmpty = () => {
+    let pieces = fen.split(' ')[0];
+    for(let i = 0; i<pieces.length; i++) {
+      const nums = ['2','3','4','5','6','7','8'];
+      if(nums.includes(pieces.charAt(i))) {
+        let empty = '';
+        for(let j = 0; j < parseInt(pieces.charAt(i)); j++) 
+          empty += ' ';
+        if(i==pieces.length-1)
+          pieces = pieces.substring(0, i) + empty;
+        else 
+          pieces = pieces.substring(0, i) + empty + pieces.substring(i+1);
+        i-=1;
+      }
+    }
+    return pieces.split('/');
+  };
+  const convertIntToPosition = (i: number,j: number) => {
+    return String.fromCharCode(105-i) + j.toString();
+  }
+  const getPositionOfPiece = (piece: string) => {
+    const piecesArr = convertFenWithEmpty();
+    let ret = [];
+    for(let i = 0;i < piecesArr.length; i++) 
+      for(let j = 0; j < 8; j++) 
+        if(piecesArr[i].charAt(j) == piece) 
+          ret.push(convertIntToPosition(i,j));
+    return piecesArr;
+    
+  }
   if(moveTo == null)
     return ' ';
-  let pieces = fen.split(' ')[0];
-  for(let i = 0; i<pieces.length; i++) {
-    const nums = ['2','3','4','5','6','7','8'];
-    if(nums.includes(pieces.charAt(i))) {
-      let empty = '';
-      for(let j = 0; j < parseInt(pieces.charAt(i)); j++) 
-        empty += ' ';
-      if(i==pieces.length-1)
-        pieces = pieces.substring(0, i) + empty;
-      else 
-        pieces = pieces.substring(0, i) + empty + pieces.substring(i+1);
-      i-=1;
-    }
-  }
-  const piecesArr = pieces.split('/');
-  let fromPiece = piecesArr[8-parseInt(moveFrom.charAt(1))].charAt(moveFrom.charCodeAt(0)-97);
-  if(fromPiece == "P")
-    fromPiece = '';
-  console.log(fromPiece);
-  let toPiece = piecesArr[8-parseInt(moveTo.charAt(1))].charAt(moveTo.charCodeAt(0)-97);
-  // todo: need to deal with moves that have multiple potential fromPieces 
-  if(toPiece==' ') 
-    return fromPiece.toUpperCase()+moveTo;
+  else if (moveFrom == null)
+    return ' ';
   else {
-    return fromPiece.toUpperCase()+'x'+moveTo;
+    const piecesArr = convertFenWithEmpty();
+    let fromPiece = piecesArr[8-parseInt(moveFrom.charAt(1))].charAt(moveFrom.charCodeAt(0)-97);
+    if(fromPiece == "P")
+      fromPiece = '';
+    console.log(fromPiece);
+    let toPiece = piecesArr[8-parseInt(moveTo.charAt(1))].charAt(moveTo.charCodeAt(0)-97);
+    // todo: need to deal with moves that have multiple potential fromPieces
+    //pseudo code
+    const piecePositions = getPositionOfPiece(fromPiece);
+    // remove the fromPiece. find each piece's valid moves from contract, and check if moveTo is there.
+    // if moveTo is there, 
+          //if pieces are not on same file 
+              //add file
+          //else if pieces are not on same row
+              //add row
+          //else add file and row
+    if(toPiece==' ') 
+      return fromPiece.toUpperCase()+moveTo;
+    else {
+      return fromPiece.toUpperCase()+'x'+moveTo;
+    }
   }
 }
 
