@@ -4,9 +4,43 @@ import clsx from 'clsx';
 import { RetroButton } from './RetroButton';
 import { RetroDropdown } from './RetroDropdown';
 import { useBettingContext } from '../../../contexts/BettingContext';
-import { CHESS_PLAYER } from '../../../types/Chess.type';
+import { CHESS_PLAYER, MovedBoardState, MOVE_STATE } from '../../../types/Chess.type';
+import { useChessGameContext } from '../../../contexts/ChessGameContext';
+import { Square } from 'chess.js';
+
+const getAlgebraicNotation = (moveFrom: string, moveTo: string, fen: string) => {
+  if(moveTo == null)
+    return ' ';
+  let pieces = fen.split(' ')[0];
+  for(let i = 0; i<pieces.length; i++) {
+    const nums = ['2','3','4','5','6','7','8'];
+    if(nums.includes(pieces.charAt(i))) {
+      let empty = '';
+      for(let j = 0; j < parseInt(pieces.charAt(i)); j++) 
+        empty += ' ';
+      if(i==pieces.length-1)
+        pieces = pieces.substring(0, i) + empty;
+      else 
+        pieces = pieces.substring(0, i) + empty + pieces.substring(i+1);
+      i-=1;
+    }
+  }
+  const piecesArr = pieces.split('/');
+  let fromPiece = piecesArr[8-parseInt(moveFrom.charAt(1))].charAt(moveFrom.charCodeAt(0)-97);
+  if(fromPiece == "P")
+    fromPiece = '';
+  console.log(fromPiece);
+  let toPiece = piecesArr[8-parseInt(moveTo.charAt(1))].charAt(moveTo.charCodeAt(0)-97);
+  // todo: need to deal with moves that have multiple potential fromPieces 
+  if(toPiece==' ') 
+    return fromPiece.toUpperCase()+moveTo;
+  else {
+    return fromPiece.toUpperCase()+'x'+moveTo;
+  }
+}
 
 export const VotingPanel: FC = () => {
+  const { currChessBoard } = useChessGameContext();
   const {
     playerOption,
     setPlayerOption,
@@ -33,9 +67,21 @@ export const VotingPanel: FC = () => {
       </div>
       <div className="absolute right-[100px] bottom-[247.5px]">
         <RetroDropdown
-          text={validMoves[selectedMoveIndex].move}
+          text={getAlgebraicNotation(currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.fen)}
           onClick={() => {
-            setSelectedMoveIndex((selectedMoveIndex + 1) % validMoves.length);
+            //todo: get valid moves from betting contract, and make the next item be the next valid move. 
+
+            // setSelectedMoveIndex((selectedMoveIndex + 1) % validMoves.length);
+            // const endMove = (square: Square) => {
+            //   const newChessBoard = {
+            //     ...currChessBoard,
+            //     moveState: MOVE_STATE.MOVED,
+            //     validMoves: null,
+            //     moveTo: square,
+            //   } as MovedBoardState;
+          
+            //   setCurrChessBoard({ ...newChessBoard });
+            // };
           }}
         />
       </div>
@@ -44,7 +90,16 @@ export const VotingPanel: FC = () => {
           <RetroButton
             buttonImageUrl="bg-[url(/SubmitMoveButton.svg)]"
             onClick={() => {
-              console.log('Submit Move');
+              const moveFrom = currChessBoard.moveFrom;
+              const moveTo = currChessBoard.moveTo;
+              let moveFromInt = 0;
+              let moveToInt = 0;
+              if(moveFrom)
+                moveFromInt = (moveFrom.charCodeAt(0)-97) + 8*(8-parseInt(moveFrom.charAt(1)));
+              if(moveTo)
+                moveToInt = 8*(moveTo.charCodeAt(0)-97) + parseInt(moveTo.charAt(1));
+              const ret = moveFromInt<<6 + moveToInt;
+              // call betting contract function voteWorldMove(ret)
             }}
           />
         </div>

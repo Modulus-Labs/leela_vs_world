@@ -1,4 +1,3 @@
-import { BigNumber } from 'ethers';
 import { Square } from 'chess.js';
 
 export enum MOVE_STATE {

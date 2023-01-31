@@ -56,9 +56,7 @@ export const ChessGameContextProvider = ({
       let numSpaces = 0;
       for(let r = 0; r<8;r++) {
         if(currGameState.charAt(c*8+r) != '0') {
-          console.log(currGameState.charAt(c*8+r),numSpaces);
           if(numSpaces>0) {
-            console.log(numSpaces);
             ret+=numSpaces.toString();
             numSpaces = 0;
           }
@@ -106,7 +104,6 @@ export const ChessGameContextProvider = ({
         }
       }
       if(numSpaces>0) {
-        console.log(numSpaces);
         ret+=numSpaces.toString();
         numSpaces = 0;
       }
@@ -119,7 +116,6 @@ export const ChessGameContextProvider = ({
     ret+=' '+'-';
     ret+=' 0';
     ret+=' '+moveIndex.toString();
-    console.log(ret.toString());
     return ret.toString();
   }
 
