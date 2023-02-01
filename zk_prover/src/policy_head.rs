@@ -17,7 +17,7 @@ use halo2_machinelearning::{nn_ops::{
     vector_ops::gather::gather,
     ColumnAllocator, InputSizeConfig, NNLayer,
 }};
-use halo2_proofs::{
+use halo2_base::halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
     plonk::{Advice, ConstraintSystem, Error as PlonkError, Fixed},
@@ -117,7 +117,7 @@ impl<F: FieldExt> NNLayer<F> for PolicyHeadChip<F> {
 
     fn add_layer(
         &self,
-        layouter: &mut impl halo2_proofs::circuit::Layouter<F>,
+        layouter: &mut impl halo2_base::halo2_proofs::circuit::Layouter<F>,
         input: Self::LayerInput,
         layer_params: Self::LayerParams,
     ) -> Result<Self::LayerOutput, PlonkError> {

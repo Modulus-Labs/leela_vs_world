@@ -15,16 +15,18 @@ use halo2_machinelearning::{nn_ops::{
     },
     vector_ops::linear::fc::FcParams, ColumnAllocator, NNLayer, InputSizeConfig, lookup_ops::DecompTable, DefaultDecomp,
 }};
-use halo2_proofs::{
+use halo2_base::{halo2_proofs::{
     arithmetic::{FieldExt},
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error as PlonkError, Instance, Fixed}, halo2curves::{bn256::Fr},
-};
+}, utils::value_to_option};
 use ndarray::{Array, Array3};
 use once_cell::sync::OnceCell;
 use policy_head::{PolicyHeadChipParams, PolicyHeadConfig, PolicyHeadChipConfig, PolicyHeadChip};
 use residual_block::{ResidualBlockChipParams, ResidualBlockConfig, ResidualBlockChipConfig, ResidualBlockChip};
 use squeeze_excitation::SqueezeExcitationBlockChipParams;
+
+use snark_verifier_sdk::CircuitExt;
 
 pub static OUTPUT: OnceCell<Vec<Value<Fr>>> = OnceCell::new();
 pub struct LeelaParams<F: FieldExt> {
@@ -47,6 +49,7 @@ pub struct LeelaConfig<F: FieldExt> {
 pub struct LeelaCircuit<F: FieldExt> {
     pub input: Array3<Value<F>>,
     pub params: LeelaParams<F>,
+    pub output: Vec<F>,
 }
 
 impl Circuit<Fr> for LeelaCircuit<Fr> {
@@ -111,6 +114,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         LeelaCircuit {
             input: Array::from_shape_simple_fn((112, 8, 8), Value::unknown),
             params: leela_params,
+            output: vec![]
         }
     }
 
@@ -180,7 +184,11 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
 
         let output = policy_head_chip.add_layer(&mut layouter, residual_output, self.params.policy_head.clone())?;
 
-        //OUTPUT.set(output.map(|x| x.value().map(|x| *x)).to_vec()).unwrap();
+        if let Some(_) = OUTPUT.get() {
+            
+        } else {
+            OUTPUT.set(output.map(|x| x.value().map(|x| *x)).to_vec()).unwrap();
+        }
 
         for (row, output) in output.iter().enumerate() {
             layouter.constrain_instance(output.cell(), config.output, row)?;
@@ -190,12 +198,23 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
     }
 }
 
+impl CircuitExt<Fr> for LeelaCircuit<Fr> {
+    fn num_instance(&self) -> Vec<usize> {
+        vec![self.input.len(), self.output.len()]
+    }
+
+    fn instances(&self) -> Vec<Vec<Fr>> {
+        let input: Vec<_> = self.input.iter().map(|x| value_to_option(*x).unwrap()).collect();
+        vec![input, self.output.clone()]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::iter;
 
     use halo2_machinelearning::{felt_from_i64, felt_to_i64};
-    use halo2_proofs::{plonk::{Error as PlonkError}, circuit::{Value}, dev::MockProver, halo2curves::{bn256::Fr, group::ff::PrimeField}};
+    use halo2_base::halo2_proofs::{plonk::{Error as PlonkError}, circuit::{Value}, dev::MockProver, halo2curves::{bn256::Fr, group::ff::PrimeField}};
     use ndarray::{Array};
 
     use crate::{input_parsing::read_input, LeelaCircuit, OUTPUT};
@@ -219,6 +238,7 @@ mod tests {
         let circuit = LeelaCircuit {
             input: input_array,
             params,
+            output: vec![]
         };
 
         let input_instance = vec![input, output];
@@ -236,7 +256,7 @@ mod tests {
         // let root = BitMapBackend::new("leela_circuit.png", (1024, 3096)).into_drawing_area();
         // root.fill(&WHITE).unwrap();
         // let root = root.titled("leela_circuit", ("sans-serif", 60)).unwrap();
-        // halo2_proofs::dev::CircuitLayout::default().render(17, &circuit, &root).unwrap();
+        // halo2_base::halo2_proofs::dev::CircuitLayout::default().render(17, &circuit, &root).unwrap();
 
         Ok(())
 

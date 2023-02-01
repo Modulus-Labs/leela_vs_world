@@ -1,4 +1,4 @@
-use halo2_proofs::{arithmetic::FieldExt, circuit::Value};
+use halo2_base::halo2_proofs::{arithmetic::FieldExt, circuit::Value};
 
 use halo2_machinelearning::{
     felt_from_i64,

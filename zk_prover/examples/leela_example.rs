@@ -1,7 +1,7 @@
 
 
 use halo2_machinelearning::{felt_from_i64};
-use halo2_proofs::{plonk::{Error as PlonkError}, circuit::Value, halo2curves::bn256::{Fr}, poly::{commitment::ParamsProver}};
+use halo2_base::halo2_proofs::{plonk::{Error as PlonkError}, circuit::Value, halo2curves::bn256::{Fr}, poly::{commitment::ParamsProver}};
 use ndarray::{Array};
 
 use leela_circuit::{input_parsing::read_input, LeelaCircuit};
@@ -27,6 +27,7 @@ fn main() -> Result<(), PlonkError> {
     let circuit = LeelaCircuit {
         input: input_array,
         params,
+        output: vec![]
     };
 
     // let mock = {
@@ -97,7 +98,7 @@ fn main() -> Result<(), PlonkError> {
     let root = BitMapBackend::new("leela_circuit.png", (1024*4, 3096*4)).into_drawing_area();
     root.fill(&WHITE).unwrap();
     let root = root.titled("leela_circuit", ("sans-serif", 60)).unwrap();
-    halo2_proofs::dev::CircuitLayout::default().render(17, &circuit, &root).unwrap();
+    halo2_base::halo2_proofs::dev::CircuitLayout::default().render(18, &circuit, &root).unwrap();
 
     println!("Done!");
     Ok(())
