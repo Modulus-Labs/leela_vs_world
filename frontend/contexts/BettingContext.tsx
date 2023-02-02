@@ -62,6 +62,7 @@ export const BettingContextProvider = ({
     try {
       // let newValidMoves: ChessMoveBet[];
       // TODO: interact with contract to fetch valid moves
+      
       let newValidMoves = [
         {
           move: 'Rdf8',
