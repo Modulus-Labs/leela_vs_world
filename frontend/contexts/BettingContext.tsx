@@ -62,19 +62,19 @@ export const BettingContextProvider = ({
     try {
       // let newValidMoves: ChessMoveBet[];
       // TODO: interact with contract to fetch valid moves
-      
+
       let newValidMoves = [
         {
           move: 'Rdf8',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('7.6'),
         },
         {
           move: 'Qh4e1',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('1.0'),
         },
         {
           move: 'Bxe5',
-          amount: ethers.utils.parseEther('0.2'),
+          amount: ethers.utils.parseEther('0.4'),
         },
         {
           move: 'Nf3',

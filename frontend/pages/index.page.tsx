@@ -8,10 +8,12 @@ import { VotingPanel } from '../pageElements/arcadeGame/votingPanel/VotingPanel'
 import { useArcadeMachineContext } from '../contexts/ArcadeMachineContext';
 import { GameDetails } from '../pageElements/gamePopups/GameDetails';
 import { GameInstructions } from '../pageElements/gamePopups/GameInstructions';
+import { GameEarnings } from '../pageElements/gamePopups/GameEarnings';
 import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
 import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModulousLabs';
 import { useMediaQueryContext } from '../contexts/MediaQueryContext';
 import { ScreenTooSmall } from '../pageElements/ScreenTooSmall';
+import { ArcadeFooter } from '../pageElements/arcadeGame/ArcadeFooter';
 
 export default function Home() {
   const { isMobile } = useMediaQueryContext();

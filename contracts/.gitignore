@@ -4,13 +4,9 @@ coverage
 coverage.json
 typechain
 typechain-types
-package-lock.json
-package.json
-scripts
-test
-hardhat-config.json
 
-#Hardhat files
+# Hardhat files
 cache
 artifacts
-deployments
+
+.DS_Store

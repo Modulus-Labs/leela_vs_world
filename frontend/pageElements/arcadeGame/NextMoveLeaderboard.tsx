@@ -13,6 +13,7 @@ export const NextMoveLeaderboard: FC = () => {
 
   if (validMoves.length === 0) return null;
 
+
   return (
     <div className="h-full w-full bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-[20px] pt-[65px] pb-[22.5px]">
       <div className="h-full overflow-y-scroll">

@@ -13,6 +13,9 @@ interface ArcadeMachineContextInterface {
 
   showGameInstructions: boolean;
   setShowGameInstructions: Dispatch<SetStateAction<boolean>>;
+
+  showGameEarnings: boolean;
+  setGameEarnings: Dispatch<SetStateAction<boolean>>
 }
 
 const ArcadeMachineContext = createContext<
@@ -26,6 +29,7 @@ export const ArcadeMachineContextProvider = ({
 }) => {
   const [showGameDetails, setShowGameDetails] = useState(false);
   const [showGameInstructions, setShowGameInstructions] = useState(false);
+  const [showGameEarnings, setGameEarnings] = useState(false);
 
   return (
     <ArcadeMachineContext.Provider
@@ -34,6 +38,8 @@ export const ArcadeMachineContextProvider = ({
         setShowGameDetails,
         showGameInstructions,
         setShowGameInstructions,
+        showGameEarnings,
+        setGameEarnings,
       }}
     >
       {children}
