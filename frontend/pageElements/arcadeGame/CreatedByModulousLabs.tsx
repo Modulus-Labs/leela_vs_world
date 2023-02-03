@@ -3,8 +3,8 @@ import { FC } from 'react';
 
 export const CreatedByModulousLabs: FC = () => {
   return (
-    <div className="absolute bottom-[17.75rem] right-60">
-      <div className="relative h-10 w-60">
+    <div className="flex h-full w-full flex-row items-center justify-end">
+      <div className="relative flex h-full w-[450px]">
         <Image priority fill src="/CreatedByModulousLabs.svg" alt="" />
       </div>
     </div>

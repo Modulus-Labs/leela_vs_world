@@ -3,20 +3,21 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-gas-reporter";
 import "hardhat-tracer";
 import 'hardhat-contract-sizer';
-require ('dotenv').config();
+require('dotenv').config();
 
 const { API_URL, PRIVATE_KEY } = process.env;
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.17",
-    settings: { 
-      optimizer: { 
-        enabled: true, 
-        runs: 500, 
-        details: { 
-          yul: false }, 
-        }, 
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 500,
+        details: {
+          yul: false
+        },
       },
+    },
 
   },
 
@@ -37,7 +38,7 @@ const config: HardhatUserConfig = {
     enabled: true,
   },
 
-  
+
 };
 
 export default config;

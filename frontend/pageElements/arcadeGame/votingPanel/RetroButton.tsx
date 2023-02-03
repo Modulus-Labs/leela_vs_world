@@ -28,7 +28,7 @@ export const RetroButton: FC<RetroButtonProps> = ({
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className={clsx(`h-7 w-full bg-contain bg-no-repeat`, buttonImageUrl)}
+      className={clsx(`h-full w-full bg-contain bg-no-repeat`, buttonImageUrl)}
     />
   );
 };

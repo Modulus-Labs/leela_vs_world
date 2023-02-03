@@ -15,17 +15,21 @@ export const NextMoveLeaderboard: FC = () => {
 
 
   return (
-    <div className="h-36 bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-4 pt-10 pb-2">
-    <div className="h-20 w-full overflow-auto">
-      <div className="h-15 overflow-auto flex flex-col justify-between">
+    <div className="h-full w-full bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-[20px] pt-[65px] pb-[22.5px]">
+      <div className="h-full overflow-y-scroll">
         {validMoves.map(({ move, amount }, index) => (
-        <div key={move} className={clsx('flex flex-row justify-between px-3', index % 2 === 0 && 'bg-emerald-green')}>
-          <p className="font-bold">{move}</p>
-          <p>{ethers.utils.formatEther(amount)} MATIC</p>
-        </div>
+          <div
+            key={move}
+            className={clsx(
+              'flex h-[25%] flex-row items-center justify-between px-[15px] text-3xl',
+              index % 2 === 0 && 'bg-emerald-green'
+            )}
+          >
+            <p>{move}</p>
+            <p>{ethers.utils.formatEther(amount)} ETH</p>
+          </div>
         ))}
       </div>
-    </div>
     </div>
   );
 };
