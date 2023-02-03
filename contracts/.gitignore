@@ -3,6 +3,7 @@ node_modules
 coverage
 coverage.json
 typechain
+typechain-types
 package-lock.json
 package.json
 scripts
@@ -12,3 +13,4 @@ hardhat-config.json
 #Hardhat files
 cache
 artifacts
+deployments
