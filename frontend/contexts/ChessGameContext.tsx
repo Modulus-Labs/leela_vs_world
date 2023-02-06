@@ -23,6 +23,7 @@ import { Chess, Square, Move } from 'chess.js';
 
 interface ChessGameContextInterface {
   currChessBoard: BoardState;
+  setCurrChessBoard: Dispatch<SetStateAction<BoardState>>;
   startMove: (square: Square) => void;
   endMove: (square: Square) => void;
   resetMove: () => void;
@@ -40,82 +41,80 @@ export const ChessGameContextProvider = ({
   const { data: signer } = useSigner();
 
   const getFen = () => {
-    // TODO: get currGameState from the contract 
-
-    // const currGameState = getCurrentChessBoard().toString(16); 
-    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";  // dummy value
+    // --- Initial state ---
+    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
     // const leelaColor = getLeelaColor;
     const leelaColor = false;  // dummy value; false [=] leela is black
     // const leelaTurn = getTurn;
     const leelaTurn = false; //dummy value; false [=] not leela turn
     // const moveIndex = getMoveIndex;
     const moveIndex = 1;
-    const currMove = leelaColor == leelaTurn? 'w': 'b';
+    const currMove = leelaColor == leelaTurn ? 'w' : 'b';
     let ret = "";
-    for(let c = 0; c<8;c++) {
+    for (let c = 0; c < 8; c++) {
       let numSpaces = 0;
-      for(let r = 0; r<8;r++) {
-        if(currGameState.charAt(c*8+r) != '0') {
-          if(numSpaces>0) {
-            ret+=numSpaces.toString();
+      for (let r = 0; r < 8; r++) {
+        if (currGameState.charAt(c * 8 + r) != '0') {
+          if (numSpaces > 0) {
+            ret += numSpaces.toString();
             numSpaces = 0;
           }
         } else {
-          numSpaces+=1;
+          numSpaces += 1;
           continue;
         }
-        switch(currGameState.charAt(c*8+r)) {
+        switch (currGameState.charAt(c * 8 + r)) {
           case '1':
-            ret+='P';
+            ret += 'P';
             break;
           case '2':
-            ret+='B';
+            ret += 'B';
             break;
           case '3':
-            ret+='N';
+            ret += 'N';
             break;
           case '4':
-            ret+='R';
+            ret += 'R';
             break;
           case '5':
-            ret+='K';
+            ret += 'K';
             break;
           case '6':
-            ret+='Q';
+            ret += 'Q';
             break;
           case '9':
-            ret+='p';
+            ret += 'p';
             break;
           case 'a':
-            ret+='b';
+            ret += 'b';
             break;
           case 'b':
-            ret+='n';
+            ret += 'n';
             break;
           case 'c':
-            ret+='r';
+            ret += 'r';
             break;
           case 'd':
-            ret+='k';
+            ret += 'k';
             break;
           case 'e':
-            ret+='q';
+            ret += 'q';
             break;
         }
       }
-      if(numSpaces>0) {
-        ret+=numSpaces.toString();
+      if (numSpaces > 0) {
+        ret += numSpaces.toString();
         numSpaces = 0;
       }
-      ret+='/';
+      ret += '/';
     }
-    ret = ret.slice(0,-1);
-    ret+=' '+currMove;
+    ret = ret.slice(0, -1);
+    ret += ' ' + currMove;
     // need to deal with enpassant
-    ret+=' '+'-';
-    ret+=' '+'-';
-    ret+=' 0';
-    ret+=' '+moveIndex.toString();
+    ret += ' ' + '-';
+    ret += ' ' + '-';
+    ret += ' 0';
+    ret += ' ' + moveIndex.toString();
     return ret.toString();
   }
 
@@ -176,6 +175,7 @@ export const ChessGameContextProvider = ({
     <ChessGameContext.Provider
       value={{
         currChessBoard,
+        setCurrChessBoard,
         startMove,
         endMove,
         resetMove,

@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ethersproject/providers": "^5.7.2",
     "@rainbow-me/rainbowkit": "^0.8.1",
     "@types/node": "18.11.9",
     "@types/node-emoji": "^1.8.2",
@@ -24,7 +23,6 @@
     "eslint-config-next": "13.0.4",
     "ethers": "^5.7.2",
     "framer-motion": "^8.0.2",
-    "is-extglob": "^2.1.1",
     "moment": "^2.29.4",
     "next": "13.0.4",
     "node-emoji": "^1.11.0",

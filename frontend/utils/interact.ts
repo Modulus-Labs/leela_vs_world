@@ -1,25 +1,23 @@
 import { ethers } from "ethers";
-// import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
-// import l1_abi from "./L1_abi.json";
 import { Betting__factory } from "../contracts/typechain_contracts/factories/Betting__factory";
 import { Chess__factory } from "../contracts/typechain_contracts/factories/Chess__factory";
-import emoji from "node-emoji";
+// import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
+// import l1_abi from "./L1_abi.json";
+// import emoji from "node-emoji";
 
 // --- TODO(ryancao): Figure out what these contract addresses are ---
+/** THIS IS FOR POLYGON TESTNET (MUMBAI)
+ * Compiled 10 Solidity files successfully
+ * Leela Contract deployed to address:  0x053dA459937fbF9051dB05DeeCE408ee05C496bA
+ * Betting Contract deployed to address:  0xF726450B8bfe55Da3ADe09171958791E810b3EE4
+ * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
+ */
 const config = {
-  CHESS_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  // CHESS_CONTRACT_ADDR: "0xcA42f5Bac3Ea97030Dcf6c9BCE0BDd3F5F39e169", // This is the TESTNET ADDRESS
-  BETTING_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  // BETTING_CONTRACT_ADDR: "0xcA42f5Bac3Ea97030Dcf6c9BCE0BDd3F5F39e169", // This is the TESTNET ADDRESS
+  // CHESS_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
+  CHESS_CONTRACT_ADDR: "0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b", // This is the TESTNET ADDRESS
+  // BETTING_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
+  BETTING_CONTRACT_ADDR: "0xF726450B8bfe55Da3ADe09171958791E810b3EE4", // This is the TESTNET ADDRESS
 }
-
-// --- These are testnet ---
-// const usdcAddress = "0x07865c6e87b9f70255377e024ace6630c1eaa37f";
-// const wethAddress = "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6";
-
-// --- These are mainnet ---
-const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
 // export const donateToRocky = async (
 //   amount: number,
@@ -110,11 +108,15 @@ const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
  */
 const getEthersProvider = () => {
   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = null;
-  if (window.ethereum) {
-    // --- TODO(ryancao): Hacky hack for type checking??? ---
-    ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
-  }
+  // let ethersProvider: null | ethers.providers.Web3Provider = null;
+  // if (window.ethereum) {
+  //   // --- TODO(ryancao): Hacky hack for type checking??? ---
+  //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
+  // }
+  // TODO(ryancao): DO NOT COMMIT THIS PUBLICLY lol
+  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  console.log(`API URL IS: ${API_URL}`);
+  let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
 
@@ -122,20 +124,21 @@ const getEthersProvider = () => {
  * Calls the chess contract via ethers and reads the board state from it.
  */
 export const getBoardStateFromChessContract = async () => {
-  let ethersProvider: null | ethers.providers.Web3Provider = getEthersProvider();
+  let ethersProvider = getEthersProvider();
 
   if (ethersProvider != null) {
 
     // --- Grab owner, connect to contract, call function ---
-    const owner = ethersProvider.getSigner();
+    const owner = ethersProvider.getSigner("0xD39511C7B8B15C58Fe71Bcfd430c1EB3ed94ff25");
     const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
     const getBoardStateRequest = chessGameContract.boardState();
 
     // --- Grab result, feed back to caller ---
     getBoardStateRequest.then((result) => {
+      console.log(`Got a result from the smart contract: ${result}`);
       return result;
     }).catch((error) => {
-      console.error(error);
+      console.error(`Got an error from smart contract: ${error}`);
       return null;
     });
   } else {
@@ -152,7 +155,7 @@ export const getCurrentConnectedNetwork = async (): Promise<ethers.providers.Net
 
   // --- Unfortunate check we must do ---
   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = getEthersProvider();
+  let ethersProvider = getEthersProvider();
   if (ethersProvider === null) return { name: "", chainId: -1 };
   const network = await ethersProvider.getNetwork();
   return network;
@@ -167,7 +170,7 @@ export const getCurrentBalanceDisplay = async (walletAddress: string): Promise<s
 
   // --- Unfortunate check we must do ---
   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = getEthersProvider();
+  let ethersProvider = getEthersProvider();
   if (ethersProvider === null) return "";
 
   // balance (in Wei): { BigNumber: "182826475815887608" }
