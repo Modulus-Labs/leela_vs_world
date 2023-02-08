@@ -4,13 +4,14 @@ import {
   Dispatch,
   ReactNode,
   SetStateAction,
+  useCallback,
   useContext,
   useEffect,
   useState,
 } from 'react';
-import { CHESS_TEST_CONTRACT_ADDRESS } from '../contracts/ContractAddresses';
+// import { CHESS_TEST_CONTRACT_ADDRESS } from '../contracts/ContractAddresses';
 
-import ChessTestArtifact from '../contracts/ChessTest.json';
+// import ChessTestArtifact from '../contracts/ChessTest.json';
 import { useSigner } from 'wagmi';
 import {
   BoardState,
@@ -20,6 +21,7 @@ import {
   MovingBoardState,
 } from '../types/Chess.type';
 import { Chess, Square, Move } from 'chess.js';
+import { getBoardStateFromChessContract } from '../utils/interact';
 
 interface ChessGameContextInterface {
   currChessBoard: BoardState;
@@ -40,21 +42,92 @@ export const ChessGameContextProvider = ({
 }) => {
   const { data: signer } = useSigner();
 
-  const getFen = () => {
-    // --- Initial state ---
-    const currGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
-    // const leelaColor = getLeelaColor;
-    const leelaColor = false;  // dummy value; false [=] leela is black
-    // const leelaTurn = getTurn;
-    const leelaTurn = false; //dummy value; false [=] not leela turn
-    // const moveIndex = getMoveIndex;
-    const moveIndex = 1;
-    const currMove = leelaColor == leelaTurn ? 'w' : 'b';
+  // --- Load the actual board state in from the smart contract upon load ---
+  useEffect(() => {
+    const chessStateRequest = getBoardStateFromChessContract();
+    if (chessStateRequest !== null) {
+      chessStateRequest.then(([boardState, whiteState, blackState, currentTurnBlack, gameIndex, moveIndex]) => {
+        const fen = getFen(boardState.toHexString().substring(2), whiteState, blackState, currentTurnBlack, moveIndex + 1);
+        setCurrChessBoard({
+          fen: fen,
+          moveState: MOVE_STATE.IDLE,
+          moveFrom: null,
+          moveTo: null,
+          validMoves: null,
+          chessGame: new Chess(fen),
+        })
+      }).catch((error: any) => {
+        console.error(`Failed to get board state: ${error}`);
+      });
+    } else {
+      console.error("Error: Board state from smart contract is null!");
+    }
+  }, []);
+
+  /**
+   * Returns FEN string component representing castling privileges for black/white.
+   * TODO(ryancao): This is technically wrong! Castling privileges are stateful,
+   * not positional.
+   * @param whiteState 
+   * @param blackState 
+   * @param currentTurnBlack 
+   * @returns 
+   */
+  const computeCastlingAndEnPassant = (whiteState: number, blackState: number, currentTurnBlack: boolean): [string, string] => {
+    const whiteKingCorrectPos: boolean = ((whiteState >> 8) & 0xff) === 0x04;
+    const whiteKingRookCorrectPos: boolean = ((whiteState >> 16) & 0xff) == 0x07;
+    const whiteQueenRookCorrectPos: boolean = ((whiteState >> 24) & 0xff) == 0x00;
+
+    const blackKingCorrectPos = ((blackState >> 8) & 0xff) == 0x3c;
+    const blackKingRookCorrectPos = ((blackState >> 16) & 0xff) == 0x3f;
+    const blackQueenRookCorrectPos = ((blackState >> 24) & 0xff) == 0x38;
+
+    let castling: string = "";
+    if (whiteKingCorrectPos && whiteKingRookCorrectPos) {
+      castling += "K";
+    }
+    if (whiteKingCorrectPos && whiteQueenRookCorrectPos) {
+      castling += "Q";
+    }
+    if (blackKingCorrectPos && blackKingRookCorrectPos) {
+      castling += "k";
+    }
+    if (blackKingCorrectPos && blackQueenRookCorrectPos) {
+      castling += "q";
+    }
+    if (castling === "") {
+      castling = "-";
+    }
+
+    let enPassantSquare: number = (currentTurnBlack ? blackState : whiteState) & 0xff;
+    let enPassant = (enPassantSquare == 0xff ? "-" : enPassantSquare.toString(16));
+
+    return [castling, enPassant];
+  }
+
+  /**
+   * Returns the Forscythe-Edwards Notation for the current board state.
+   * - 64 chars' worth of board state
+   * - [b] or [w] based on whose turn it is
+   * - Castling privileges KQkq (WHITE/black)
+   * - En passant square
+   * - Halfmove clock
+   * - Fullmove number
+   * @param gameState 
+   * @param whiteState
+   * @param blackState
+   * @param currentTurnBlack
+   * @param moveIndex
+   * @returns 
+   */
+  const getFen = (gameState: string, whiteState: number, blackState: number, currentTurnBlack: boolean, moveIndex: number) => {
+
+    // --- Processing the board itself ---
     let ret = "";
     for (let c = 0; c < 8; c++) {
       let numSpaces = 0;
       for (let r = 0; r < 8; r++) {
-        if (currGameState.charAt(c * 8 + r) != '0') {
+        if (gameState.charAt(c * 8 + r) != '0') {
           if (numSpaces > 0) {
             ret += numSpaces.toString();
             numSpaces = 0;
@@ -63,7 +136,7 @@ export const ChessGameContextProvider = ({
           numSpaces += 1;
           continue;
         }
-        switch (currGameState.charAt(c * 8 + r)) {
+        switch (gameState.charAt(c * 8 + r)) {
           case '1':
             ret += 'P';
             break;
@@ -109,29 +182,48 @@ export const ChessGameContextProvider = ({
       ret += '/';
     }
     ret = ret.slice(0, -1);
+
+    // --- Whose turn it is ---
+    const currMove = currentTurnBlack ? "b" : "w";
     ret += ' ' + currMove;
-    // need to deal with enpassant
-    ret += ' ' + '-';
-    ret += ' ' + '-';
+
+    // --- Castling privileges + enpassant square ---
+    const [castling, enpassant] = computeCastlingAndEnPassant(whiteState, blackState, currentTurnBlack);
+    ret += ' ' + castling;
+    ret += ' ' + enpassant;
+
+    // --- Halfmove clock ---
+    // TODO(ryancao): Are we doing 50-move rule or not?
     ret += ' 0';
+
+    // --- Fullmove index ---
     ret += ' ' + moveIndex.toString();
+
     return ret.toString();
   }
 
-  const [currChessBoard, setCurrChessBoard] = useState<BoardState>({
-    fen: getFen(),
-    moveState: MOVE_STATE.IDLE,
-    moveFrom: null,
-    moveTo: null,
-    validMoves: null,
-  });
+  const getInitialBoardState = () => {
+    const initialGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
+    const initialWhiteState = 0x000704ff;
+    const initialBlackState = 0x383f3cff;
+    const initialFen = getFen(initialGameState, initialWhiteState, initialBlackState, false, 1);
+    const ret: BoardState = {
+      fen: initialFen,
+      moveState: MOVE_STATE.IDLE,
+      moveFrom: null,
+      moveTo: null,
+      validMoves: null,
+      chessGame: new Chess(initialFen),
+    }
+    return ret;
+  };
+
+  const [currChessBoard, setCurrChessBoard] = useState<BoardState>(getInitialBoardState);
 
   // Action to start a move
   const startMove = (square: Square) => {
     console.log('startMove', square);
-    // FIXME: stop initializing so many Chess
-    const chess = new Chess(currChessBoard.fen);
-    const rawcurrGameStateidMoves: Move[] = chess.moves({
+    const rawcurrGameStateidMoves: Move[] = currChessBoard.chessGame.moves({
       square,
       verbose: true,
     }) as Move[];

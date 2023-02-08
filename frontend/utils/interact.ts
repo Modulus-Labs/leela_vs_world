@@ -1,6 +1,6 @@
-import { ethers } from "ethers";
-import { Betting__factory } from "../contracts/typechain_contracts/factories/Betting__factory";
-import { Chess__factory } from "../contracts/typechain_contracts/factories/Chess__factory";
+import { BigNumber, ethers } from "ethers";
+import { BettingGame__factory } from "../typechain-types";
+import { Chess__factory } from "../typechain-types";
 // import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
 // import l1_abi from "./L1_abi.json";
 // import emoji from "node-emoji";
@@ -11,13 +11,18 @@ import { Chess__factory } from "../contracts/typechain_contracts/factories/Chess
  * Leela Contract deployed to address:  0x053dA459937fbF9051dB05DeeCE408ee05C496bA
  * Betting Contract deployed to address:  0xF726450B8bfe55Da3ADe09171958791E810b3EE4
  * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
+ * 
+ * THIS IS FOR LOCALHOST NETWORK
+Leela Contract deployed to address:  0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
+Betting Contract deployed to address:  0x610178dA211FEF7D417bC0e6FeD39F05609AD788
+Chess Contract deployed to address:  0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
  */
 const config = {
-  // CHESS_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  CHESS_CONTRACT_ADDR: "0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b", // This is the TESTNET ADDRESS
-  // BETTING_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  BETTING_CONTRACT_ADDR: "0xF726450B8bfe55Da3ADe09171958791E810b3EE4", // This is the TESTNET ADDRESS
+  LEELA_CONTRACT_ADDR: "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+  BETTING_CONTRACT_ADDR: "0x9A676e781A523b5d0C0e43731313A708CB607508",
+  CHESS_CONTRACT_ADDR: "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
 }
+
 
 // export const donateToRocky = async (
 //   amount: number,
@@ -101,7 +106,6 @@ const config = {
     Submit move to contract and have that be reflected on leaderboard
  */
 
-
 /**
  * Grabs the current ethers provider, if exists.
  * @returns 
@@ -113,9 +117,9 @@ const getEthersProvider = () => {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  // TODO(ryancao): DO NOT COMMIT THIS PUBLICLY lol
-  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
-  console.log(`API URL IS: ${API_URL}`);
+  // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  // console.log(`API URL IS: ${API_URL}`);
+  const API_URL = "http://127.0.0.1:8545/";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
@@ -123,24 +127,52 @@ const getEthersProvider = () => {
 /**
  * Calls the chess contract via ethers and reads the board state from it.
  */
-export const getBoardStateFromChessContract = async () => {
+export const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> | null => {
   let ethersProvider = getEthersProvider();
 
   if (ethersProvider != null) {
 
     // --- Grab owner, connect to contract, call function ---
-    const owner = ethersProvider.getSigner("0xD39511C7B8B15C58Fe71Bcfd430c1EB3ed94ff25");
-    const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
-    const getBoardStateRequest = chessGameContract.boardState();
+    const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
+    const chessGameStateRequest = chessGameContract.getChessGameState();
 
     // --- Grab result, feed back to caller ---
-    getBoardStateRequest.then((result) => {
-      console.log(`Got a result from the smart contract: ${result}`);
-      return result;
-    }).catch((error) => {
-      console.error(`Got an error from smart contract: ${error}`);
-      return null;
-    });
+    return chessGameStateRequest;
+  } else {
+    return null;
+  }
+}
+
+/**
+ * Grabs the pool state + timer from the betting contract.
+ * This does NOT require the user to be logged in!
+ */
+export const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> | null => {
+  let ethersProvider = getEthersProvider();
+  if (ethersProvider != null) {
+
+    // --- Connect to contract, call function ---
+    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+    const bettingGamePoolRequest = bettingGameContract.getFrontEndPoolState();
+    return bettingGamePoolRequest;
+
+  } else {
+    return null;
+  }
+}
+
+/**
+ * Grabs the move leaderboard + number of votes from the betting contract.
+ * This does NOT require the user to be logged in!
+ * @returns 
+ */
+export const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> | null => {
+  let ethersProvider = getEthersProvider();
+  if (ethersProvider != null) {
+    // --- Connect to contract, call function ---
+    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+    const bettingGamePoolRequest = bettingGameContract.getCurMovesAndVotes();
+    return bettingGamePoolRequest;
   } else {
     return null;
   }

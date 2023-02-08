@@ -2,8 +2,11 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
+    "ethers": "^5.7.2",
     "hardhat": "^2.12.5",
     "hardhat-contract-sizer": "^2.7.0",
+    "hardhat-deploy": "^0.11.23",
     "hardhat-gas-reporter": "^1.0.9",
     "typechain": "^8.1.1"
   },

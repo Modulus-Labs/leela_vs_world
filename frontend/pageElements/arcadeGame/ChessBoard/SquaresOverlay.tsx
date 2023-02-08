@@ -21,13 +21,13 @@ export const SquaresOverlay: FC = () => {
 
   // --- Update the board state from the smart contract ---
   // TODO(ryancao): Is this usage correct?
-  useEffect(useCallback(() => {
-    getBoardStateFromChessContract().then((result) => {
-      console.log(`Got board state from chess contract: ${result}`);
-    }).catch((error) => {
-      console.error(`Error within getting the board state from chess contract: ${error}`);
-    });
-  }, []), []);
+  // useEffect(useCallback(() => {
+  //   getBoardStateFromChessContract().then((result) => {
+  //     console.log(`Got board state from chess contract: ${result}`);
+  //   }).catch((error) => {
+  //     console.error(`Error within getting the board state from chess contract: ${error}`);
+  //   });
+  // }, []), []);
 
   const handleBoardSquareClick = (square: Square) => {
     console.log('handleBoardSquareClick', square.toString());
@@ -98,7 +98,7 @@ export const SquaresOverlay: FC = () => {
       }
       newBoardGrid.push(<span key={i}>{subElements}</span>);
     }
-    setBoardGrid([...newBoardGrid]);
+    setBoardGrid(newBoardGrid);
   }, [currChessBoard]);
 
   return <>

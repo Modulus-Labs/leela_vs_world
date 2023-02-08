@@ -4,14 +4,11 @@ import "./math.sol";
 import "./betting.sol";
 import {Ownable} from "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "./IChess.sol";
-import "../node_modules/hardhat/console.sol";
-
-//import "../node_modules/hardhat-console/contracts/console.sol";
 
 // SPDX-License-Identifier: UNLICENSED
 // emit the play move events and the start game events
 // betting will emit the end game events
-//optional: emit check events
+// optional: emit check events
 // TODO do leela turn and leela color logic (no leela turn in betting)
 contract Chess is Ownable, IChess {
     using SafeMath for uint256;
@@ -26,9 +23,7 @@ contract Chess is Ownable, IChess {
 
     uint16 public moveIndex = 0x0; // move index
 
-    bool public leelaColor = false; // originally Leela is playing black
-
-    bool public leelaTurn = false; // is it Leela's turn
+    bool public currentTurnBlack = false; // is it Leela's turn
 
     /** @dev    Initial white state:
                     
@@ -37,7 +32,7 @@ contract Chess is Ownable, IChess {
                     04: King at e1 position
                     ff: En-passant at invalid position
         */
-    uint32 public world_state = 0x000704ff;
+    uint32 public whiteState = 0x000704ff;
 
     /** @dev    Initial black state:
                     
@@ -46,7 +41,7 @@ contract Chess is Ownable, IChess {
                     3c: King at e8 position
                     ff: En-passant at invalid position
         */
-    uint32 public leela_state = 0x383f3cff;
+    uint32 public blackState = 0x383f3cff;
 
     uint8 constant empty_const = 0x0;
     uint8 constant pawn_const = 0x1; // 001
@@ -104,7 +99,6 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint256 leela_state,
         uint256 world_state,
-        bool leelaColor,
         bool leelaMove
     );
     event check(); // stretch goal?
@@ -131,21 +125,17 @@ contract Chess is Ownable, IChess {
 
         moveIndex = 0; // resets the move index
 
-        leelaColor = !leelaColor; // alternate colors
+        // --- Leela is always playing black ---
+        whiteState = 0x000704ff;
+        blackState = 0x383f3cff;
 
-        if (!leelaColor) {
-            world_state = 0x000704ff; // world state is white if Leela is playing black
-            leela_state = 0x383f3cff;
-        } else {
-            leela_state = 0x000704ff; // reset white and black states
-            world_state = 0x383f3cff;
-        }
-
-        // --- TODO(ryancao): Is it correct to reset the board state here? ---
+        // --- Store the initial board state ---
         boardState = game_state_start;
 
-        leelaTurn = leelaColor;
+        // --- White always starts ---
+        currentTurnBlack = false;
 
+        // --- Append game state to current game state list ---
         gameStateLists[gameIndex].push(game_state_start);
     }
 
@@ -161,29 +151,53 @@ contract Chess is Ownable, IChess {
                     }
                 }
             }
-        } // wp = 0, ...bp = 6. bk = 11
-        uint32 white_state = (leelaColor) ? leela_state : world_state;
-        uint32 black_state = (leelaColor) ? world_state : leela_state;
+        }
 
-        bool white_king = (((white_state >> 8) & 0xff) == 0x3c);
-        bool white_king_rook = (((white_state >> 16) & 0xff) == 0x3f);
-        bool white_queen_rook = (((white_state >> 24) & 0xff) == 0x38);
-        bool black_king = (((black_state >> 8) & 0xff) == 0x04);
-        bool black_king_rook = (((black_state >> 16) & 0xff) == 0x07);
-        bool black_queen_rook = (((black_state >> 24) & 0xff) == 0x00);
+        bool white_king = (((whiteState >> 8) & 0xff) == 0x3c);
+        bool white_king_rook = (((whiteState >> 16) & 0xff) == 0x3f);
+        bool white_queen_rook = (((whiteState >> 24) & 0xff) == 0x38);
+        bool black_king = (((blackState >> 8) & 0xff) == 0x04);
+        bool black_king_rook = (((blackState >> 16) & 0xff) == 0x07);
+        bool black_queen_rook = (((blackState >> 24) & 0xff) == 0x00);
         for (uint8 i = 0; i < 8; i++) {
             for (uint8 j = 0; j < 8; j++) {
                 board[104][i][j] = white_king && white_king_rook ? 1 : 0; // white king side castling, white queen side castling
                 board[105][i][j] = white_king && white_queen_rook ? 1 : 0;
                 board[106][i][j] = black_king && black_queen_rook ? 1 : 0; // black queen side castling, black king side castling
                 board[107][i][j] = black_king && black_king_rook ? 1 : 0;
-                board[108][i][j] = leelaTurn ? 1 : 0;
+                board[108][i][j] = currentTurnBlack ? 1 : 0;
                 board[109][i][j] = 0;
                 board[110][i][j] = 0;
                 board[111][i][j] = 1;
             }
         }
         return board;
+    }
+
+    /**
+     * Idea is to grab all of the necessary ingredients for the
+     * frontend to display the correct chessboard state.
+     */
+    function getChessGameState()
+        public
+        view
+        returns (
+            uint256,
+            uint32,
+            uint32,
+            bool,
+            uint16,
+            uint16
+        )
+    {
+        return (
+            boardState,
+            whiteState,
+            blackState,
+            currentTurnBlack,
+            gameIndex,
+            moveIndex
+        );
     }
 
     /**
@@ -196,82 +210,57 @@ contract Chess is Ownable, IChess {
         // --- Parsing out the move components ---
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
-
-        // --- Seriously not sure why we have this ---
-        uint32 playerState;
-        uint32 opponentState;
-        if (leelaTurn) {
-            playerState = leela_state;
-            opponentState = world_state;
-        } else {
-            playerState = world_state;
-            opponentState = leela_state;
-        }
         require(fromPos != toPos, "You must move the piece at least one step.");
 
         // --- Just looking at the board for which piece we're moving ---
         // --- Then grabbing color + which type of piece it is ---
         uint8 fromPiece = pieceAtPosition(boardState, fromPos);
-        bool currentTurnBlack = (!leelaTurn && leelaColor) ||
-            (leelaTurn && !leelaColor);
         uint8 fromType = fromPiece & type_mask_const;
 
-        // --- Decomposed state stuff... Again... ---
+        // --- TODO(ryancao): Is this correct? ---
+        uint32 playerState;
+        uint32 opponentState;
+        if (currentTurnBlack) {
+            playerState = blackState;
+            opponentState = whiteState;
+        } else {
+            playerState = whiteState;
+            opponentState = blackState;
+        }
         uint32 newPlayerState = playerState;
         uint32 newOpponentState = opponentState;
         uint256 newGameState;
-        console.log("fromPos: ", fromPos, " | toPos: ", toPos);
+
         if (fromType == pawn_const) {
             console.log("fromType is pawn_const");
             // --- And also have to keep track of pawn "first move" privileges...? ---
             (newGameState, newPlayerState) = verifyExecutePawnMove(
                 boardState,
                 move,
-                currentTurnBlack,
                 playerState,
                 opponentState
             );
         } else if (fromType == knight_const) {
             console.log("fromType is knight_const");
-            newGameState = verifyExecuteKnightMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos);
         } else if (fromType == bishop_const) {
             console.log("fromType is bishop_const");
-            newGameState = verifyExecuteBishopMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos);
         } else if (fromType == rook_const) {
             console.log("fromType is rook_const");
-            newGameState = verifyExecuteRookMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(boardState, fromPos, toPos);
             // Reset playerState if necessary when one of the rooks move
             // --- Okay, so the idea is to keep track of castling privileges ---
-            if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
-                newPlayerState = playerState | rook_king_side_move_mask;
+            if (fromPos == (uint8)(whiteState >> rook_king_side_move_bit)) {
+                newPlayerState = whiteState | rook_king_side_move_mask;
             } else if (
-                fromPos == (uint8)(playerState >> rook_queen_side_move_bit)
+                fromPos == (uint8)(whiteState >> rook_queen_side_move_bit)
             ) {
-                newPlayerState = playerState | rook_queen_side_move_mask;
+                newPlayerState = whiteState | rook_queen_side_move_mask;
             }
         } else if (fromType == queen_const) {
             console.log("fromType is queen_const");
-            newGameState = verifyExecuteQueenMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos);
         } else if (fromType == king_const) {
             console.log("fromType is king_const");
             // --- Same here, castling privileges ---
@@ -279,7 +268,6 @@ contract Chess is Ownable, IChess {
                 boardState,
                 fromPos,
                 toPos,
-                currentTurnBlack,
                 playerState
             );
         } else {
@@ -299,21 +287,15 @@ contract Chess is Ownable, IChess {
             "You can't make a move that keeps you in check."
         );
         boardState = newGameState;
-        if (leelaTurn) {
-            leela_state = newPlayerState;
-            world_state = newOpponentState;
+        if (currentTurnBlack) {
+            blackState = newPlayerState;
+            whiteState = newOpponentState;
         } else {
-            world_state = newPlayerState;
-            leela_state = newOpponentState;
+            whiteState = newPlayerState;
+            blackState = newOpponentState;
         }
-        emit movePlayed(
-            boardState,
-            leela_state,
-            world_state,
-            leelaColor,
-            leelaTurn
-        );
-        leelaTurn = !leelaTurn;
+        emit movePlayed(boardState, blackState, whiteState, currentTurnBlack);
+        currentTurnBlack = !currentTurnBlack;
         gameStateLists[gameIndex].push(boardState);
     }
 
@@ -323,14 +305,12 @@ contract Chess is Ownable, IChess {
         uint8 toPos = (uint8)(move & 0x3f);
         uint32 playerState;
         uint32 opponentState;
-        bool currentTurnBlack = (!leelaTurn && leelaColor) ||
-            (leelaTurn && !leelaColor);
-        if (leelaTurn) {
-            playerState = leela_state;
-            opponentState = world_state;
+        if (currentTurnBlack) {
+            playerState = blackState;
+            opponentState = whiteState;
         } else {
-            playerState = world_state;
-            opponentState = leela_state;
+            playerState = whiteState;
+            opponentState = blackState;
         }
         require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(gameState, fromPos);
@@ -342,31 +322,15 @@ contract Chess is Ownable, IChess {
             (newGameState, newPlayerState) = verifyExecutePawnMove(
                 boardState,
                 move,
-                currentTurnBlack,
                 playerState,
                 opponentState
             );
         } else if (fromType == knight_const) {
-            newGameState = verifyExecuteKnightMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos);
         } else if (fromType == bishop_const) {
-            newGameState = verifyExecuteBishopMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos);
         } else if (fromType == rook_const) {
-            newGameState = verifyExecuteRookMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(boardState, fromPos, toPos);
             // Reset playerState if necessary when one of the rooks move
             if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
                 newPlayerState = playerState | rook_king_side_move_mask;
@@ -376,18 +340,12 @@ contract Chess is Ownable, IChess {
                 newPlayerState = playerState | rook_queen_side_move_mask;
             }
         } else if (fromType == queen_const) {
-            newGameState = verifyExecuteQueenMove(
-                boardState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos);
         } else if (fromType == king_const) {
             (newGameState, newPlayerState) = verifyExecuteKingMove(
                 boardState,
                 fromPos,
                 toPos,
-                currentTurnBlack,
                 playerState
             );
         } else {
@@ -408,10 +366,9 @@ contract Chess is Ownable, IChess {
     function verifyExecutePawnMove(
         uint256 gameState,
         uint16 move,
-        bool currentTurnBlack,
         uint32 playerState,
         uint32 opponentState
-    ) public pure returns (uint256 newGameState, uint32 newPlayerState) {
+    ) public view returns (uint256 newGameState, uint32 newPlayerState) {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
         uint8 moveExtra = (uint8)(move >> 12);
@@ -476,10 +433,11 @@ contract Chess is Ownable, IChess {
                     (moveExtra == queen_const),
                 "inv prom"
             );
+            // --- TODO(ryancao): This got changed too! Ensure it's correct ---
             newGameState = setPosition(
                 zeroPosition(newGameState, toPos),
                 toPos,
-                currentTurnBlack ? moveExtra | color_const : moveExtra
+                (toPos != 0 ? moveExtra | color_const : moveExtra)
             );
         }
     }
@@ -490,15 +448,13 @@ contract Chess is Ownable, IChess {
         @param gameState current game state on which to perform the movement.
         @param fromPos is position moving from.
         @param toPos is position moving to.
-        @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
     function verifyExecuteKnightMove(
         uint256 gameState,
         uint8 fromPos,
-        uint8 toPos,
-        bool currentTurnBlack
-    ) public pure returns (uint256) {
+        uint8 toPos
+    ) public view returns (uint256) {
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -522,15 +478,13 @@ contract Chess is Ownable, IChess {
         @param gameState current game state on which to perform the movement.
         @param fromPos is position moving from.
         @param toPos is position moving to.
-        @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
     function verifyExecuteBishopMove(
         uint256 gameState,
         uint8 fromPos,
-        uint8 toPos,
-        bool currentTurnBlack
-    ) public pure returns (uint256) {
+        uint8 toPos
+    ) public view returns (uint256) {
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -556,15 +510,13 @@ contract Chess is Ownable, IChess {
         @param gameState current game state on which to perform the movement.
         @param fromPos is position moving from.
         @param toPos is position moving to.
-        @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
     function verifyExecuteRookMove(
         uint256 gameState,
         uint8 fromPos,
-        uint8 toPos,
-        bool currentTurnBlack
-    ) public pure returns (uint256) {
+        uint8 toPos
+    ) public view returns (uint256) {
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -591,15 +543,13 @@ contract Chess is Ownable, IChess {
         @param gameState current game state on which to perform the movement.
         @param fromPos is position moving from.
         @param toPos is position moving to.
-        @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
     function verifyExecuteQueenMove(
         uint256 gameState,
         uint8 fromPos,
-        uint8 toPos,
-        bool currentTurnBlack
-    ) public pure returns (uint256) {
+        uint8 toPos
+    ) public view returns (uint256) {
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -626,16 +576,14 @@ contract Chess is Ownable, IChess {
         @param gameState current game state on which to perform the movement.
         @param fromPos is position moving from. Behavior is undefined for values >= 0x40.
         @param toPos is position moving to. Behavior is undefined for values >= 0x40.
-        @param currentTurnBlack true if it's black turn
         @return newGameState the new game state after it's executed.
      */
     function verifyExecuteKingMove(
         uint256 gameState,
         uint8 fromPos,
         uint8 toPos,
-        bool currentTurnBlack,
         uint32 playerState
-    ) public pure returns (uint256 newGameState, uint32 newPlayerState) {
+    ) public view returns (uint256 newGameState, uint32 newPlayerState) {
         newPlayerState =
             ((playerState | king_move_mask) & king_pos_zero_mask) |
             ((uint32)(toPos) << king_pos_bit);
@@ -731,21 +679,15 @@ contract Chess is Ownable, IChess {
     function checkQueenValidMoves(
         uint256 gameState,
         uint8 fromPos,
-        uint32 playerState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 playerState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Queen's movement */
 
         // Check left
         for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -758,12 +700,7 @@ contract Chess is Ownable, IChess {
 
         // Check right
         for (toPos = fromPos + 1; (toPos & 0x7) > (fromPos & 0x7); toPos++) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -776,12 +713,7 @@ contract Chess is Ownable, IChess {
 
         // Check up
         for (toPos = fromPos + 8; toPos < 0x40; toPos += 8) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -794,12 +726,7 @@ contract Chess is Ownable, IChess {
 
         // Check down
         for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -816,12 +743,7 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos += 9
         ) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -838,12 +760,7 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos += 7
         ) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -860,12 +777,7 @@ contract Chess is Ownable, IChess {
             (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos -= 7
         ) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -882,12 +794,7 @@ contract Chess is Ownable, IChess {
             (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos -= 9
         ) {
-            newGameState = verifyExecuteQueenMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -904,9 +811,8 @@ contract Chess is Ownable, IChess {
     function checkBishopValidMoves(
         uint256 gameState,
         uint8 fromPos,
-        uint32 playerState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 playerState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Bishop's movement */
@@ -917,12 +823,7 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos += 9
         ) {
-            newGameState = verifyExecuteBishopMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -939,12 +840,7 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos += 7
         ) {
-            newGameState = verifyExecuteBishopMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -961,12 +857,7 @@ contract Chess is Ownable, IChess {
             (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos -= 7
         ) {
-            newGameState = verifyExecuteBishopMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -983,12 +874,7 @@ contract Chess is Ownable, IChess {
             (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos -= 9
         ) {
-            newGameState = verifyExecuteBishopMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -1005,21 +891,15 @@ contract Chess is Ownable, IChess {
     function checkRookValidMoves(
         uint256 gameState,
         uint8 fromPos,
-        uint32 playerState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 playerState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Rook's movement */
 
         // Check left
         for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
-            newGameState = verifyExecuteRookMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -1032,12 +912,7 @@ contract Chess is Ownable, IChess {
 
         // Check right
         for (toPos = fromPos + 1; (toPos & 0x7) > (fromPos & 0x7); toPos++) {
-            newGameState = verifyExecuteRookMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -1050,12 +925,7 @@ contract Chess is Ownable, IChess {
 
         // Check up
         for (toPos = fromPos + 8; toPos < 0x40; toPos += 8) {
-            newGameState = verifyExecuteRookMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
 
             if (
                 (newGameState != invalid_move_constant) &&
@@ -1069,12 +939,7 @@ contract Chess is Ownable, IChess {
 
         // Check down
         for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
-            newGameState = verifyExecuteRookMove(
-                gameState,
-                fromPos,
-                toPos,
-                currentTurnBlack
-            );
+            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
@@ -1091,20 +956,14 @@ contract Chess is Ownable, IChess {
     function checkKnightValidMoves(
         uint256 gameState,
         uint8 fromPos,
-        uint32 playerState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 playerState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by knight's movement */
 
         toPos = fromPos + 6;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1113,12 +972,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos - 6;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1127,12 +981,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos + 10;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1141,12 +990,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos - 10;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1155,12 +999,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos - 17;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1169,12 +1008,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos + 17;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1183,12 +1017,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos + 15;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1197,12 +1026,7 @@ contract Chess is Ownable, IChess {
         }
 
         toPos = fromPos - 15;
-        newGameState = verifyExecuteKnightMove(
-            gameState,
-            fromPos,
-            toPos,
-            currentTurnBlack
-        );
+        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
         if (
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
@@ -1217,9 +1041,8 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState,
-        uint32 opponentState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 opponentState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
         uint8 moveExtra = queen_const; /* Since this is supposed to be endgame, movement of promoted piece is irrelevant. */
@@ -1229,7 +1052,6 @@ contract Chess is Ownable, IChess {
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
-            currentTurnBlack,
             playerState,
             opponentState
         );
@@ -1244,7 +1066,6 @@ contract Chess is Ownable, IChess {
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
-            currentTurnBlack,
             playerState,
             opponentState
         );
@@ -1259,7 +1080,6 @@ contract Chess is Ownable, IChess {
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
-            currentTurnBlack,
             playerState,
             opponentState
         );
@@ -1274,7 +1094,6 @@ contract Chess is Ownable, IChess {
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
-            currentTurnBlack,
             playerState,
             opponentState
         );
@@ -1291,9 +1110,8 @@ contract Chess is Ownable, IChess {
     function checkKingValidMoves(
         uint256 gameState,
         uint8 fromPos,
-        uint32 playerState,
-        bool currentTurnBlack
-    ) public pure returns (bool) {
+        uint32 playerState
+    ) public view returns (bool) {
         uint256 newGameState;
         uint8 toPos;
 
@@ -1302,7 +1120,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1317,7 +1134,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1332,7 +1148,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1347,7 +1162,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1362,7 +1176,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1377,7 +1190,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1392,7 +1204,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1407,7 +1218,6 @@ contract Chess is Ownable, IChess {
             gameState,
             fromPos,
             toPos,
-            currentTurnBlack,
             playerState
         );
         if (
@@ -1432,10 +1242,9 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint32 playerState,
         uint32 opponentState,
-        uint8 color,
         uint16 pBitOffset,
         uint16 bitSize
-    ) public pure returns (bool) {
+    ) public view returns (bool) {
         if (bitSize > piece_bit_size) {
             uint16 newBitSize = bitSize / 2;
             uint256 m = ~(full_long_word_mask << newBitSize);
@@ -1446,7 +1255,6 @@ contract Chess is Ownable, IChess {
                         gameState,
                         playerState,
                         opponentState,
-                        color,
                         pBitOffset + newBitSize,
                         newBitSize
                     )
@@ -1461,7 +1269,6 @@ contract Chess is Ownable, IChess {
                         gameState,
                         playerState,
                         opponentState,
-                        color,
                         pBitOffset,
                         newBitSize
                     )
@@ -1472,18 +1279,15 @@ contract Chess is Ownable, IChess {
         } else {
             uint8 piece = (uint8)((gameState >> pBitOffset) & 0xF);
 
-            if ((piece > 0) && ((piece & color_const) == color)) {
+            // --- TODO(ryancao): IS THIS CORRECT??? ---
+            // if ((piece > 0) && ((piece & color_const) == color)) {
+            if (piece > 0) {
                 uint8 pos = uint8(pBitOffset / piece_bit_size);
-                bool currentTurnBlack = color != 0;
+                // bool currentTurnBlack = color != 0;
                 uint8 pieceType = piece & type_mask_const;
                 if (
                     (pieceType == king_const) &&
-                    checkKingValidMoves(
-                        gameState,
-                        pos,
-                        playerState,
-                        currentTurnBlack
-                    )
+                    checkKingValidMoves(gameState, pos, playerState)
                 ) {
                     return true;
                 } else if (
@@ -1492,49 +1296,28 @@ contract Chess is Ownable, IChess {
                         gameState,
                         pos,
                         playerState,
-                        opponentState,
-                        currentTurnBlack
+                        opponentState
                     )
                 ) {
                     return true;
                 } else if (
                     (pieceType == knight_const) &&
-                    checkKnightValidMoves(
-                        gameState,
-                        pos,
-                        playerState,
-                        currentTurnBlack
-                    )
+                    checkKnightValidMoves(gameState, pos, playerState)
                 ) {
                     return true;
                 } else if (
                     (pieceType == rook_const) &&
-                    checkRookValidMoves(
-                        gameState,
-                        pos,
-                        playerState,
-                        currentTurnBlack
-                    )
+                    checkRookValidMoves(gameState, pos, playerState)
                 ) {
                     return true;
                 } else if (
                     (pieceType == bishop_const) &&
-                    checkBishopValidMoves(
-                        gameState,
-                        pos,
-                        playerState,
-                        currentTurnBlack
-                    )
+                    checkBishopValidMoves(gameState, pos, playerState)
                 ) {
                     return true;
                 } else if (
                     (pieceType == queen_const) &&
-                    checkQueenValidMoves(
-                        gameState,
-                        pos,
-                        playerState,
-                        currentTurnBlack
-                    )
+                    checkQueenValidMoves(gameState, pos, playerState)
                 ) {
                     return true;
                 }
@@ -1547,12 +1330,12 @@ contract Chess is Ownable, IChess {
         uint256 gameState = boardState;
         uint32 playerState;
         uint32 opponentState;
-        if (leelaTurn) {
-            playerState = leela_state;
-            opponentState = world_state;
+        if (currentTurnBlack) {
+            playerState = blackState;
+            opponentState = whiteState;
         } else {
-            playerState = world_state;
-            opponentState = leela_state;
+            playerState = whiteState;
+            opponentState = blackState;
         }
         uint8 kingPiece = (uint8)(
             gameState >>
@@ -1563,7 +1346,7 @@ contract Chess is Ownable, IChess {
             gameState,
             playerState,
             opponentState,
-            color_const & kingPiece,
+            // color_const & kingPiece,
             0,
             256
         );

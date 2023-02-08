@@ -4,6 +4,7 @@ import {Ownable} from "../node_modules/@openzeppelin/contracts/access/Ownable.so
 
 import "./leela.sol";
 import "./IChess.sol";
+import "../node_modules/hardhat/console.sol";
 
 // SPDX-License-Identifier: UNLICENSED
 /// @title BettingGame
@@ -181,6 +182,23 @@ contract BettingGame is Ownable {
         return (votePeriodEnd - block.timestamp);
     }
 
+    /**
+     * Returns all the state necessary to initialize the frontend's betting pool.
+     */
+    function getFrontEndPoolState()
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        // --- First up, the total number of shares ---
+        // --- Next, the amount of time in seconds left ---
+        return (leelaPoolSize, worldPoolSize, getTimeLeft());
+    }
+
     /// @dev Start staking period.
     function startVoteTimer() public {
         votePeriodEnd = block.timestamp + votePeriodDuration;
@@ -217,6 +235,13 @@ contract BettingGame is Ownable {
         if (timerOver) {
             makeMove();
         }
+    }
+
+    /**
+     * Returns whether the user has already voted this turn
+     */
+    function userAlreadyVoted() public view returns (bool) {
+        return voters[gameIndex][moveIndex][msg.sender] != 0;
     }
 
     /// @dev For voting on a move for the World

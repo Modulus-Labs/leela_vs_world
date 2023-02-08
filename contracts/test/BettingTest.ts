@@ -89,7 +89,6 @@ describe("Unit Tests: Leela Vs. World", function () {
             bettingGame.initialize(chessGame.address, leelaDep.address, 1000, { gasLimit: 1000000 });
 
             return bettingGame
-
         }
 
         it("Testing setChess method", async function () {
@@ -100,7 +99,6 @@ describe("Unit Tests: Leela Vs. World", function () {
             //testing setChess method
             bettingGame.setChess(owner.address);
             expect((await bettingGame.setChess(owner.address)));
-
         })
 
         it("Testing setLeela method", async function () {

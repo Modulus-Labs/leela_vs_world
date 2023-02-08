@@ -168,7 +168,6 @@ describe("Integration Tests: Betting Contract", function () {
 
       // --- Check the leaderboard ---
       const [curMoves, curVotes] = await bettingContract.getCurMovesAndVotes({ gasLimit: 1e7 });
-      console.log("Got here!!");
       console.log(curMoves);
       console.log(curVotes);
 

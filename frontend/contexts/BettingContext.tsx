@@ -14,8 +14,11 @@ interface BettingContextInterface {
   timeToNextMove: number;
   setTimeToNextMove: Dispatch<SetStateAction<number>>;
 
-  prizePoolAmount: number;
-  setPrizePoolAmount: Dispatch<SetStateAction<number>>;
+  worldPrizePoolAmount: number;
+  setWorldPrizePoolAmount: Dispatch<SetStateAction<number>>;
+  leelaPrizePoolAmount: number;
+  setLeelaPrizePoolAmount: Dispatch<SetStateAction<number>>;
+
   MAX_PRIZE_POOL: number;
 
   playerOption: CHESS_PLAYER;
@@ -41,21 +44,33 @@ export const BettingContextProvider = ({
 }) => {
   const [timeToNextMove, setTimeToNextMove] = useState(60 * 10); // seconds
 
-  const [prizePoolAmount, setPrizePoolAmount] = useState(2);
+  // --- For prize pool bar up top ---
+  // TODO(ryancao): What unit (ETH, MATIC, etc.) is this in?
+  const [worldPrizePoolAmount, setWorldPrizePoolAmount] = useState<number>(2);
+  const [leelaPrizePoolAmount, setLeelaPrizePoolAmount] = useState<number>(2);
+
+  // --- For player purchased power shenanigans ---
+  const [playerLeelaStake, setPlayerLeelaStake] = useState<number>(0);
+  const [playerWorldStake, setPlayerWorldStake] = useState<number>(0);
+
+  // --- For not allowing the user to submit another move once they've done so already ---
+  const [userVoted, setUserVoted] = useState<boolean>(false);
+
+  // --- No clue what these are ---
   const [playerOption, setPlayerOption] = useState<CHESS_PLAYER>(
     CHESS_PLAYER.LEELA
   );
-
   const [initialValidMovesIsSet, setInitialValidMovesIsSet] = useState(false); // used for simulating bid changes
   const [validMoves, setValidMoves] = useState<any[]>([]);
   const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
-
   const [prevMove, setPrevMove] = useState('Nc6');
 
   // Fetch the initial set of valid moves
   useEffect(() => {
     fetchValidMoves();
   }, []);
+
+  // --- TODO(ryancao): Grabs the status of the betting pool from the contract ---
 
   // Fetch the valid moves from the contract
   const fetchValidMoves = async () => {
@@ -115,12 +130,12 @@ export const BettingContextProvider = ({
   }, []);
 
   // Placeholder to simulate changing prize pool amount
-  useEffect(() => {
-    const prizePoolIncrmementor = setInterval(() => {
-      setPrizePoolAmount((amount) => (amount >= 10 ? 2 : amount + 0.2));
-    }, 500);
-    return () => clearInterval(prizePoolIncrmementor);
-  }, []);
+  // useEffect(() => {
+  // const prizePoolIncrmementor = setInterval(() => {
+  //   setPrizePoolAmount((amount) => (amount >= 10 ? 2 : amount + 0.2));
+  // }, 500);
+  // return () => clearInterval(prizePoolIncrmementor);
+  // }, []);
 
   // Placeholder to simulate the changing bids on next moves
   // useEffect(() => {
@@ -158,8 +173,12 @@ export const BettingContextProvider = ({
         timeToNextMove,
         setTimeToNextMove,
 
-        prizePoolAmount,
-        setPrizePoolAmount,
+        worldPrizePoolAmount,
+        setWorldPrizePoolAmount,
+
+        leelaPrizePoolAmount,
+        setLeelaPrizePoolAmount,
+
         MAX_PRIZE_POOL,
 
         playerOption,

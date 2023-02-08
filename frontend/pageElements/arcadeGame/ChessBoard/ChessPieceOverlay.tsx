@@ -17,9 +17,7 @@ export const ChessPieceOverlay: FC<ChessPieceOverlayProps> = ({
 }) => {
   const { currChessBoard } = useChessGameContext();
 
-  // FIXME: stop initializing so many Chess
-  const chess = new Chess(currChessBoard.fen);
-  const piece = chess.get(square);
+  const piece = currChessBoard.chessGame.get(square);
 
   if (!piece) return null;
 
