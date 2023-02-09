@@ -1,4 +1,5 @@
 import { BigNumber, ethers } from "ethers";
+import { useRef, useState } from "react";
 import { BettingGame__factory } from "../typechain-types";
 import { Chess__factory } from "../typechain-types";
 // import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
@@ -18,81 +19,10 @@ Betting Contract deployed to address:  0x610178dA211FEF7D417bC0e6FeD39F05609AD78
 Chess Contract deployed to address:  0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
  */
 const config = {
-  LEELA_CONTRACT_ADDR: "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
-  BETTING_CONTRACT_ADDR: "0x9A676e781A523b5d0C0e43731313A708CB607508",
-  CHESS_CONTRACT_ADDR: "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+  LEELA_CONTRACT_ADDR: "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
+  BETTING_CONTRACT_ADDR: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823",
+  CHESS_CONTRACT_ADDR: "0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2",
 }
-
-
-// export const donateToRocky = async (
-//   amount: number,
-//   openModalFn: (text: string, canDismiss: boolean) => void) => {
-
-//   // --- Unfortunate check we must do ---
-//   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-//   let ethersProvider: null | ethers.providers.Web3Provider = null;
-//   if (window.ethereum) {
-//     // --- TODO(ryancao): Hacky hack for type checking??? ---
-//     ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
-//   }
-
-//   if (ethersProvider != null) {
-
-//     // --- Grab the current signer and create USDC/WETH contract ---
-//     const owner = ethersProvider.getSigner();
-//     const tokenContractAddress = tokenType === "USDC" ? usdcAddress : wethAddress;
-//     let tokenContract = new ethers.Contract(tokenContractAddress, l1_abi, owner);
-
-//     const RfB = RockafellerBotL1__factory.connect(config.L1_CONTRACT_ADDR, owner);
-
-//     // --- Grab the user's amounts of funds ---
-//     openModalFn("Waiting for Metamask confirmation of funds access... " + emoji.get("woman-running"), false);
-//     let approveFundsAccessPromise = tokenContract.connect(owner).approve(RfB.address, nativeUnitAmt);
-
-//     approveFundsAccessPromise.then((approveFundsAccessObj: any) => {
-
-//       // console.log("approveFundsAccessObj");
-//       // console.log(approveFundsAccessObj);
-//       openModalFn(`Thanks for confirming! Waiting on tx (${approveFundsAccessObj.hash})... ` + emoji.get("man-running"), false);
-
-//       // --- Wait for the tx to finish approving ---
-//       approveFundsAccessObj.wait().then((approved: any) => {
-//         console.log("Approved");
-//         console.log(approved);
-
-//         openModalFn("Granted funds access! Next transaction will be to actually donate... " + emoji.get("grin"), false);
-//         const addFundsTransPromise = RfB.addFunds(tokenTypeToBitMapping[tokenType], nativeUnitAmt, { gasLimit: 100000 });
-//         addFundsTransPromise.then((result: any) => {
-//           openModalFn(`Donation tx sent! Waiting for confirmation... (${result.hash}) ` + emoji.get("thinking_face"), false);
-//           result.wait().then(() => {
-//             openModalFn(`Donation confirmed!! (${result.hash}) Thank you for your generous donation of ${amount} ${tokenType} to Rocky ` + emoji.get("crown") + ` Refresh the page in a moment to see your contribution on the leaderboard! #keeprockyalive`, true);
-//           })
-//             .catch((resultWaitError: any) => {
-//               // console.error("Error confirming transaction");
-//               // console.error(resultWaitError);
-//               openModalFn(`Error: ${resultWaitError.message}`, true);
-//               return;
-//             });
-//         })
-//           .catch((fundAddError: any) => {
-//             // console.error("Error adding funds");
-//             // console.error(fundAddError);
-//             openModalFn(`Error: ${fundAddError.message}`, true);
-//             return;
-//           });
-//       })
-//         .catch((error: any) => {
-
-//         })
-//     })
-//       .catch((error: any) => {
-//         // console.error("Disapproved or some other error");
-//         openModalFn(`Error: ${error.message}`, true);
-//         return;
-//       });
-
-//   }
-// }
 
 /**
  * Hook up against chess contract:
@@ -119,6 +49,7 @@ const getEthersProvider = () => {
   // }
   // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   // console.log(`API URL IS: ${API_URL}`);
+  // console.log("Grabbing the ethers provider (again?)!");
   const API_URL = "http://127.0.0.1:8545/";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
@@ -171,11 +102,97 @@ export const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[],
   if (ethersProvider != null) {
     // --- Connect to contract, call function ---
     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+    // console.log("Getting current moves and votes!");
     const bettingGamePoolRequest = bettingGameContract.getCurMovesAndVotes();
     return bettingGamePoolRequest;
   } else {
     return null;
   }
+}
+
+/**
+ * Grabs the user's Leela and world stakes. This requires the user to be logged in!
+ * @param userAddr 
+ * @returns 
+ */
+export const getUserStakeFromBettingContract = (userAddr: string): Promise<[BigNumber, BigNumber]> | null => {
+  let ethersProvider = getEthersProvider();
+  if (ethersProvider != null) {
+    const owner = ethersProvider.getSigner(userAddr);
+    // console.log(`Owner is coming from ${userAddr}!`);
+    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+    const userStakeRequest = bettingGameContract.getUserStakeState(userAddr, { gasLimit: 1e7 });
+    return userStakeRequest;
+  } else {
+    return null;
+  }
+}
+
+/**
+ * Votes on the given move by the user.
+ * @param userAddr 
+ * @param move 
+ * @returns 
+ */
+export const voteForMove = (userAddr: string, move: number) => {
+  let ethersProvider = getEthersProvider();
+  const owner = ethersProvider.getSigner(userAddr);
+  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+  return voteWorldMoveRequest;
+}
+
+/**
+ * Returns which move user voted for this round (or 0 if none)
+ * @param userAddr 
+ * @returns 
+ */
+export const getUserVotedMove = (userAddr: string): Promise<number> => {
+  let ethersProvider = getEthersProvider();
+  const owner = ethersProvider.getSigner(userAddr);
+  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const userVotedMoveRequest = bettingGameContract.userVotedMove();
+  return userVotedMoveRequest;
+}
+
+/**
+ * Returns Leela's last move played (or 0 if none)
+ * @returns 
+ */
+export const getLastLeelaMove = (): Promise<number> => {
+  let ethersProvider = getEthersProvider();
+  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+  const leelaLastMoveRequest = bettingGameContract.leelaMove();
+  return leelaLastMoveRequest;
+}
+
+/**
+ * Votes on a particular move for the user for this turn.
+ * @param userAddr 
+ * @param move 
+ * @returns 
+ */
+export const voteWorldMove = (userAddr: string, move: number) => {
+  let ethersProvider = getEthersProvider();
+  const owner = ethersProvider.getSigner(userAddr);
+  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+  return voteWorldMoveRequest;
+}
+
+/**
+ * Buys power, staking on either Leela/World winning.
+ * @param userAddr 
+ * @param amount 
+ * @param betOnLeela 
+ * @returns 
+ */
+export const addStake = (userAddr: string, amount: number, betOnLeela: boolean) => {
+  let ethersProvider = getEthersProvider();
+  const owner = ethersProvider.getSigner(userAddr);
+  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const addStakeRequest = bettingGameContract.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
+  return addStakeRequest;
 }
 
 // --------------------------------------------------------------

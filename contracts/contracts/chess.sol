@@ -303,6 +303,9 @@ contract Chess is Ownable, IChess {
         uint256 gameState = boardState;
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
+        console.log("Alrighty we're here");
+        console.log(fromPos);
+        console.log(toPos);
         uint32 playerState;
         uint32 opponentState;
         if (currentTurnBlack) {
@@ -314,11 +317,11 @@ contract Chess is Ownable, IChess {
         }
         require(fromPos != toPos, "You must move the piece at least one step.");
         uint8 fromPiece = pieceAtPosition(gameState, fromPos);
-        // require(((fromPiece & color_const) > 0) == currentTurnBlack, "It is not your turn"); // do not think this will be needed
         uint8 fromType = fromPiece & type_mask_const;
         uint32 newPlayerState = playerState;
         uint256 newGameState;
         if (fromType == pawn_const) {
+            console.log("Yup we're verifying a pawn move");
             (newGameState, newPlayerState) = verifyExecutePawnMove(
                 boardState,
                 move,
@@ -349,13 +352,16 @@ contract Chess is Ownable, IChess {
                 playerState
             );
         } else {
-            return false; //TODO write descriptive erros functions?
+            require(false, "The fromType is incorrect");
+            return false;
         }
         if (
             (newGameState != invalid_move_constant) &&
             !checkForCheck(newGameState, opponentState)
         ) {
             return true;
+        } else {
+            require(false, "newGameState check failed");
         }
         return false;
     }

@@ -18,9 +18,39 @@ import { Chess__factory } from "../typechain-types";
  * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
  */
 const config = {
-  LEELA_CONTRACT_ADDR: "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
-  BETTING_CONTRACT_ADDR: "0x9A676e781A523b5d0C0e43731313A708CB607508",
-  CHESS_CONTRACT_ADDR: "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+  LEELA_CONTRACT_ADDR: "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
+  BETTING_CONTRACT_ADDR: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823",
+  CHESS_CONTRACT_ADDR: "0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2",
+}
+
+/**
+ * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
+ * @param fromRow 
+ * @param fromCol 
+ * @param toRow 
+ * @param toCol 
+ * @returns 
+ */
+function convertMoveToUint16Repr(fromRow: string, fromCol: number, toRow: string, toCol: number): number {
+  const fromRowRepr = fromRow.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
+  const fromColRepr = fromCol - 1;
+  const toRowRepr = toRow.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
+  const toColRepr = toCol - 1;
+  return (fromColRepr << 9) | (fromRowRepr << 6) | (toColRepr << 3) | (toRowRepr);
+}
+
+/**
+ * Converts uint16 move repr back into human-readable format.
+ * @param uint16MoveRepr 
+ * @returns 
+ */
+function convertUint16ReprToHumanReadable(uint16MoveRepr: number): string {
+  const toRow = uint16MoveRepr & 0x7;
+  const toCol = (uint16MoveRepr >> 3) & 0x7;
+  const fromRow = (uint16MoveRepr >> 6) & 0x7;
+  const fromCol = (uint16MoveRepr >> 9) & 0x7;
+  return String.fromCharCode("A".charCodeAt(0) + fromRow) + `${fromCol + 1}` + " -> " +
+    String.fromCharCode("A".charCodeAt(0) + toRow) + `${toCol + 1}`
 }
 
 /**
@@ -44,17 +74,26 @@ const getEthersProvider = () => {
 const initializeLocalChessContractDeployment = async () => {
   const ethersProvider = getEthersProvider();
   const owner = ethersProvider.getSigner();
-  console.log(`owner with address: ${await owner.getAddress()}`);
+  // console.log(`owner with address: ${await owner.getAddress()}`);
 
   // --- Connect to betting contract, call initialize function (this also initializes chess + leela) ---
+  // Also start voting timer
   const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
   await bettingContract.initialize(config.CHESS_CONTRACT_ADDR, config.LEELA_CONTRACT_ADDR, 1000, { gasLimit: 1e7 });
+  await bettingContract.startVoteTimer();
+
+  const ryanAcc = ethersProvider.getSigner("0xD39511C7B8B15C58Fe71Bcfd430c1EB3ed94ff25");
+  // const bettingContractFromRyanView = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ryanAcc);
+  // const [moves, votes] = await bettingContractFromRyanView.getCurMovesAndVotes({ gasLimit: 1e7 });
+  // const [pool1, pool2, timer] = await bettingContractFromRyanView.getFrontEndPoolState({ gasLimit: 1e7 });
+  // console.log(`From betting contract: ${moves}, ${votes}`);
+  // console.log(`From betting contract pool state: ${pool1}, ${pool2}, ${timer}`);
 
   // --- Try and grab the current board state from the contract ---
   const chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
   // await chessContract.initializeGame();
-  const boardState = await chessContract.boardState();
-  console.log(`Board state is: ${boardState}`);
+  // const boardState = await chessContract.boardState();
+  // console.log(`Board state is: ${boardState}`);
 
   // --- Betting contract other stuff ---
   // const totalWorldShares = await bettingContract.totalWorldShares({ gasLimit: 1e7 });
@@ -63,7 +102,84 @@ const initializeLocalChessContractDeployment = async () => {
   console.log("Finished!");
 }
 
-initializeLocalChessContractDeployment().then(() => process.exit(0)).catch((error) => {
-  console.error(error);
-  process.exit(1);
-})
+const addStateToLocalChessContractDeployment = async () => {
+  // --- Setup ---
+  const ethersProvider = getEthersProvider();
+  const [dummyOwner, dummyAccount2, dummyAccount3] = await ethers.getSigners();
+  const owner = ethersProvider.getSigner(dummyOwner.address);
+  const account2 = ethersProvider.getSigner(dummyAccount2.address);
+  const account3 = ethersProvider.getSigner(dummyAccount3.address);
+  const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+
+  // --- Add stake to the betting contract (using the default account) ---
+  await bettingContract.addStake(false, { value: ethers.utils.parseEther("0.01"), gasLimit: 1e7 });
+  await bettingContract.addStake(true, { value: ethers.utils.parseEther("0.02"), gasLimit: 1e7 });
+
+  // --- Add stake to the betting contract (using a different account) ---
+  await bettingContract.connect(account2).addStake(true, { value: ethers.utils.parseEther("0.01"), gasLimit: 1e7 });
+  await bettingContract.connect(account2).addStake(false, { value: ethers.utils.parseEther("0.03"), gasLimit: 1e7 });
+
+  await bettingContract.connect(account3).addStake(true, { value: ethers.utils.parseEther("0.11"), gasLimit: 1e7 });
+  await bettingContract.connect(account3).addStake(false, { value: ethers.utils.parseEther("0.2"), gasLimit: 1e7 });
+
+  // --- Vote on a move (using default account, then using account2) ---
+  const ownerVoteMove = convertMoveToUint16Repr("E", 2, "E", 4);
+  console.log(ownerVoteMove);
+  // await bettingContract.voteWorldMove(ownerVoteMove);
+  // const account2VoteMove = convertMoveToUint16Repr("B", 1, "C", 3);
+  // await bettingContract.connect(account2).voteWorldMove(account2VoteMove);
+  // const account3VoteMove = convertMoveToUint16Repr("E", 2, "E", 4);
+  // await bettingContract.connect(account3).voteWorldMove(account3VoteMove);
+
+  // const leelaStake = await bettingContract.leelaStakes(0, owner.getAddress());
+  // const worldStake = await bettingContract.worldStakes(0, owner.getAddress());
+  // const leelaStake2 = await bettingContract.leelaStakes(0, account2.getAddress());
+  // const worldStake2 = await bettingContract.worldStakes(0, account2.getAddress());
+  // const leelaStake3 = await bettingContract.leelaStakes(0, account3.getAddress());
+  // const worldStake3 = await bettingContract.worldStakes(0, account3.getAddress());
+  // const [leelaStake, worldStake] = await bettingContract.getUserStakeState(owner.address, { gasLimit: 1e7 });
+  // const [leelaStake2, worldStake2] = await bettingContract.getUserStakeState(account2.address, { gasLimit: 1e7 });
+  // const [leelaStake3, worldStake3] = await bettingContract.getUserStakeState(account3.address, { gasLimit: 1e7 });
+
+  // console.log(leelaStake.toBigInt(), worldStake.toBigInt(), leelaStake2.toBigInt(), worldStake2.toBigInt(), leelaStake3.toBigInt(), worldStake3.toBigInt());
+}
+
+const readStateFromContracts = async () => {
+  // --- Setup ---
+  const ethersProvider = getEthersProvider();
+  const [dummyOwner, dummyAccount2, dummyAccount3] = await ethers.getSigners();
+  const owner = ethersProvider.getSigner(dummyOwner.address);
+  const account2 = ethersProvider.getSigner(dummyAccount2.address);
+  const account3 = ethersProvider.getSigner(dummyAccount3.address);
+  const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
+
+  // --- Pool ---
+  const [leelaPool, worldPool, timeLeft] = await bettingContract.getFrontEndPoolState();
+  console.log(`Leela pool: ${leelaPool}, world pool: ${worldPool}, time left: ${timeLeft}`);
+
+  // --- Stakes ---
+  const [leelaStake, worldStake] = await bettingContract.getUserStakeState(owner.getAddress(), { gasLimit: 1e7 });
+  const [leelaStake2, worldStake2] = await bettingContract.getUserStakeState(account2.getAddress(), { gasLimit: 1e7 });
+  const [leelaStake3, worldStake3] = await bettingContract.getUserStakeState(account3.getAddress(), { gasLimit: 1e7 });
+  console.log(leelaStake.toBigInt(), worldStake.toBigInt(), leelaStake2.toBigInt(), worldStake2.toBigInt(), leelaStake3.toBigInt(), worldStake3.toBigInt());
+
+  // --- Voted moves ---
+  const [moves, votes] = await bettingContract.getCurMovesAndVotes({ gasLimit: 1e7 });
+  console.log(`From betting contract: ${moves}, ${votes}`);
+}
+
+// initializeLocalChessContractDeployment().then(() => process.exit(0)).catch((error) => {
+//   console.error(error);
+//   process.exit(1);
+// });
+
+// addStateToLocalChessContractDeployment().then(() => process.exit(0)).catch((error) => {
+//   console.error(error);
+//   process.exit(1);
+// });
+
+// readStateFromContracts().then(() => process.exit(0)).catch((error) => {
+//   console.error(error);
+//   process.exit(1);
+// });

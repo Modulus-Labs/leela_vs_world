@@ -47,13 +47,11 @@ export default function App({ Component, pageProps }: AppProps) {
       <WagmiConfig client={wagmiClient}>
         <RainbowKitProvider chains={chains}>
           <ArcadeMachineContextProvider>
-            <BettingContextProvider>
-              <ChessGameContextProvider>
-                <BettingContextProvider>
-                  <Component {...pageProps} />
-                </BettingContextProvider>
-              </ChessGameContextProvider>
-            </BettingContextProvider>
+            <ChessGameContextProvider>
+              <BettingContextProvider>
+                <Component {...pageProps} />
+              </BettingContextProvider>
+            </ChessGameContextProvider>
           </ArcadeMachineContextProvider>
         </RainbowKitProvider>
       </WagmiConfig>

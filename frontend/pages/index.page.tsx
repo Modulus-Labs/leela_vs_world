@@ -6,7 +6,7 @@ import { PrizePool } from '../pageElements/arcadeGame/PrizePool';
 import { ChessBoard } from '../pageElements/arcadeGame/ChessBoard/ChessBoard';
 import { VotingPanel } from '../pageElements/arcadeGame/votingPanel/VotingPanel';
 import { useArcadeMachineContext } from '../contexts/ArcadeMachineContext';
-import { GameDetails } from '../pageElements/gamePopups/GameDetails';
+import { GameDetails } from '../pageElements/gamePopups/BuyPowerModal';
 import { GameInstructions } from '../pageElements/gamePopups/GameInstructions';
 import { GameEarnings } from '../pageElements/gamePopups/GameEarnings';
 import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
@@ -14,10 +14,11 @@ import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModul
 import { useMediaQueryContext } from '../contexts/MediaQueryContext';
 import { ScreenTooSmall } from '../pageElements/ScreenTooSmall';
 import { ArcadeFooter } from '../pageElements/arcadeGame/ArcadeFooter';
+import { InfoModal } from '../pageElements/gamePopups/InfoModal';
 
 export default function Home() {
   const { isMobile } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails } = useArcadeMachineContext();
+  const { showGameInstructions, showGameDetails, showInfoModal } = useArcadeMachineContext();
 
   if (isMobile) {
     return <ScreenTooSmall />;
@@ -44,7 +45,7 @@ export default function Home() {
 
           <div className="relative mx-auto mt-[100px] grid h-[775px] w-[1375px] grid-cols-2 gap-x-10 px-10 py-5">
             {/* Popups */}
-            {!showGameInstructions && showGameDetails && (
+            {showGameDetails && (
               <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
                 <GameDetails />
               </div>
@@ -52,6 +53,11 @@ export default function Home() {
             {showGameInstructions && (
               <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
                 <GameInstructions />
+              </div>
+            )}
+            {showInfoModal && (
+              <div className="absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-row items-center justify-center bg-black bg-opacity-70">
+                <InfoModal />
               </div>
             )}
 

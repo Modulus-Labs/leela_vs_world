@@ -28,7 +28,7 @@ contract BettingGame is Ownable {
     Leela public leela;
 
     /// @dev Minimum stake size.
-    uint256 public minStake = 0.01 ether;
+    uint256 public minStake = 0.001 ether;
 
     uint16 public gameIndex = 0;
 
@@ -196,7 +196,26 @@ contract BettingGame is Ownable {
     {
         // --- First up, the total number of shares ---
         // --- Next, the amount of time in seconds left ---
-        return (leelaPoolSize, worldPoolSize, getTimeLeft());
+        uint256 timeLeft = getTimeLeft();
+        return (leelaPoolSize, worldPoolSize, timeLeft);
+    }
+
+    /**
+     * Grabs user stake in both leela and the world
+     */
+    function getUserStakeState(address userAddr)
+        public
+        view
+        returns (uint256, uint256)
+    {
+        // console.log("Leela stakes: ");
+        // console.log(leelaStakes[gameIndex][userAddr]);
+        // console.log("World stakes: ");
+        // console.log(worldStakes[gameIndex][userAddr]);
+        return (
+            leelaStakes[gameIndex][userAddr],
+            worldStakes[gameIndex][userAddr]
+        );
     }
 
     /// @dev Start staking period.
@@ -238,10 +257,10 @@ contract BettingGame is Ownable {
     }
 
     /**
-     * Returns whether the user has already voted this turn
+     * Returns the move the user already voted for this turn
      */
-    function userAlreadyVoted() public view returns (bool) {
-        return voters[gameIndex][moveIndex][msg.sender] != 0;
+    function userVotedMove() public view returns (uint16) {
+        return voters[gameIndex][moveIndex][msg.sender];
     }
 
     /// @dev For voting on a move for the World

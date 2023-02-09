@@ -1,5 +1,11 @@
 import { Chess, Square } from 'chess.js';
 
+export interface ChessLeaderboardMove {
+  humanRepr: string;
+  stake: number;
+  ID: number;
+}
+
 export enum MOVE_STATE {
   IDLE,
   MOVING,

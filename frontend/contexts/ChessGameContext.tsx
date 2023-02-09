@@ -48,6 +48,7 @@ export const ChessGameContextProvider = ({
     if (chessStateRequest !== null) {
       chessStateRequest.then(([boardState, whiteState, blackState, currentTurnBlack, gameIndex, moveIndex]) => {
         const fen = getFen(boardState.toHexString().substring(2), whiteState, blackState, currentTurnBlack, moveIndex + 1);
+        // console.log(`Successfully got fen ${fen} from the chess contract!`);
         setCurrChessBoard({
           fen: fen,
           moveState: MOVE_STATE.IDLE,
@@ -235,7 +236,7 @@ export const ChessGameContextProvider = ({
       validMoves: rawcurrGameStateidMoves.map((move) => move.to),
     } as MovingBoardState;
 
-    setCurrChessBoard({ ...newChessBoard });
+    setCurrChessBoard(newChessBoard);
   };
 
   // Action to end a move
@@ -247,11 +248,14 @@ export const ChessGameContextProvider = ({
       moveTo: square,
     } as MovedBoardState;
 
-    setCurrChessBoard({ ...newChessBoard });
+    setCurrChessBoard(newChessBoard);
   };
 
   // Action to reset the move
   const resetMove = () => {
+
+    console.log("Resetting move!");
+
     const newChessBoard = {
       ...currChessBoard,
       moveState: MOVE_STATE.IDLE,
@@ -260,7 +264,7 @@ export const ChessGameContextProvider = ({
       validMoves: null,
     } as IdleBoardState;
 
-    setCurrChessBoard({ ...newChessBoard });
+    setCurrChessBoard(newChessBoard);
   };
 
   return (

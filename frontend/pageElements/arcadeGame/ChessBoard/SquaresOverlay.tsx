@@ -34,13 +34,14 @@ export const SquaresOverlay: FC = () => {
     const { moveState, moveFrom, moveTo, validMoves } = currChessBoard;
 
     if (moveState === MOVE_STATE.IDLE) {
-      console.log('idle');
+      // console.log('idle');
       // If the square is occupied by a piece => start a move
       if (chessJsRef.current.get(square)) {
+        resetMove();
         startMove(square);
       }
     } else if (moveState === MOVE_STATE.MOVING) {
-      console.log('moving');
+      // console.log('moving');
       if (validMoves === null) {
         resetMove();
       } else if (moveFrom === square) {

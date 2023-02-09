@@ -9,7 +9,6 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
  * @param fromRow 
  * @param fromCol 
  * @param toRow 
- * @param toCol 
  * @returns 
  */
 function convertMoveToUint16Repr(fromRow: string, fromCol: number, toRow: string, toCol: number): number {
@@ -174,6 +173,28 @@ describe("Integration Tests: Betting Contract", function () {
       curMoves.forEach((uint16MoveRepr: number) => {
         console.log(convertUint16ReprToHumanReadable(uint16MoveRepr));
       });
+
+    })
+
+    it("Testing staking stuff", async function () {
+
+      // --- Setup ---
+      const bettingContract = await loadFixture(deployAndInitializeBettingContract);
+      const [owner, account2, account3] = await ethers.getSigners();
+
+      // --- Add stake to the betting contract (using the default account) ---
+      await bettingContract.addStake(false, { value: ethers.utils.parseEther("0.01"), gasLimit: 1e7 });
+      await bettingContract.addStake(true, { value: ethers.utils.parseEther("0.02"), gasLimit: 1e7 });
+
+      // --- Add stake to the betting contract (using a different account) ---
+      await bettingContract.connect(account2).addStake(true, { value: ethers.utils.parseEther("0.01"), gasLimit: 1e7 });
+      await bettingContract.connect(account2).addStake(false, { value: ethers.utils.parseEther("0.03"), gasLimit: 1e7 });
+
+      const [leelaStake, worldStake] = await bettingContract.getUserStakeState(owner.address);
+      const [leelaStake2, worldStake2] = await bettingContract.getUserStakeState(account2.address);
+      const [leelaStake3, worldStake3] = await bettingContract.getUserStakeState(account3.address);
+
+      console.log(leelaStake, worldStake, leelaStake2, worldStake2, leelaStake3, worldStake3);
 
     })
 

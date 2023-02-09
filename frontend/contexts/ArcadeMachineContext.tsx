@@ -15,7 +15,15 @@ interface ArcadeMachineContextInterface {
   setShowGameInstructions: Dispatch<SetStateAction<boolean>>;
 
   showGameEarnings: boolean;
-  setGameEarnings: Dispatch<SetStateAction<boolean>>
+  setGameEarnings: Dispatch<SetStateAction<boolean>>;
+
+  // --- For info modal stuff ---
+  showInfoModal: boolean;
+  setShowInfoModal: Dispatch<SetStateAction<boolean>>;
+  infoModalDismissVisible: boolean;
+  setInfoModalDismissVisible: Dispatch<SetStateAction<boolean>>;
+  infoModalText: string;
+  setInfoModalText: Dispatch<SetStateAction<string>>;
 }
 
 const ArcadeMachineContext = createContext<
@@ -27,9 +35,14 @@ export const ArcadeMachineContextProvider = ({
 }: {
   children: ReactNode;
 }) => {
-  const [showGameDetails, setShowGameDetails] = useState(false);
-  const [showGameInstructions, setShowGameInstructions] = useState(false);
-  const [showGameEarnings, setGameEarnings] = useState(false);
+  const [showGameDetails, setShowGameDetails] = useState<boolean>(false);
+  const [showGameInstructions, setShowGameInstructions] = useState<boolean>(false);
+  const [showGameEarnings, setGameEarnings] = useState<boolean>(false);
+
+  // --- For info modal ---
+  const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
+  const [infoModalDismissVisible, setInfoModalDismissVisible] = useState<boolean>(false);
+  const [infoModalText, setInfoModalText] = useState<string>("");
 
   return (
     <ArcadeMachineContext.Provider
@@ -40,6 +53,12 @@ export const ArcadeMachineContextProvider = ({
         setShowGameInstructions,
         showGameEarnings,
         setGameEarnings,
+        showInfoModal,
+        setShowInfoModal,
+        infoModalDismissVisible,
+        setInfoModalDismissVisible,
+        infoModalText,
+        setInfoModalText,
       }}
     >
       {children}
