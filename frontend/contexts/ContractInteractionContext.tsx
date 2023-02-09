@@ -1,7 +1,8 @@
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import {
   createContext,
   Dispatch,
+  MutableRefObject,
   ReactNode,
   SetStateAction,
   useCallback,
@@ -10,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { BettingGame, BettingGame__factory } from '../typechain-types';
+import { BettingGame, BettingGame__factory, Chess, Chess__factory, Leela, Leela__factory } from '../typechain-types';
 
 /**
  * For everything related to interacting with contracts.
@@ -19,8 +20,12 @@ import { BettingGame, BettingGame__factory } from '../typechain-types';
 interface IContractInteractionContext {
   walletAddr: string;
   setWalletAddr: Dispatch<SetStateAction<string>>;
-
   ethersProvider: ethers.providers.JsonRpcProvider;
+
+  // --- Contract references ---
+  bettingContractRef: MutableRefObject<BettingGame>;
+  chessContractRef: MutableRefObject<Chess>;
+  leelaContractRef: MutableRefObject<Leela>;
 }
 
 // --- Contract addresses ---
@@ -35,8 +40,9 @@ const ContractInteractionContext = createContext<IContractInteractionContext | u
   undefined
 );
 
+
 /**
- * Grabs the current ethers provider, if exists.
+ * Grabs ethers provider.
  * @returns 
  */
 const getEthersProvider = () => {
@@ -54,12 +60,40 @@ const getEthersProvider = () => {
   return ethersProvider;
 }
 
-const getBettingContract = (): BettingGame => {
+const getBettingContract = (walletAddr: string): BettingGame => {
   let ethersProvider = getEthersProvider();
 
   // --- Connect to contract ---
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+  let bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+  if (walletAddr !== "") {
+    const account = ethersProvider.getSigner(walletAddr);
+    bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, account);
+  }
   return bettingGameContract;
+}
+
+const getChessContract = (walletAddr: string): Chess => {
+  let ethersProvider = getEthersProvider();
+
+  // --- Connect to contract ---
+  let chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
+  if (walletAddr !== "") {
+    const account = ethersProvider.getSigner(walletAddr);
+    chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, account);
+  }
+  return chessGameContract;
+}
+
+const getLeelaContract = (walletAddr: string): Leela => {
+  let ethersProvider = getEthersProvider();
+
+  // --- Connect to contract ---
+  let leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, ethersProvider);
+  if (walletAddr !== "") {
+    const account = ethersProvider.getSigner(walletAddr);
+    leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, account);
+  }
+  return leelaGameContract;
 }
 
 export const ContractInteractionContextProvider = ({
@@ -71,7 +105,9 @@ export const ContractInteractionContextProvider = ({
   // --- TODO(ryancao): Check if any refs or states should be flipped ---
   const [walletAddr, setWalletAddr] = useState<string>("");
   const [ethersProvider, setEthersProvider] = useState<ethers.providers.JsonRpcProvider>(getEthersProvider());
-  const bettingContractRef = useRef<BettingGame>(getBettingContract());
+  const bettingContractRef = useRef<BettingGame>(getBettingContract(""));
+  const chessContractRef = useRef<Chess>(getChessContract(""));
+  const leelaContractRef = useRef<Leela>(getLeelaContract(""));
 
   // --- Listen for when wallet address changes ---
   useEffect(useCallback(() => {
@@ -79,16 +115,24 @@ export const ContractInteractionContextProvider = ({
     if (walletAddr === "") return;
 
     // --- Otherwise, update the contracts which are connected ---
-    bettingContractRef.current = getBettingContract();
+    bettingContractRef.current = getBettingContract(walletAddr);
+    chessContractRef.current = getChessContract(walletAddr);
+    leelaContractRef.current = getLeelaContract(walletAddr);
 
-  }, [walletAddr]), [walletAddr])
+  }, [walletAddr]), [walletAddr]);
 
   return (
     <ContractInteractionContext.Provider
       value={{
+        // --- Stateful things (wallet, provider) ---
         walletAddr,
         setWalletAddr,
         ethersProvider,
+
+        // --- Contract references ---
+        bettingContractRef,
+        chessContractRef,
+        leelaContractRef,
       }}
     >
       {children}
@@ -96,7 +140,7 @@ export const ContractInteractionContextProvider = ({
   );
 };
 
-export const useMediaQueryContext = (): IContractInteractionContext => {
+export const useContractInteractionContext = (): IContractInteractionContext => {
   const context = useContext(ContractInteractionContext);
   if (context === undefined) {
     throw new Error(

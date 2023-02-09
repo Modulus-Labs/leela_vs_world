@@ -12,6 +12,7 @@ import { configureChains, createClient, WagmiConfig } from 'wagmi';
 import { goerli, hardhat } from 'wagmi/chains';
 import { alchemyProvider } from 'wagmi/providers/alchemy';
 import { publicProvider } from 'wagmi/providers/public';
+import { ContractInteractionContextProvider } from '../contexts/ContractInteractionContext';
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || '0xkey';
 
@@ -47,11 +48,13 @@ export default function App({ Component, pageProps }: AppProps) {
       <WagmiConfig client={wagmiClient}>
         <RainbowKitProvider chains={chains}>
           <ArcadeMachineContextProvider>
-            <ChessGameContextProvider>
-              <BettingContextProvider>
-                <Component {...pageProps} />
-              </BettingContextProvider>
-            </ChessGameContextProvider>
+            <ContractInteractionContextProvider>
+              <ChessGameContextProvider>
+                <BettingContextProvider>
+                  <Component {...pageProps} />
+                </BettingContextProvider>
+              </ChessGameContextProvider>
+            </ContractInteractionContextProvider>
           </ArcadeMachineContextProvider>
         </RainbowKitProvider>
       </WagmiConfig>

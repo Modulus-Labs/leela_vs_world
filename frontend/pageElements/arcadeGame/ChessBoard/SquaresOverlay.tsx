@@ -4,7 +4,6 @@ import { FC, SyntheticEvent, useCallback, useEffect, useRef, useState } from 're
 import { JsxElement } from 'typescript';
 import { useChessGameContext } from '../../../contexts/ChessGameContext';
 import { MOVE_STATE } from '../../../types/Chess.type';
-import { getBoardStateFromChessContract } from '../../../utils/interact';
 import { ChessPieceOverlay } from './ChessPieceOverlay';
 import { MoveFromOverlay } from './MoveFromOverlay';
 import { MoveToOverlay } from './MoveToOverlay';

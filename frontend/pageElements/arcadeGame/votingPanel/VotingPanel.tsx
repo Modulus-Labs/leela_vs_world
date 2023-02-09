@@ -1,17 +1,19 @@
-import { FC, MouseEventHandler, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { RetroButton } from './RetroButton';
 import { RetroDropdown } from './RetroDropdown';
 import { useChessGameContext } from '../../../contexts/ChessGameContext';
-import { connectWallet, getUserStakeFromBettingContract, getUserVotedMove, voteForMove } from '../../../utils/interact';
+import { connectWallet } from '../../../utils/interact';
 import { ethers } from 'ethers';
-import { convertMoveToUint16Repr, convertUint16ReprToMoveStrings, getAlgebraicNotation, getContractMoveRepr } from '../../../utils/helpers';
+import { convertUint16ReprToMoveStrings, getAlgebraicNotation, getContractMoveRepr } from '../../../utils/helpers';
 import { useArcadeMachineContext } from '../../../contexts/ArcadeMachineContext';
 import { useBettingContext } from '../../../contexts/BettingContext';
+import { useContractInteractionContext } from '../../../contexts/ContractInteractionContext';
 
 export const VotingPanel: FC = () => {
   const { currChessBoard } = useChessGameContext();
   const { setShowGameDetails, setShowInfoModal, setInfoModalDismissVisible, setInfoModalText } = useArcadeMachineContext();
-  const { walletAddr, setWalletAddr } = useBettingContext();
+  const { walletAddr, setWalletAddr } = useContractInteractionContext();
+  const { getUserStakeFromBettingContract, getUserVotedMove, voteForMove } = useBettingContext();
 
   // --- Sets up current move notation state ---
   // --- Updates state whenever chessboard UI state changes ---
@@ -27,8 +29,8 @@ export const VotingPanel: FC = () => {
     // --- No login --> no power ---
     if (walletAddr === "") return;
 
-    const userStakeRequest = getUserStakeFromBettingContract(walletAddr);
-    if (userStakeRequest !== null) {
+    const userStakeRequest = getUserStakeFromBettingContract();
+    if (userStakeRequest !== undefined) {
       userStakeRequest.then(([leelaStake, worldStake]) => {
         // console.log(`Got this from the contract: ${leelaStake} (leela), ${worldStake} (world)`)
         const parsedTotal = Number(ethers.utils.formatEther(leelaStake.add(worldStake)));
@@ -46,8 +48,8 @@ export const VotingPanel: FC = () => {
   const [userVotedMove, setUserVotedMove] = useState<string>("");
   useEffect(useCallback(() => {
     if (walletAddr !== "") {
-      const getUserVotedMoveRequest = getUserVotedMove(walletAddr);
-      getUserVotedMoveRequest.then((moveNumRepr) => {
+      const getUserVotedMoveRequest = getUserVotedMove();
+      getUserVotedMoveRequest?.then((moveNumRepr) => {
         if (moveNumRepr === 0) {
           return;
         }
@@ -144,9 +146,9 @@ export const VotingPanel: FC = () => {
 
                 // --- TODO: call betting contract function voteWorldMove(ret) ---
                 // --- TODO: Grab the actual amount of power from the betting contract ---
-                const voteForMoveRequest = voteForMove(walletAddr, selectedMoveRepr);
+                const voteForMoveRequest = voteForMove(selectedMoveRepr);
                 openModalWithOptions(`Submitting vote to contract -- this might take a moment...`, false);
-                voteForMoveRequest.then((result) => {
+                voteForMoveRequest?.then((_) => {
                   openModalWithOptions(`Success!! Voted for move [${moveNotation}] with ${votingPower} power.`, true);
                 }).catch((error) => {
                   openModalWithOptions(`Failed to submit vote to contract. Error: ${error}`, true);

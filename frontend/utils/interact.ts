@@ -1,9 +1,4 @@
-import { BigNumber, ethers } from "ethers";
-import { useRef, useState } from "react";
-import { BettingGame__factory } from "../typechain-types";
-import { Chess__factory } from "../typechain-types";
-// import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
-// import l1_abi from "./L1_abi.json";
+import { ethers } from "ethers";
 // import emoji from "node-emoji";
 
 // --- TODO(ryancao): Figure out what these contract addresses are ---
@@ -55,145 +50,145 @@ const getEthersProvider = () => {
   return ethersProvider;
 }
 
-/**
- * Calls the chess contract via ethers and reads the board state from it.
- */
-export const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> | null => {
-  let ethersProvider = getEthersProvider();
+// /**
+//  * Calls the chess contract via ethers and reads the board state from it.
+//  */
+// export const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> | null => {
+//   let ethersProvider = getEthersProvider();
 
-  if (ethersProvider != null) {
+//   if (ethersProvider != null) {
 
-    // --- Grab owner, connect to contract, call function ---
-    const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
-    const chessGameStateRequest = chessGameContract.getChessGameState();
+//     // --- Grab owner, connect to contract, call function ---
+//     const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
+//     const chessGameStateRequest = chessGameContract.getChessGameState();
 
-    // --- Grab result, feed back to caller ---
-    return chessGameStateRequest;
-  } else {
-    return null;
-  }
-}
+//     // --- Grab result, feed back to caller ---
+//     return chessGameStateRequest;
+//   } else {
+//     return null;
+//   }
+// }
 
-/**
- * Grabs the pool state + timer from the betting contract.
- * This does NOT require the user to be logged in!
- */
-export const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> | null => {
-  let ethersProvider = getEthersProvider();
-  if (ethersProvider != null) {
+// /**
+//  * Grabs the pool state + timer from the betting contract.
+//  * This does NOT require the user to be logged in!
+//  */
+// export const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
 
-    // --- Connect to contract, call function ---
-    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
-    const bettingGamePoolRequest = bettingGameContract.getFrontEndPoolState();
-    return bettingGamePoolRequest;
+//     // --- Connect to contract, call function ---
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//     const bettingGamePoolRequest = bettingGameContract.getFrontEndPoolState();
+//     return bettingGamePoolRequest;
 
-  } else {
-    return null;
-  }
-}
+//   } else {
+//     return null;
+//   }
+// }
 
-/**
- * Grabs the move leaderboard + number of votes from the betting contract.
- * This does NOT require the user to be logged in!
- * @returns 
- */
-export const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> | null => {
-  let ethersProvider = getEthersProvider();
-  if (ethersProvider != null) {
-    // --- Connect to contract, call function ---
-    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
-    // console.log("Getting current moves and votes!");
-    const bettingGamePoolRequest = bettingGameContract.getCurMovesAndVotes();
-    return bettingGamePoolRequest;
-  } else {
-    return null;
-  }
-}
+// /**
+//  * Grabs the move leaderboard + number of votes from the betting contract.
+//  * This does NOT require the user to be logged in!
+//  * @returns 
+//  */
+// export const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
+//     // --- Connect to contract, call function ---
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//     // console.log("Getting current moves and votes!");
+//     const bettingGamePoolRequest = bettingGameContract.getCurMovesAndVotes();
+//     return bettingGamePoolRequest;
+//   } else {
+//     return null;
+//   }
+// }
 
-/**
- * Grabs the user's Leela and world stakes. This requires the user to be logged in!
- * @param userAddr 
- * @returns 
- */
-export const getUserStakeFromBettingContract = (userAddr: string): Promise<[BigNumber, BigNumber]> | null => {
-  let ethersProvider = getEthersProvider();
-  if (ethersProvider != null) {
-    const owner = ethersProvider.getSigner(userAddr);
-    // console.log(`Owner is coming from ${userAddr}!`);
-    const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
-    const userStakeRequest = bettingGameContract.getUserStakeState(userAddr, { gasLimit: 1e7 });
-    return userStakeRequest;
-  } else {
-    return null;
-  }
-}
+// /**
+//  * Grabs the user's Leela and world stakes. This requires the user to be logged in!
+//  * @param userAddr 
+//  * @returns 
+//  */
+// export const getUserStakeFromBettingContract = (userAddr: string): Promise<[BigNumber, BigNumber]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
+//     const owner = ethersProvider.getSigner(userAddr);
+//     // console.log(`Owner is coming from ${userAddr}!`);
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//     const userStakeRequest = bettingGameContract.getUserStakeState(userAddr, { gasLimit: 1e7 });
+//     return userStakeRequest;
+//   } else {
+//     return null;
+//   }
+// }
 
-/**
- * Votes on the given move by the user.
- * @param userAddr 
- * @param move 
- * @returns 
- */
-export const voteForMove = (userAddr: string, move: number) => {
-  let ethersProvider = getEthersProvider();
-  const owner = ethersProvider.getSigner(userAddr);
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
-  const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
-  return voteWorldMoveRequest;
-}
+// /**
+//  * Votes on the given move by the user.
+//  * @param userAddr 
+//  * @param move 
+//  * @returns 
+//  */
+// export const voteForMove = (userAddr: string, move: number) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+//   return voteWorldMoveRequest;
+// }
 
-/**
- * Returns which move user voted for this round (or 0 if none)
- * @param userAddr 
- * @returns 
- */
-export const getUserVotedMove = (userAddr: string): Promise<number> => {
-  let ethersProvider = getEthersProvider();
-  const owner = ethersProvider.getSigner(userAddr);
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
-  const userVotedMoveRequest = bettingGameContract.userVotedMove();
-  return userVotedMoveRequest;
-}
+// /**
+//  * Returns which move user voted for this round (or 0 if none)
+//  * @param userAddr 
+//  * @returns 
+//  */
+// export const getUserVotedMove = (userAddr: string): Promise<number> => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const userVotedMoveRequest = bettingGameContract.userVotedMove();
+//   return userVotedMoveRequest;
+// }
 
-/**
- * Returns Leela's last move played (or 0 if none)
- * @returns 
- */
-export const getLastLeelaMove = (): Promise<number> => {
-  let ethersProvider = getEthersProvider();
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
-  const leelaLastMoveRequest = bettingGameContract.leelaMove();
-  return leelaLastMoveRequest;
-}
+// /**
+//  * Returns Leela's last move played (or 0 if none)
+//  * @returns 
+//  */
+// export const getLastLeelaMove = (): Promise<number> => {
+//   let ethersProvider = getEthersProvider();
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//   const leelaLastMoveRequest = bettingGameContract.leelaMove();
+//   return leelaLastMoveRequest;
+// }
 
-/**
- * Votes on a particular move for the user for this turn.
- * @param userAddr 
- * @param move 
- * @returns 
- */
-export const voteWorldMove = (userAddr: string, move: number) => {
-  let ethersProvider = getEthersProvider();
-  const owner = ethersProvider.getSigner(userAddr);
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
-  const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
-  return voteWorldMoveRequest;
-}
+// /**
+//  * Votes on a particular move for the user for this turn.
+//  * @param userAddr 
+//  * @param move 
+//  * @returns 
+//  */
+// export const voteWorldMove = (userAddr: string, move: number) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+//   return voteWorldMoveRequest;
+// }
 
-/**
- * Buys power, staking on either Leela/World winning.
- * @param userAddr 
- * @param amount 
- * @param betOnLeela 
- * @returns 
- */
-export const addStake = (userAddr: string, amount: number, betOnLeela: boolean) => {
-  let ethersProvider = getEthersProvider();
-  const owner = ethersProvider.getSigner(userAddr);
-  const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
-  const addStakeRequest = bettingGameContract.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
-  return addStakeRequest;
-}
+// /**
+//  * Buys power, staking on either Leela/World winning.
+//  * @param userAddr 
+//  * @param amount 
+//  * @param betOnLeela 
+//  * @returns 
+//  */
+// export const addStake = (userAddr: string, amount: number, betOnLeela: boolean) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const addStakeRequest = bettingGameContract.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
+//   return addStakeRequest;
+// }
 
 // --------------------------------------------------------------
 

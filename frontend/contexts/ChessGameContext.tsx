@@ -1,4 +1,4 @@
-import { BigNumber, Contract } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import {
   createContext,
   Dispatch,
@@ -9,10 +9,6 @@ import {
   useEffect,
   useState,
 } from 'react';
-// import { CHESS_TEST_CONTRACT_ADDRESS } from '../contracts/ContractAddresses';
-
-// import ChessTestArtifact from '../contracts/ChessTest.json';
-import { useSigner } from 'wagmi';
 import {
   BoardState,
   IdleBoardState,
@@ -21,7 +17,7 @@ import {
   MovingBoardState,
 } from '../types/Chess.type';
 import { Chess, Square, Move } from 'chess.js';
-import { getBoardStateFromChessContract } from '../utils/interact';
+import { useContractInteractionContext } from './ContractInteractionContext';
 
 interface ChessGameContextInterface {
   currChessBoard: BoardState;
@@ -29,6 +25,9 @@ interface ChessGameContextInterface {
   startMove: (square: Square) => void;
   endMove: (square: Square) => void;
   resetMove: () => void;
+
+  // --- Public Functions ---
+  getBoardStateFromChessContract: () => Promise<[BigNumber, number, number, boolean, number, number]>;
 }
 
 const ChessGameContext = createContext<ChessGameContextInterface | undefined>(
@@ -40,7 +39,20 @@ export const ChessGameContextProvider = ({
 }: {
   children: ReactNode;
 }) => {
-  const { data: signer } = useSigner();
+
+  // --- For contract-specific things ---
+  const { chessContractRef } = useContractInteractionContext();
+
+  // ------------------------ PUBLIC FUNCTIONS ------------------------
+  /**
+   * Calls the chess contract via ethers and reads the board state from it.
+   */
+  const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> => {
+    const chessGameStateRequest = chessContractRef.current.getChessGameState();
+
+    // --- Grab result, feed back to caller ---
+    return chessGameStateRequest;
+  }
 
   // --- Load the actual board state in from the smart contract upon load ---
   useEffect(() => {
@@ -275,6 +287,7 @@ export const ChessGameContextProvider = ({
         startMove,
         endMove,
         resetMove,
+        getBoardStateFromChessContract
       }}
     >
       {children}

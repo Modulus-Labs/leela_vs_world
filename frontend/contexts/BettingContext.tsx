@@ -13,13 +13,10 @@ import {
 import { ChessLeaderboardMove, CHESS_PLAYER } from '../types/Chess.type';
 import { dummyLeaderboardMoves } from '../utils/constants';
 import { convertUint16ReprToMoveStrings, getAlgebraicNotation } from '../utils/helpers';
-import { getBettingPoolStateFromBettingContract, getLastLeelaMove, getMoveLeaderboardStateFromBettingContract, getUserStakeFromBettingContract, getUserVotedMove } from '../utils/interact';
 import { useChessGameContext } from './ChessGameContext';
+import { useContractInteractionContext } from './ContractInteractionContext';
 
 interface BettingContextInterface {
-  walletAddr: string;
-  setWalletAddr: Dispatch<SetStateAction<string>>;
-
   timeToNextMove: number;
   setTimeToNextMove: Dispatch<SetStateAction<number>>;
 
@@ -30,14 +27,22 @@ interface BettingContextInterface {
 
   MAX_PRIZE_POOL: number;
 
-  playerOption: CHESS_PLAYER;
-  setPlayerOption: Dispatch<SetStateAction<CHESS_PLAYER>>;
-
   leaderboardMoves: ChessLeaderboardMove[];
   selectedMoveIndex: number;
   setSelectedMoveIndex: Dispatch<SetStateAction<number>>;
-
   prevMove: string;
+
+  // --- Public Functions ---
+  getBettingPoolStateFromBettingContract: () => Promise<[BigNumber, BigNumber, BigNumber]>;
+  getMoveLeaderboardStateFromBettingContract: () => Promise<[number[], BigNumber[]]>;
+  getLastLeelaMove: () => Promise<number>;
+
+  // --- User-specific functions ---
+  getUserStakeFromBettingContract: () => Promise<[BigNumber, BigNumber]> | undefined;
+  voteForMove: (move: number) => Promise<ethers.ContractTransaction> | undefined;
+  getUserVotedMove: () => Promise<number> | undefined;
+  voteWorldMove: (move: number) => Promise<ethers.ContractTransaction> | undefined;
+  addStake: (amount: number, betOnLeela: boolean) => Promise<ethers.ContractTransaction> | undefined;
 }
 
 const BettingContext = createContext<BettingContextInterface | undefined>(
@@ -61,9 +66,6 @@ export const BettingContextProvider = ({
 }: {
   children: ReactNode;
 }) => {
-
-  // --- For user wallet connect ---
-  const [walletAddr, setWalletAddr] = useState<string>("");
 
   // --- For timer above the chessboard ---
   const [timeToNextMove, setTimeToNextMove] = useState(60 * 10);
@@ -156,38 +158,126 @@ export const BettingContextProvider = ({
   }, []), []);
 
   // --- No clue what these are ---
-  const [playerOption, setPlayerOption] = useState<CHESS_PLAYER>(
-    CHESS_PLAYER.LEELA
-  );
+  // const [playerOption, setPlayerOption] = useState<CHESS_PLAYER>(
+  //   CHESS_PLAYER.LEELA
+  // );
   const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
 
-  // const [initialValidMovesIsSet, setInitialValidMovesIsSet] = useState(false); // used for simulating bid changes
+  // --- Contract-related stuff ---
+  const { walletAddr, bettingContractRef } = useContractInteractionContext();
+
+  /**
+   * Grabs the pool state + timer from the betting contract.
+   * This does NOT require the user to be logged in!
+   */
+  const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> => {
+    const bettingGamePoolRequest = bettingContractRef.current.getFrontEndPoolState();
+    return bettingGamePoolRequest;
+  }
+
+  /**
+   * Grabs the move leaderboard + number of votes from the betting contract.
+   * This does NOT require the user to be logged in!
+   * @returns 
+   */
+  const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> => {
+    const bettingGamePoolRequest = bettingContractRef.current.getCurMovesAndVotes();
+    return bettingGamePoolRequest;
+  }
+
+  /**
+   * Returns Leela's last move played (or 0 if none)
+   * @returns 
+   */
+  const getLastLeelaMove = (): Promise<number> => {
+    const leelaLastMoveRequest = bettingContractRef.current.leelaMove();
+    return leelaLastMoveRequest;
+  }
+
+  // ------------------------ USER-SPECIFIC FUNCTIONS ------------------------
+
+  /**
+   * Grabs the user's Leela and world stakes. This requires the user to be logged in!
+   * @returns 
+   */
+  const getUserStakeFromBettingContract = (): Promise<[BigNumber, BigNumber]> | undefined => {
+    if (walletAddr === "") return;
+    const userStakeRequest = bettingContractRef.current.getUserStakeState(walletAddr, { gasLimit: 1e7 });
+    return userStakeRequest;
+  }
+
+  /**
+   * Votes on the given move by the user.
+   * @param move 
+   * @returns 
+   */
+  const voteForMove = (move: number) => {
+    if (walletAddr === "") return;
+    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { gasLimit: 1e7 });
+    return voteWorldMoveRequest;
+  }
+
+  /**
+   * Returns which move user voted for this round (or 0 if none)
+   * @returns 
+   */
+  const getUserVotedMove = (): Promise<number> | undefined => {
+    if (walletAddr === "") return;
+    const userVotedMoveRequest = bettingContractRef.current.userVotedMove();
+    return userVotedMoveRequest;
+  }
+
+  /**
+   * Votes on a particular move for the user for this turn.
+   * @param move 
+   * @returns 
+   */
+  const voteWorldMove = (move: number) => {
+    if (walletAddr === "") return;
+    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { gasLimit: 1e7 });
+    return voteWorldMoveRequest;
+  }
+
+  /**
+   * Buys power, staking on either Leela/World winning.
+   * @param amount 
+   * @param betOnLeela 
+   * @returns 
+   */
+  const addStake = (amount: number, betOnLeela: boolean) => {
+    if (walletAddr === "") return;
+    const addStakeRequest = bettingContractRef.current.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
+    return addStakeRequest;
+  }
+
 
   return (
     <BettingContext.Provider
       value={{
-        walletAddr,
-        setWalletAddr,
-
+        // --- Stateful things ---
         timeToNextMove,
         setTimeToNextMove,
-
         worldPrizePoolAmount,
         setWorldPrizePoolAmount,
-
         leelaPrizePoolAmount,
         setLeelaPrizePoolAmount,
-
         MAX_PRIZE_POOL,
-
-        playerOption,
-        setPlayerOption,
-
         leaderboardMoves,
         selectedMoveIndex,
         setSelectedMoveIndex,
-
         prevMove,
+
+        // --- Public Functions ---
+        getBettingPoolStateFromBettingContract,
+        getMoveLeaderboardStateFromBettingContract,
+        getLastLeelaMove,
+
+        // --- User-specific functions ---
+        getUserStakeFromBettingContract,
+        voteForMove,
+        getUserVotedMove,
+        voteWorldMove,
+        addStake,
       }}
     >
       {children}

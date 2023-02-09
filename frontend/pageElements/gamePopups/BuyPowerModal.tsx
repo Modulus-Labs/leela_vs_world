@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { FC, MouseEventHandler, useCallback, useState } from 'react';
 import { useArcadeMachineContext } from '../../contexts/ArcadeMachineContext';
 import { useBettingContext } from '../../contexts/BettingContext';
+import { useContractInteractionContext } from '../../contexts/ContractInteractionContext';
 import { addStake, voteWorldMove } from '../../utils/interact';
 import { GamePopup } from './GamePopup';
 
@@ -47,7 +48,8 @@ export const GameDetails: FC = () => {
     setInfoModalDismissVisible,
     setShowInfoModal
   } = useArcadeMachineContext();
-  const { walletAddr, setWalletAddr, leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+  const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+  const { walletAddr } = useContractInteractionContext();
   const [powerAmount, setPowerAmount] = useState<string>("0.001");
 
   // --- To display error message to user ---
