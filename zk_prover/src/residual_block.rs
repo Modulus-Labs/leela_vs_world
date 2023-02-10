@@ -15,7 +15,7 @@ use halo2_machinelearning::{nn_ops::{
         },
     },
     ColumnAllocator, DecompConfig, InputSizeConfig, NNLayer,
-}};
+}, felt_to_i64};
 use halo2_base::halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
@@ -27,7 +27,7 @@ use crate::squeeze_excitation::{
     SqueezeExcitationBlockConfig,
 };
 
-use ndarray::{Array3};
+use ndarray::{Array3, Axis};
 
 #[derive(Clone, Debug)]
 pub struct ResidualBlockConfig<F: FieldExt> {
@@ -172,7 +172,11 @@ impl<F: FieldExt> NNLayer<F> for ResidualBlockChip<F> {
 
         let norm_2_output = norm_chip.add_layer(layouter, bn_2_output, ())?;
 
+        //println!("pre-se-output: {:?}", norm_2_output.index_axis(Axis(0), 0).map(|x| x.value().map(|x| felt_to_i64(*x))));
+
         let se_output = se_chip.add_layer(layouter, norm_2_output, layer_params.se_params)?;
+
+        //println!("se output: {:?}", se_output.index_axis(Axis(0), 0).map(|x| x.value().map(|x| felt_to_i64(*x))));
 
         let residual_output = residual_add_chip.add_layer(layouter, [se_output, input_copy], ())?;
 

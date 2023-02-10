@@ -85,6 +85,7 @@ impl<F: FieldExt> NNLayer<F> for ConvBlockChip<F> {
             ker_width: 3,
             padding_width: 1,
             padding_height: 1,
+            folding_factor: 16,
         };
 
         let conv_chip =

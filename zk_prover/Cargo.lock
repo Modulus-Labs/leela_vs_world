@@ -713,8 +713,8 @@ name = "halo2-base"
 version = "0.2.2"
 dependencies = [
  "ff",
+ "halo2_proofs 0.2.0",
  "halo2_proofs 0.2.0 (git+https://github.com/axiom-crypto/halo2.git?tag=v2023_01_17)",
- "halo2_proofs 0.2.0 (git+https://github.com/privacy-scaling-explorations/halo2.git?tag=v2023_01_20)",
  "itertools",
  "num-bigint",
  "num-integer",
@@ -756,6 +756,22 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.2.0"
+dependencies = [
+ "blake2b_simd",
+ "ff",
+ "group",
+ "halo2curves 0.3.1 (git+https://github.com/privacy-scaling-explorations/halo2curves.git?tag=0.3.1)",
+ "plotters",
+ "rand_core",
+ "rayon",
+ "sha3 0.9.1",
+ "tabbycat",
+ "tracing",
+]
+
+[[package]]
+name = "halo2_proofs"
+version = "0.2.0"
 source = "git+https://github.com/axiom-crypto/halo2.git?tag=v2023_01_17#475e45f52a0774ceb81304dd6a3a97dddd07662e"
 dependencies = [
  "blake2b_simd",
@@ -766,23 +782,6 @@ dependencies = [
  "rand_core",
  "rayon",
  "rustc-hash",
- "tabbycat",
- "tracing",
-]
-
-[[package]]
-name = "halo2_proofs"
-version = "0.2.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2.git?tag=v2023_01_20#c7e42e41f8141745ba0b90213438f240d55cb347"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "halo2curves 0.3.1 (git+https://github.com/privacy-scaling-explorations/halo2curves.git?tag=0.3.1)",
- "plotters",
- "rand_core",
- "rayon",
- "sha3 0.9.1",
  "tabbycat",
  "tracing",
 ]
@@ -1018,7 +1017,9 @@ dependencies = [
  "ndarray",
  "once_cell",
  "plotters",
+ "poseidon-circuit",
  "rand",
+ "rand_chacha",
  "snark-verifier-sdk",
 ]
 
@@ -1379,6 +1380,16 @@ dependencies = [
  "group",
  "halo2curves 0.2.1",
  "subtle",
+]
+
+[[package]]
+name = "poseidon-circuit"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "halo2_proofs 0.2.0",
+ "lazy_static",
+ "thiserror",
 ]
 
 [[package]]

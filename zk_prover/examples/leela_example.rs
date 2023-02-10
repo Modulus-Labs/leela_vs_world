@@ -1,18 +1,21 @@
 
 
-use halo2_machinelearning::{felt_from_i64};
-use halo2_base::halo2_proofs::{plonk::{Error as PlonkError}, circuit::Value, halo2curves::bn256::{Fr}, poly::{commitment::ParamsProver}};
+use halo2_machinelearning::{felt_from_i64, felt_to_i64};
+use halo2_base::{halo2_proofs::{arithmetic::FieldExt, plonk::{Error as PlonkError}, circuit::Value, halo2curves::bn256::Fr, poly::{commitment::ParamsProver}, dev::MockProver}, utils::value_to_option};
 use ndarray::{Array};
 
-use leela_circuit::{input_parsing::read_input, LeelaCircuit};
+use leela_circuit::{input_parsing::read_input, LeelaCircuit, OUTPUT, HASH_INPUT, HASH_OUTPUT};
 
 
 
 fn main() -> Result<(), PlonkError> {
+    println!("{:?}", Fr::MODULUS);
+    println!("{:?}", Fr::TWO_INV);
     const PREFIX: &str = "/home/ubuntu/leela_zk/";
     let params = read_input(PREFIX, "bgnet.json");
 
-    let (input, _output): (Vec<Fr>, Vec<Fr>) = {
+
+    let (input, output): (Vec<Fr>, Vec<Fr>) = {
         let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "bgnet_intermediates_new.json").unwrap();
         let inputs = json::parse(&inputs_raw).unwrap();
         let input: Vec<_> = inputs["input"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
@@ -20,29 +23,35 @@ fn main() -> Result<(), PlonkError> {
         let outputs: Vec<_> = inputs["output"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
         (input, outputs)
     };
-    let input_values: Vec<_> = input.into_iter().map(Value::known).collect();
-    let input_array = Array::from_shape_vec((112, 8, 8), input_values).unwrap();
+    let input_values: Vec<_> = input.iter().map(|x| Value::known(*x)).collect();
+    let input_array = Array::from_shape_vec(112, input_values).unwrap();
 
 
     let circuit = LeelaCircuit {
         input: input_array,
         params,
-        output: vec![]
+        input_hash: None,
+        output_hash: None
     };
 
-    // let mock = {
-    //     let input_instance = vec![input.clone(), output.clone()];
+    let mock = {
+        let input_instance = vec![vec![Fr::one(), Fr::one()]];
 
-    //     let mut prover = MockProver::run(17, &circuit, input_instance).unwrap();
+        MockProver::run(20, &circuit, input_instance).unwrap();
         
-    //     OUTPUT.get().unwrap().iter().map(|output| {
-    //         output.map(|x| felt_to_i64(x))
-    //     }).enumerate().for_each(|(index, output_calc)| {
-    //         println!("output calc for index {} is {:?}", index, output_calc);
-    //     });
+        // OUTPUT.get().unwrap().iter().map(|output| {
+        //     output.map(|x| felt_to_i64(x))
+        // }).enumerate().for_each(|(index, output_calc)| {
+        //     println!("output calc for index {} is {:?}", index, output_calc);
+        // });
 
-    //     prover.assert_satisfied();
-    // };
+        let input_hash = value_to_option(*HASH_INPUT.get().unwrap()).unwrap();
+        let output_hash = value_to_option(*HASH_OUTPUT.get().unwrap()).unwrap();
+
+        let prover = MockProver::run(20, &circuit, vec![vec![input_hash, output_hash]]).unwrap();
+
+        prover.assert_satisfied();
+    };
 
     // let now = Instant::now();
 
@@ -94,11 +103,11 @@ fn main() -> Result<(), PlonkError> {
     // )?;
     // println!("Verification took {}", now.elapsed().as_secs());
 
-    use plotters::prelude::*;
-    let root = BitMapBackend::new("leela_circuit.png", (1024*4, 3096*4)).into_drawing_area();
-    root.fill(&WHITE).unwrap();
-    let root = root.titled("leela_circuit", ("sans-serif", 60)).unwrap();
-    halo2_base::halo2_proofs::dev::CircuitLayout::default().render(18, &circuit, &root).unwrap();
+    // use plotters::prelude::*;
+    // let root = BitMapBackend::new("leela_circuit.png", (1024*4, 3096*4)).into_drawing_area();
+    // root.fill(&WHITE).unwrap();
+    // let root = root.titled("leela_circuit", ("sans-serif", 60)).unwrap();
+    // halo2_base::halo2_proofs::dev::CircuitLayout::default().render(20, &circuit, &root).unwrap();
 
     println!("Done!");
     Ok(())

@@ -7,11 +7,11 @@ use halo2_machinelearning::{
             batchnorm::BatchnormChipParams, conv::Conv3DLayerParams,
             dist_add_fixed::DistributedAddFixedChipParams,
         },
-        vector_ops::linear::fc::FcParams,
+        vector_ops::linear::fc::FcChipParams,
     },
 };
 use json::JsonValue;
-use ndarray::Array;
+use ndarray::{Array, Array1};
 
 use crate::{
     conv_block::ConvBlockChipParams, policy_head::PolicyHeadChipParams,
@@ -208,16 +208,25 @@ fn get_bn_params<F: FieldExt>(bn_json: &JsonValue) -> BatchnormChipParams<F> {
     BatchnormChipParams { scalars }
 }
 
-fn get_fc_params<F: FieldExt>(fc_json: &JsonValue) -> FcParams<F> {
+fn get_fc_params<F: FieldExt>(fc_json: &JsonValue) -> FcChipParams<F> {
     let weights: Vec<_> = fc_json["weight"]
         .members()
         .map(|weight| Value::known(felt_from_i64(weight.as_i64().unwrap())))
         .collect();
 
-    let biases: Vec<_> = fc_json["bias"]
+    let weight_dim: Vec<_> = fc_json["weight_shape"]
+        .members()
+        .map(|dim| dim.as_usize().unwrap())
+        .collect();
+    let weight_dim: [usize; 2] = weight_dim.try_into().unwrap();
+
+    let weights = Array::from_shape_vec(weight_dim, weights).unwrap();
+    let weights = weights.permuted_axes([1, 0]);
+
+    let biases: Array1<_> = fc_json["bias"]
         .members()
         .map(|bias| Value::known(felt_from_i64(bias.as_i64().unwrap())))
         .collect();
 
-    FcParams { weights, biases }
+    FcChipParams { weights, biases }
 }

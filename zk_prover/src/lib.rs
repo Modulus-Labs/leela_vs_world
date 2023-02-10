@@ -3,6 +3,7 @@ pub mod input_parsing;
 pub mod policy_head;
 pub mod residual_block;
 pub mod squeeze_excitation;
+pub mod input_unpacking;
 
 use conv_block::{ConvBlockChipParams, ConvBlockChipConfig, ConvBlockConfig, ConvBlockChip};
 use halo2_machinelearning::{nn_ops::{
@@ -13,22 +14,26 @@ use halo2_machinelearning::{nn_ops::{
         },
         non_linear::{norm_2d::{Normalize2DChipConfig, Normalize2dChip}, relu_norm_2d::{ReluNorm2DChipConfig, ReluNorm2DChip}},
     },
-    vector_ops::linear::fc::FcParams, ColumnAllocator, NNLayer, InputSizeConfig, lookup_ops::DecompTable, DefaultDecomp,
-}};
+    vector_ops::linear::fc::FcChipParams, ColumnAllocator, NNLayer, InputSizeConfig, lookup_ops::DecompTable, DefaultDecomp,
+}, felt_to_i64};
 use halo2_base::{halo2_proofs::{
     arithmetic::{FieldExt},
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error as PlonkError, Instance, Fixed}, halo2curves::{bn256::Fr},
 }, utils::value_to_option};
-use ndarray::{Array, Array3};
+use input_unpacking::{InputUnpackingChip, InputUnpackingConfig};
+use ndarray::{Array, Array3, Array1, Axis};
 use once_cell::sync::OnceCell;
 use policy_head::{PolicyHeadChipParams, PolicyHeadConfig, PolicyHeadChipConfig, PolicyHeadChip};
+use poseidon_circuit::{poseidon::{Pow5Chip, Pow5Config, Sponge, primitives::ConstantLengthIden3, PaddedWord}, Hashable};
 use residual_block::{ResidualBlockChipParams, ResidualBlockConfig, ResidualBlockChipConfig, ResidualBlockChip};
 use squeeze_excitation::SqueezeExcitationBlockChipParams;
 
 use snark_verifier_sdk::CircuitExt;
 
 pub static OUTPUT: OnceCell<Vec<Value<Fr>>> = OnceCell::new();
+pub static HASH_INPUT: OnceCell<Value<Fr>> = OnceCell::new();
+pub static HASH_OUTPUT: OnceCell<Value<Fr>> = OnceCell::new();
 pub struct LeelaParams<F: FieldExt> {
     pub conv_block: ConvBlockChipParams<F>,
     pub residuals: [ResidualBlockChipParams<F>; 10],
@@ -37,19 +42,21 @@ pub struct LeelaParams<F: FieldExt> {
 
 #[derive(Clone, Debug)]
 pub struct LeelaConfig<F: FieldExt> {
-    pub input: Column<Instance>,
     pub output: Column<Instance>,
     pub input_advice: Column<Advice>,
     pub conv_block_chip: ConvBlockConfig<F>,
     pub residual_chip: ResidualBlockConfig<F>,
     pub policy_head_chip: PolicyHeadConfig<F>,
-    pub range_table: DecompTable<F, DefaultDecomp>
+    pub range_table: DecompTable<F, DefaultDecomp>,
+    pub hash_chip: Pow5Config<F, 3, 2>,
+    pub input_unpacking_chip: InputUnpackingConfig
 }
 
 pub struct LeelaCircuit<F: FieldExt> {
-    pub input: Array3<Value<F>>,
+    pub input: Array1<Value<F>>,
     pub params: LeelaParams<F>,
-    pub output: Vec<F>,
+    pub input_hash: Option<F>,
+    pub output_hash: Option<F>,
 }
 
 impl Circuit<Fr> for LeelaCircuit<Fr> {
@@ -79,13 +86,13 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
                 bn_params: [bn_params.clone(), bn_params.clone()],
                 se_params: SqueezeExcitationBlockChipParams {
                     fc_params: [
-                        FcParams {
-                            weights: vec![Value::unknown(); 32 * 128],
-                            biases: vec![Value::unknown(); 32]
+                        FcChipParams {
+                            weights: Array::from_shape_vec((128, 32), vec![Value::unknown(); 32 * 128]).unwrap(),
+                            biases: vec![Value::unknown(); 32].into()
                         },
-                        FcParams {
-                            weights: vec![Value::unknown(); 32 * 256],
-                            biases: vec![Value::unknown(); 256]
+                        FcChipParams {
+                            weights: Array::from_shape_vec((32, 256), vec![Value::unknown(); 32 * 256]).unwrap(),
+                            biases: vec![Value::unknown(); 256].into()
                         }
                     ]
                 }
@@ -112,9 +119,10 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
             policy_head,
         };
         LeelaCircuit {
-            input: Array::from_shape_simple_fn((112, 8, 8), Value::unknown),
+            input: Array::from_shape_simple_fn(112, Value::unknown),
             params: leela_params,
-            output: vec![]
+            input_hash: None,
+            output_hash: None,
         }
     }
 
@@ -124,7 +132,7 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
 
         let range_table = DecompTable::<_, DefaultDecomp>::configure(meta);
 
-        let conv_params = Conv3DLayerConfigParams { input_height: 8, input_width: 8, input_depth: 128, ker_height: 3, ker_width: 3, padding_width: 1, padding_height: 1 };
+        let conv_params = Conv3DLayerConfigParams { input_height: 8, input_width: 8, input_depth: 128, ker_height: 3, ker_width: 3, padding_width: 1, padding_height: 1, folding_factor: 16 };
         let conv_chip = Conv3DLayerChip::configure(meta, conv_params, &mut advice_allocator, &mut fixed_allocator);
 
         let bn_params = InputSizeConfig { input_height: 8, input_width: 8, input_depth: 128 };
@@ -145,16 +153,31 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         let policy_head_params = PolicyHeadChipConfig { norm_relu_chip: relu_chip, norm_chip, bn_chip, conv_chip };
         let policy_head_chip = PolicyHeadChip::configure(meta, policy_head_params, &mut advice_allocator, &mut fixed_allocator);
 
+        let input_unpacking_chip = InputUnpackingChip::configure(meta, (8, 8), &mut advice_allocator, &mut fixed_allocator);
+
         let input_advice = {let col = meta.advice_column(); meta.enable_equality(col); col};
 
+        let state = (0..3).map(|_| meta.advice_column()).collect::<Vec<_>>();
+        let partial_sbox = meta.advice_column();
+
+        let rc_a = (0..3).map(|_| meta.fixed_column()).collect::<Vec<_>>();
+        let rc_b = (0..3).map(|_| meta.fixed_column()).collect::<Vec<_>>();
+
+        meta.enable_constant(rc_b[0]);
+
+        let hash_chip = Pow5Chip::configure::<<Fr as Hashable>::SpecType>(meta, state.try_into().unwrap(), partial_sbox, rc_a.try_into().unwrap(), rc_b.try_into().unwrap());
+
+        //println!("advice column count {}, fixed column count {}", meta.num_advice_columns(), meta.num_fixed_columns());
+
         LeelaConfig {
-            input: {let col = meta.instance_column(); meta.enable_equality(col); col},
             output: {let col = meta.instance_column(); meta.enable_equality(col); col},
             input_advice,
             conv_block_chip,
             residual_chip,
             policy_head_chip,
             range_table,
+            hash_chip,
+            input_unpacking_chip,
         }
     }
 
@@ -166,15 +189,47 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
         let conv_block_chip = ConvBlockChip::construct(config.conv_block_chip.clone());
         let residual_chip = ResidualBlockChip::construct(config.residual_chip.clone());
         let policy_head_chip = PolicyHeadChip::construct(config.policy_head_chip.clone());
+        let input_unpacking_chip = InputUnpackingChip::construct(config.input_unpacking_chip.clone());
 
         config.range_table.layout(layouter.namespace(|| "range check lookup table"))?;
 
         let inputs = layouter.assign_region(|| "input assignment", |mut region| {
-            let inputs: Result<Vec<_>, _> = self.input.iter().enumerate().map(|(row, _)| {
-                region.assign_advice_from_instance(|| "copy input to advice", config.input, row, config.input_advice, row)
+            let inputs: Result<Vec<_>, _> = self.input.iter().enumerate().map(|(row, &input)| {
+                region.assign_advice(|| "copy input to advice", config.input_advice, row, || input)
             }).collect();
-            Ok(Array::from_shape_vec((112, 8, 8), inputs?).unwrap())
+            Ok(Array::from_shape_vec(112, inputs?).unwrap())
         })?;
+
+        //hash input
+        {
+            let mut inputs = inputs.iter();
+            let initial_hash = {
+                let chip = Pow5Chip::construct(config.hash_chip.clone());
+                let mut sponge: Sponge<Fr, _, <Fr as Hashable>::SpecType, _, ConstantLengthIden3<2>, 3, 2> = Sponge::new(chip, layouter.namespace(|| "Poseidon Sponge"))?;
+                sponge.absorb(layouter.namespace(|| "sponge 0 message 1"), PaddedWord::Message(inputs.next().unwrap().clone()))?;
+                sponge.absorb(layouter.namespace(|| "sponge 0 message 2"), PaddedWord::Message(inputs.next().unwrap().clone()))?;
+                sponge.finish_absorbing(layouter.namespace(|| "finish absorbing sponge 0"))?.squeeze(layouter.namespace(|| "sponge 0 output"))
+            };
+
+            let final_hash = inputs.enumerate().fold(initial_hash, |accum, (index, input)| {
+                let chip = Pow5Chip::construct(config.hash_chip.clone());
+                let mut sponge: Sponge<Fr, _, <Fr as Hashable>::SpecType, _, ConstantLengthIden3<2>, 3, 2> = Sponge::new(chip, layouter.namespace(|| format!("Poseidon Sponge {index}")))?;
+                sponge.absorb(layouter.namespace(|| format!("sponge {index} message 1")), PaddedWord::Message(accum?))?;
+                sponge.absorb(layouter.namespace(|| format!("sponge {index} message 2")), PaddedWord::Message(input.clone()))?;
+                sponge.finish_absorbing(layouter.namespace(|| format!("finish absorbing sponge {index}")))?.squeeze(layouter.namespace(|| format!("sponge {index} output")))
+            })?;
+
+            layouter.constrain_instance(final_hash.cell(), config.output, 0)?;
+
+            if let Some(_) = HASH_INPUT.get() {
+            
+            } else {
+                HASH_INPUT.set(final_hash.value().map(|x| *x)).unwrap();
+            }
+    
+        }
+
+        let inputs = input_unpacking_chip.add_layer(&mut layouter, inputs, ())?;
 
         let conv_block_output = conv_block_chip.add_layer(&mut layouter, inputs, self.params.conv_block.clone());
 
@@ -190,8 +245,32 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
             OUTPUT.set(output.map(|x| x.value().map(|x| *x)).to_vec()).unwrap();
         }
 
-        for (row, output) in output.iter().enumerate() {
-            layouter.constrain_instance(output.cell(), config.output, row)?;
+        //hash output
+        {
+            let mut outputs = output.iter();
+            let initial_hash = {
+                let chip = Pow5Chip::construct(config.hash_chip.clone());
+                let mut sponge: Sponge<Fr, _, <Fr as Hashable>::SpecType, _, ConstantLengthIden3<2>, 3, 2> = Sponge::new(chip, layouter.namespace(|| "Poseidon Sponge"))?;
+                sponge.absorb(layouter.namespace(|| "sponge 0 message 1"), PaddedWord::Message(outputs.next().unwrap().clone()))?;
+                sponge.absorb(layouter.namespace(|| "sponge 0 message 2"), PaddedWord::Message(outputs.next().unwrap().clone()))?;
+                sponge.finish_absorbing(layouter.namespace(|| "finish absorbing sponge 0"))?.squeeze(layouter.namespace(|| "sponge 0 output"))
+            };
+
+            let final_hash = outputs.enumerate().fold(initial_hash, |accum, (index, input)| {
+                let chip = Pow5Chip::construct(config.hash_chip.clone());
+                let mut sponge: Sponge<Fr, _, <Fr as Hashable>::SpecType, _, ConstantLengthIden3<2>, 3, 2> = Sponge::new(chip, layouter.namespace(|| format!("Poseidon Sponge {index}")))?;
+                sponge.absorb(layouter.namespace(|| format!("sponge {index} message 1")), PaddedWord::Message(accum?))?;
+                sponge.absorb(layouter.namespace(|| format!("sponge {index} message 2")), PaddedWord::Message(input.clone()))?;
+                sponge.finish_absorbing(layouter.namespace(|| format!("finish absorbing sponge {index}")))?.squeeze(layouter.namespace(|| format!("sponge {index} output")))
+            })?;
+
+            layouter.constrain_instance(final_hash.cell(), config.output, 1)?;
+
+            if let Some(_) = HASH_OUTPUT.get() {
+            
+            } else {
+                HASH_OUTPUT.set(final_hash.value().map(|x| *x)).unwrap();
+            }
         }
 
         Ok(())
@@ -200,12 +279,12 @@ impl Circuit<Fr> for LeelaCircuit<Fr> {
 
 impl CircuitExt<Fr> for LeelaCircuit<Fr> {
     fn num_instance(&self) -> Vec<usize> {
-        vec![self.input.len(), self.output.len()]
+        vec![2]
     }
 
     fn instances(&self) -> Vec<Vec<Fr>> {
-        let input: Vec<_> = self.input.iter().map(|x| value_to_option(*x).unwrap()).collect();
-        vec![input, self.output.clone()]
+        //let input: Vec<_> = self.input.iter().map(|x| value_to_option(*x).unwrap()).collect();
+        vec![vec![self.input_hash.unwrap(), self.output_hash.unwrap()]]
     }
 }
 
@@ -232,13 +311,14 @@ mod tests {
             (input, outputs)
         };
         let input_values: Vec<_> = input.clone().into_iter().map(Value::known).collect();
-        let input_array = Array::from_shape_vec((112, 8, 8), input_values).unwrap();
+        let input_array = Array::from_shape_vec(112, input_values).unwrap();
 
 
         let circuit = LeelaCircuit {
             input: input_array,
             params,
-            output: vec![]
+            input_hash: None,
+            output_hash: None,
         };
 
         let input_instance = vec![input, output];

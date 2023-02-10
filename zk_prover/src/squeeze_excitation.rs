@@ -11,21 +11,21 @@ use halo2_machinelearning::{nn_ops::{
         },
     },
     vector_ops::{
-        linear::fc::{FcChip, FcChipConfig, FcConfig, FcParams},
+        linear::fc::{FcChip, FcChipConfig, FcConfig, FcChipParams},
         non_linear::{
-            eltwise_ops::{NormalizeChip, NormalizeReluChip},
+            eltwise_ops::{NormalizeChip, NormalizeReluChip, DecompConfig as EltwiseConfig, EltwiseInstructions},
             sigmoid::{SigmoidChip, SigmoidChipConfig, SigmoidConfig},
         },
     },
     ColumnAllocator, DecompConfig, InputSizeConfig, NNLayer,
-}};
+}, felt_to_i64};
 use halo2_base::halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip},
     plonk::{Advice, ConstraintSystem, Error as PlonkError, Fixed},
 };
 
-use ndarray::Array3;
+use ndarray::{Array3, Array1, Axis};
 
 #[derive(Clone, Debug)]
 pub struct SqueezeExcitationBlockConfig<F: FieldExt> {
@@ -35,6 +35,8 @@ pub struct SqueezeExcitationBlockConfig<F: FieldExt> {
     dist_add_chip: DistributedAddConfig<F>,
     sigmoid_chip: SigmoidConfig<F>,
     norm_chip: Normalize2dConfig<F>,
+    lin_norm_chip: EltwiseConfig<F>,
+    lin_relu_chip: EltwiseConfig<F>,
 }
 
 pub struct SqueezeExcitationBlockChip<F: FieldExt> {
@@ -56,7 +58,7 @@ impl<F: FieldExt> Chip<F> for SqueezeExcitationBlockChip<F> {
 
 #[derive(Clone, Debug)]
 pub struct SqueezeExcitationBlockChipParams<F: FieldExt> {
-    pub fc_params: [FcParams<F>; 2],
+    pub fc_params: [FcChipParams<F>; 2],
 }
 
 pub struct SqueezeExcitationBlockChipConfig<F: FieldExt, Decomp: DecompConfig> {
@@ -103,20 +105,21 @@ impl<F: FieldExt> NNLayer<F> for SqueezeExcitationBlockChip<F> {
         let fc_params_1 = FcChipConfig {
             weights_height: 32,
             weights_width: 128,
-            elt_config: relu_chip,
+            folding_factor: 16,
         };
-        let fc_chip_1 = FcChip::<_, NormalizeReluChip<_, 1024, 2>>::configure(
+        let fc_chip_1 = FcChip::configure(
             meta,
             fc_params_1,
             advice_allocator,
             fixed_allocator,
         );
+
         let fc_params_2 = FcChipConfig {
             weights_height: 256,
             weights_width: 32,
-            elt_config: norm_chip.clone(),
+            folding_factor: 2,
         };
-        let fc_chip_2 = FcChip::<_, NormalizeChip<_, 1024, 2>>::configure(
+        let fc_chip_2 = FcChip::configure(
             meta,
             fc_params_2,
             advice_allocator,
@@ -149,7 +152,7 @@ impl<F: FieldExt> NNLayer<F> for SqueezeExcitationBlockChip<F> {
 
         let sigmoid_config = SigmoidChipConfig {
             range_table: config_params.range_table.clone(),
-            norm_chip,
+            norm_chip: norm_chip.clone(),
         };
         let sigmoid_chip =
             SigmoidChip::configure(meta, sigmoid_config, advice_allocator, fixed_allocator);
@@ -161,6 +164,8 @@ impl<F: FieldExt> NNLayer<F> for SqueezeExcitationBlockChip<F> {
             dist_add_chip,
             sigmoid_chip,
             norm_chip: config_params.norm_chip,
+            lin_norm_chip: norm_chip,
+            lin_relu_chip: relu_chip,
         }
     }
 
@@ -172,28 +177,46 @@ impl<F: FieldExt> NNLayer<F> for SqueezeExcitationBlockChip<F> {
     ) -> Result<Self::LayerOutput, PlonkError> {
         let config = &self.config;
         let fc_chip_1 =
-            FcChip::<_, NormalizeReluChip<_, 1024, 2>>::construct(config.fc_chips[0].clone());
+            FcChip::construct(config.fc_chips[0].clone());
         let fc_chip_2 =
-            FcChip::<_, NormalizeChip<_, 1024, 2>>::construct(config.fc_chips[1].clone());
+            FcChip::construct(config.fc_chips[1].clone());
         let avg_pool_chip = AvgPool2DChip::construct(config.avg_pool_chip.clone());
         let sigmoid_chip = SigmoidChip::construct(config.sigmoid_chip.clone());
         let dist_mul_chip = DistributedMulChip::construct(config.dist_mul_chip.clone());
         let dist_add_chip = DistributedAddChip::construct(config.dist_add_chip.clone());
         let norm_chip = Normalize2dChip::construct(config.norm_chip.clone());
+        let lin_norm_chip = NormalizeChip::<_, 1024, 2>::construct(config.lin_norm_chip.clone());
+        let lin_relu_chip = NormalizeReluChip::<_, 1024, 2>::construct(config.lin_relu_chip.clone());
 
         let input_copy = input.clone();
 
         let avg_vec = avg_pool_chip.add_layer(layouter, input, ())?;
 
+        // println!("pre fc_1: {:?}", avg_vec.map(|x| x.value().map(|x| felt_to_i64(*x))));
+
         let fc_1 = fc_chip_1.add_layer(
             layouter,
-            avg_vec.to_vec(),
+            avg_vec,
             layer_params.fc_params[0].clone(),
         )?;
+
+        // println!("post fc_1: {:?}", fc_1.map(|x| x.value().map(|x| felt_to_i64(*x))));
+
+        let fc_1: Result<Array1<_>, _> = fc_1.into_iter().map(|input| {
+            lin_relu_chip.apply_elt(layouter.namespace(|| "apply linear relu/norm"), input)
+        }).collect();
+
+        let fc_1 = fc_1?;
+
         let fc_2 = fc_chip_2.add_layer(layouter, fc_1, layer_params.fc_params[1].clone())?;
 
-        let scale = fc_2[0..128].to_vec();        
-        let shift = fc_2[128..].to_vec();
+        let fc_2: Result<Array1<_>, _> = fc_2.into_iter().map(|input| {
+            lin_norm_chip.apply_elt(layouter.namespace(|| "apply linear norm"), input)
+        }).collect();
+        let fc_2 = fc_2?;
+
+        let scale = fc_2.to_vec()[0..128].to_vec();        
+        let shift = fc_2.to_vec()[128..].to_vec();
 
         let scale_sigmoid = sigmoid_chip.add_layer(layouter, scale.into(), ())?;
 
