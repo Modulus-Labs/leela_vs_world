@@ -82,6 +82,8 @@ export const BettingContextProvider = ({
   const [worldPrizePoolAmount, setWorldPrizePoolAmount] = useState<number>(0.001);
   const [leelaPrizePoolAmount, setLeelaPrizePoolAmount] = useState<number>(0.001);
   useEffect(useCallback(() => {
+
+    // --- Grabs betting state from contract ---
     const bettingPoolRequest = getBettingPoolStateFromBettingContract();
     if (bettingPoolRequest !== null) {
       bettingPoolRequest.then(([leelaPoolSize, worldPoolSize, timeLeft]) => {
