@@ -31,9 +31,9 @@ interface IContractInteractionContext {
 // --- Contract addresses ---
 // TODO(ryancao): Change to mainnet!
 const config = {
-  LEELA_CONTRACT_ADDR: "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
-  BETTING_CONTRACT_ADDR: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823",
-  CHESS_CONTRACT_ADDR: "0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2",
+  LEELA_CONTRACT_ADDR: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  BETTING_CONTRACT_ADDR: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  CHESS_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
 }
 
 const ContractInteractionContext = createContext<IContractInteractionContext | undefined>(
@@ -60,37 +60,38 @@ const getEthersProvider = () => {
   return ethersProvider;
 }
 
-const getBettingContract = (walletAddr: string): BettingGame => {
+const getBettingContract = (address: string): BettingGame => {
   let ethersProvider = getEthersProvider();
 
   // --- Connect to contract ---
   let bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
-  if (walletAddr !== "") {
-    const account = ethersProvider.getSigner(walletAddr);
+  if (address !== "") {
+    // console.log(`Connecting betting contract under ${address} address`);
+    const account = ethersProvider.getSigner(address);
     bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, account);
   }
   return bettingGameContract;
 }
 
-const getChessContract = (walletAddr: string): Chess => {
+const getChessContract = (address: string): Chess => {
   let ethersProvider = getEthersProvider();
 
   // --- Connect to contract ---
   let chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
-  if (walletAddr !== "") {
-    const account = ethersProvider.getSigner(walletAddr);
+  if (address !== "") {
+    const account = ethersProvider.getSigner(address);
     chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, account);
   }
   return chessGameContract;
 }
 
-const getLeelaContract = (walletAddr: string): Leela => {
+const getLeelaContract = (address: string): Leela => {
   let ethersProvider = getEthersProvider();
 
   // --- Connect to contract ---
   let leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, ethersProvider);
-  if (walletAddr !== "") {
-    const account = ethersProvider.getSigner(walletAddr);
+  if (address !== "") {
+    const account = ethersProvider.getSigner(address);
     leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, account);
   }
   return leelaGameContract;
@@ -115,6 +116,7 @@ export const ContractInteractionContextProvider = ({
     if (walletAddr === "") return;
 
     // --- Otherwise, update the contracts which are connected ---
+    console.log(`Changing the contracts under wallet address ${walletAddr}`);
     bettingContractRef.current = getBettingContract(walletAddr);
     chessContractRef.current = getChessContract(walletAddr);
     leelaContractRef.current = getLeelaContract(walletAddr);

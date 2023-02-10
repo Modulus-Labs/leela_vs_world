@@ -18,9 +18,9 @@ import { Chess__factory } from "../typechain-types";
  * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
  */
 const config = {
-  LEELA_CONTRACT_ADDR: "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
-  BETTING_CONTRACT_ADDR: "0x21dF544947ba3E8b3c32561399E88B52Dc8b2823",
-  CHESS_CONTRACT_ADDR: "0x2E2Ed0Cfd3AD2f1d34481277b3204d807Ca2F8c2",
+  LEELA_CONTRACT_ADDR: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  BETTING_CONTRACT_ADDR: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  CHESS_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
 }
 
 /**
@@ -167,6 +167,14 @@ const readStateFromContracts = async () => {
   // --- Voted moves ---
   const [moves, votes] = await bettingContract.getCurMovesAndVotes({ gasLimit: 1e7 });
   console.log(`From betting contract: ${moves}, ${votes}`);
+
+  // --- User voted move? ---
+  const userVotedMove = await bettingContract.connect(owner).userVotedMove();
+  const userVotedMove2 = await bettingContract.connect(account2).userVotedMove();
+  const userVotedMove3 = await bettingContract.connect(account3).userVotedMove();
+  console.log(convertUint16ReprToHumanReadable(userVotedMove));
+  console.log(convertUint16ReprToHumanReadable(userVotedMove2));
+  console.log(convertUint16ReprToHumanReadable(userVotedMove3));
 }
 
 // initializeLocalChessContractDeployment().then(() => process.exit(0)).catch((error) => {
@@ -179,7 +187,7 @@ const readStateFromContracts = async () => {
 //   process.exit(1);
 // });
 
-// readStateFromContracts().then(() => process.exit(0)).catch((error) => {
-//   console.error(error);
-//   process.exit(1);
-// });
+readStateFromContracts().then(() => process.exit(0)).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

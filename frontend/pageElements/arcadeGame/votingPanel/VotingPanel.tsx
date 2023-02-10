@@ -12,7 +12,7 @@ import { useContractInteractionContext } from '../../../contexts/ContractInterac
 export const VotingPanel: FC = () => {
   const { currChessBoard } = useChessGameContext();
   const { setShowGameDetails, setShowInfoModal, setInfoModalDismissVisible, setInfoModalText } = useArcadeMachineContext();
-  const { walletAddr, setWalletAddr } = useContractInteractionContext();
+  const { bettingContractRef, walletAddr, setWalletAddr } = useContractInteractionContext();
   const { getUserStakeFromBettingContract, getUserVotedMove, voteForMove } = useBettingContext();
 
   // --- Sets up current move notation state ---
@@ -32,7 +32,7 @@ export const VotingPanel: FC = () => {
     const userStakeRequest = getUserStakeFromBettingContract();
     if (userStakeRequest !== undefined) {
       userStakeRequest.then(([leelaStake, worldStake]) => {
-        // console.log(`Got this from the contract: ${leelaStake} (leela), ${worldStake} (world)`)
+        console.log(`Got this from the contract: ${leelaStake} (leela), ${worldStake} (world)`)
         const parsedTotal = Number(ethers.utils.formatEther(leelaStake.add(worldStake)));
         setVotingPower(parsedTotal);
       }).catch((error) => {
@@ -41,7 +41,7 @@ export const VotingPanel: FC = () => {
     } else {
       console.error("Error: Got null from smart contract");
     }
-  }, [walletAddr]), [walletAddr]);
+  }, [bettingContractRef.current]), [bettingContractRef.current]);
 
   // --- For not allowing the user to submit another move once they've done so already ---
   // TODO(ryancao): Get this from smart contract!
@@ -56,9 +56,11 @@ export const VotingPanel: FC = () => {
         const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(moveNumRepr);
         const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.fen);
         setUserVotedMove(moveRepr);
-      })
+      });
+    } else {
+      setUserVotedMove("");
     }
-  }, [walletAddr]), [walletAddr]);
+  }, [bettingContractRef.current]), [bettingContractRef.current]);
 
   // --- To display error message to user ---
   const openModalWithOptions = (text: string, canDismiss: boolean) => {

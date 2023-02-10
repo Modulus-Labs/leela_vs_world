@@ -4,7 +4,6 @@ import { FC, MouseEventHandler, useCallback, useState } from 'react';
 import { useArcadeMachineContext } from '../../contexts/ArcadeMachineContext';
 import { useBettingContext } from '../../contexts/BettingContext';
 import { useContractInteractionContext } from '../../contexts/ContractInteractionContext';
-import { addStake, voteWorldMove } from '../../utils/interact';
 import { GamePopup } from './GamePopup';
 
 const ButtonVariants: Variants = {
@@ -48,7 +47,7 @@ export const GameDetails: FC = () => {
     setInfoModalDismissVisible,
     setShowInfoModal
   } = useArcadeMachineContext();
-  const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+  const { addStake, leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
   const { walletAddr } = useContractInteractionContext();
   const [powerAmount, setPowerAmount] = useState<string>("0.001");
 
@@ -77,7 +76,7 @@ export const GameDetails: FC = () => {
         openModalWithOptions(`Error: cannot buy less than 0.001 ETH worth of power!`, false);
         return;
       }
-      addStake(walletAddr, numberPowerAmount, betOnLeela).then((result) => {
+      addStake(numberPowerAmount, betOnLeela)?.then((result) => {
         openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on Leela!`, true);
         setShowGameDetails(false);
       }).catch((error) => {
