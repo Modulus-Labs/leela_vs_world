@@ -16,13 +16,13 @@ use snark_verifier_sdk::{halo2::{gen_snark, gen_snark_shplonk, aggregation::Publ
 
 
 fn main() -> Result<(), PlonkError> {
-    const PREFIX: &str = "/home/ubuntu/leela_zk/";
-    let params = read_input(PREFIX, "bgnet.json");
+    const PREFIX: &str = "";
+    let params = read_input(PREFIX, "./bgnet.json");
     let mut rng = ChaCha20Rng::from_entropy();
 
 
     let input: Vec<Fr> = {
-        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "leelaInputs.json").unwrap();
+        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "./proof_dir/leelaInputs.json").unwrap();
         let inputs = json::parse(&inputs_raw).unwrap();
         inputs.members().map(|input| Fr::from_str_vartime(input.as_str().unwrap()).unwrap()).collect()
 
@@ -65,7 +65,7 @@ fn main() -> Result<(), PlonkError> {
         felt_to_i64(value_to_option(*output).unwrap())
     }).collect();
 
-    let mut f = File::create("calc_output.json")?;
+    let mut f = File::create("./proof_dir/calc_output.json")?;
 
     json::from(output).write(&mut f)?;
 
@@ -134,7 +134,7 @@ fn main() -> Result<(), PlonkError> {
 
     let proof = gen_evm_proof_shplonk(&params_max, &pk_agg, agg_circuit.clone(), agg_circuit.instances(), &mut rng);
 
-    let mut f = File::create("proof")?;
+    let mut f = File::create("./prood_dir/proof")?;
 
     f.write_all(proof.as_slice()).unwrap();
 
@@ -142,7 +142,7 @@ fn main() -> Result<(), PlonkError> {
 
     let verifier_contract = gen_evm_verifier_shplonk::<PublicAggregationCircuit>(&params_max, pk_agg.get_vk(), agg_circuit.num_instance(), None);
 
-    let mut f = File::create("verifier_contract_bytecode")?;
+    let mut f = File::create("./proof_dir/verifier_contract_bytecode")?;
 
     f.write_all(verifier_contract.as_slice()).unwrap();
 
@@ -152,7 +152,7 @@ fn main() -> Result<(), PlonkError> {
     
     let calldata = encode_calldata(&agg_circuit.instances(), &proof);
 
-    let mut f = File::create("official_calldata")?;
+    let mut f = File::create("./proof_dir/official_calldata")?;
 
     f.write_all(calldata.as_slice()).unwrap();
     
@@ -162,7 +162,7 @@ fn main() -> Result<(), PlonkError> {
 
     let instances_output: Vec<_> = instances.iter().flat_map(|value| value.to_repr().as_ref().iter().rev().cloned().collect::<Vec<_>>()).collect();
 
-    let mut f = File::create("limbs_instance")?;
+    let mut f = File::create("./proof_dir/limbs_instance")?;
 
     f.write_all(instances_output.as_slice()).unwrap();
 

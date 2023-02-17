@@ -337,8 +337,6 @@ contract BettingGame is Ownable {
     /// @dev For executing the most voted move for the World
     function makeMove() internal nonReentrancy {
         uint16 worldMove = getWorldMove();
-        // uint16 _leelaMove = leela.getMove();
-        // leelaMove = _leelaMove;
         chess.playMove(worldMove);
         moveIndex++;
         uint8 isGameEnded = chess.checkEndgame();
@@ -352,8 +350,10 @@ contract BettingGame is Ownable {
         leelaTurn = true;
         emit worldMovePlayed(worldMove);
 
-        uint16[] memory legalMoves = chess.getLegalMoves();
-        leela.setLegalMoveIndicies(legalMoves);
+        // uint16[] memory legalMoves = chess.getLegalMoves();
+        // leela.setLegalMoveIndicies(legalMoves);
+
+        
         // chess.playMove(leelaMove);
         // moveIndex++;
         // registeredMoves[gameIndex][moveIndex].push(worldMove);
@@ -366,6 +366,12 @@ contract BettingGame is Ownable {
         //     return;
         // }
         // startVoteTimer();
+    }
+
+    function giveLeelaLegalMoves() public {
+        require(leelaTurn == true);
+        uint16[] memory legalMoves = chess.getLegalMoves();
+        leela.setLegalMoveIndicies(legalMoves);
     }
 
     function makeLeelaMove(bytes calldata proof, bytes calldata instances) public {

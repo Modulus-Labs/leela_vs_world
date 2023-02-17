@@ -181,13 +181,31 @@ contract Chess is Ownable, IChess {
         uint256[112] memory packedInputs;
         for (uint8 layer = 0; layer < 112; layer++) {
             uint256 inputPacked = 0;
-            for (uint256 row = 0; row < 8; row++) {
-                for (uint256 col = 0; col < 8; col++) {
-                    inputPacked += (uint256(board[layer][row][col]) * 2**(row*8+col));
+            for (int8 row = 7; row >= 0; row--) {
+                for (int8 col = 7; col >= 0; col--) {
+                    inputPacked = inputPacked | (board[layer][uint8(row)][uint8(col)] & 0x1);
+                    inputPacked = inputPacked << 1;
                 }
             }
-            packedInputs[layer] = inputPacked;
+            packedInputs[layer] = (inputPacked >> 1);
         }
+
+        //pack inputs
+        // uint256[112] memory packedInputs;
+        // for (uint8 layer = 0; layer < 112; layer++) {
+        //     uint256 inputPacked = 0;
+        //     for (uint256 row = 0; row < 8; row++) {
+        //         for (uint256 col = 0; col < 8; col++) {
+        //             if(layer == 0) {
+        //                 console.log("blah");
+        //                 console.log(inputPacked);
+        //                 console.log((board[layer][uint8(row)][uint8(col)] & 0x1));
+        //             }
+        //             inputPacked += (uint256(board[layer][row][col]) * 2**(row*8+col));
+        //         }
+        //     }
+        //     packedInputs[layer] = inputPacked;
+        // }
 
         return packedInputs;
     }
@@ -723,11 +741,11 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Queen's movement */
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](32);
         uint8 validMoveIndex = 0;
 
         // Check left
@@ -877,12 +895,12 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Bishop's movement */
 
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](16);
         uint8 validMoveIndex = 0;
 
         // Check up-right
@@ -972,12 +990,12 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Rook's movement */
 
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](16);
         uint8 validMoveIndex = 0;
 
         // Check left
@@ -1052,12 +1070,12 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by knight's movement */
 
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](8);
         uint8 validMoveIndex = 0;
 
         toPos = fromPos + 6;
@@ -1160,7 +1178,7 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint32 playerState,
         uint32 opponentState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint16 move;
@@ -1170,7 +1188,7 @@ contract Chess is Ownable, IChess {
         move = ((moveExtra << 12) | (uint16(fromPos) << 6)) | uint16(toPos);
 
 
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](4);
         uint8 validMoveIndex = 0;
 
         (newGameState, ) = verifyExecutePawnMove(
@@ -1246,11 +1264,11 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool, uint16[64] memory, uint8) {
+    ) public view returns (bool, uint16[] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
 
-        uint16[64] memory validMoves;
+        uint16[] memory validMoves = new uint16[](8);
         uint8 validMoveIndex = 0;
 
         if(fromPos >= 9) {
@@ -1957,7 +1975,7 @@ contract Chess is Ownable, IChess {
                 if (
                     (pieceType == king_const)
                 ) {
-                    (bool validKingMove, uint16[64] memory validKingMoves, uint8 length) = checkKingValidMoves(boardState, pos, playerState);
+                    (bool validKingMove, uint16[] memory validKingMoves, uint8 length) = checkKingValidMoves(boardState, pos, playerState);
                     if (validKingMove) {
                         for (uint8 i = 0; i < length; i++) {
                             validMovesFinal.push(bitshiftedPos | validKingMoves[i]);
@@ -1966,7 +1984,7 @@ contract Chess is Ownable, IChess {
                 } else if (
                     (pieceType == pawn_const)
                 ) {
-                    (bool validPawnMove, uint16[64] memory validPawnMoves, uint8 length) = checkPawnValidMoves(
+                    (bool validPawnMove, uint16[] memory validPawnMoves, uint8 length) = checkPawnValidMoves(
                         boardState,
                         pos,
                         playerState,
@@ -1980,7 +1998,7 @@ contract Chess is Ownable, IChess {
                 } else if (
                     (pieceType == knight_const)
                 ) {
-                    (bool validKnightMove, uint16[64] memory validKnightMoves, uint8 length) = checkKnightValidMoves(boardState, pos, playerState);
+                    (bool validKnightMove, uint16[] memory validKnightMoves, uint8 length) = checkKnightValidMoves(boardState, pos, playerState);
 
                     if (validKnightMove) {
                         for (uint8 i = 0; i < length; i++) {
@@ -1990,7 +2008,7 @@ contract Chess is Ownable, IChess {
                 } else if (
                     (pieceType == rook_const)
                 ) {
-                    (bool validRookMove, uint16[64] memory validRookMoves, uint8 length) = checkRookValidMoves(boardState, pos, playerState);
+                    (bool validRookMove, uint16[] memory validRookMoves, uint8 length) = checkRookValidMoves(boardState, pos, playerState);
                     if (validRookMove) {
                         for (uint8 i = 0; i < length; i++) {
                             validMovesFinal.push(bitshiftedPos | validRookMoves[i]);
@@ -1999,7 +2017,7 @@ contract Chess is Ownable, IChess {
                 } else if (
                     (pieceType == bishop_const)
                 ) {
-                    (bool validBishopMove, uint16[64] memory validBishopMoves, uint8 length) = checkBishopValidMoves(boardState, pos, playerState);
+                    (bool validBishopMove, uint16[] memory validBishopMoves, uint8 length) = checkBishopValidMoves(boardState, pos, playerState);
                     if (validBishopMove) {
                         for (uint8 i = 0; i < length; i++) {
                             validMovesFinal.push(bitshiftedPos | validBishopMoves[i]);
@@ -2008,7 +2026,7 @@ contract Chess is Ownable, IChess {
                 } else if (
                     (pieceType == queen_const)
                 ) {
-                    (bool validQueenMove, uint16[64] memory validQueenMoves, uint8 length) = checkQueenValidMoves(boardState, pos, playerState);
+                    (bool validQueenMove, uint16[] memory validQueenMoves, uint8 length) = checkQueenValidMoves(boardState, pos, playerState);
                     if (validQueenMove) {
                         for (uint8 i = 0; i < length; i++) {
                             validMovesFinal.push(bitshiftedPos | validQueenMoves[i]);

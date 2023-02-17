@@ -53,38 +53,38 @@ interface IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function checkBishopValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function checkRookValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function checkKnightValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function checkPawnValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState,
         uint32 opponentState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function checkKingValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[64] memory, uint8);
+    ) external view returns (bool, uint16[] memory, uint8);
 
     function searchPiece(
         uint256 gameState,

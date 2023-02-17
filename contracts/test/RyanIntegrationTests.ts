@@ -170,7 +170,9 @@ describe("Integration Tests: Betting Contract", function () {
     var poseidon = await poseidon_factory.connect(owner).deploy();
 
     const leelaFactory = new Validator__factory().connect(owner);
-    const leelaContract = await leelaFactory.deploy(poseidon.address, verifier.address, bettingContract.address);
+    console.log("deploying validator!");
+    const leelaContract = await leelaFactory.deploy(poseidon.address, verifier.address, bettingContract.address, {gasLimit: 3e7});
+    console.log("validator deployed!");
     await leelaContract.deployed();
 
     // --- Finally, initialize betting contract ---
@@ -290,7 +292,9 @@ describe("Integration Tests: Betting Contract", function () {
       await bettingContract.voteWorldMove(convertMoveToUint16Repr("E", 2, "E", 4));
       await time.increase(30);
       console.log("callingtimerover");
-      await bettingContract.callTimerOver();
+      var result = await bettingContract.callTimerOver();
+      console.log("next");
+      await bettingContract.giveLeelaLegalMoves({gasLimit: 1e7});
       await bettingContract.leelaHashInputs();
 
       var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
