@@ -5,7 +5,7 @@ interface IChess {
 
     function initializeGame() external;
 
-    function convertToCircuit() external returns (uint256[][][] memory);
+    function convertToCircuit() external returns (uint256[112] memory);
 
     function playMove(uint16 move) external;
 
@@ -53,38 +53,38 @@ interface IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function checkBishopValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function checkRookValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function checkKnightValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function checkPawnValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState,
         uint32 opponentState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function checkKingValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool);
+    ) external view returns (bool, uint16[64] memory, uint8);
 
     function searchPiece(
         uint256 gameState,
@@ -114,14 +114,16 @@ interface IChess {
         pure
         returns (uint8);
 
+    //change back to pure
     function checkForCheck(uint256 gameState, uint32 playerState)
         external
-        pure
+        view
         returns (bool);
 
+    //change back to pure
     function pieceUnderAttack(uint256 gameState, uint8 pos)
         external
-        pure
+        view
         returns (bool);
 
     function commitMove(
@@ -145,4 +147,6 @@ interface IChess {
         external
         pure
         returns (uint8);
+
+    function getLegalMoves() external returns (uint16[] memory);
 }

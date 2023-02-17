@@ -23,6 +23,8 @@ contract Chess is Ownable, IChess {
 
     uint16 public moveIndex = 0x0; // move index
 
+    uint16[] public validMovesFinal;
+
     bool public currentTurnBlack = false; // is it Leela's turn
 
     /** @dev    Initial white state:
@@ -139,15 +141,18 @@ contract Chess is Ownable, IChess {
         gameStateLists[gameIndex].push(game_state_start);
     }
 
-    function convertToCircuit() public view returns (uint256[][][] memory) {
-        uint256[][][] memory board;
+    function convertToCircuit() public view returns (uint256[112] memory) {
+        uint8[8][8][112] memory board;
         for (uint256 k = 0; k < 8; k++) {
             for (uint8 i = 0; i < 8; i++) {
                 for (uint8 j = 0; j < 8; j++) {
                     uint8 piece = pieceAtPosition(boardState, 8 * i + j);
                     if (piece != 0) {
+                        piece = piece  ^ 0x8;
                         piece = (piece > 8) ? piece - 3 : piece - 1;
-                        board[piece + k * 13][i][j] = 1;
+                        if (piece == 1 || piece == 7) {piece += 1;}
+                        else if (piece == 2 || piece == 8) {piece -= 1;}
+                        board[piece + k * 13][7-i][j] = 1;
                     }
                 }
             }
@@ -171,7 +176,20 @@ contract Chess is Ownable, IChess {
                 board[111][i][j] = 1;
             }
         }
-        return board;
+
+        //pack inputs
+        uint256[112] memory packedInputs;
+        for (uint8 layer = 0; layer < 112; layer++) {
+            uint256 inputPacked = 0;
+            for (uint256 row = 0; row < 8; row++) {
+                for (uint256 col = 0; col < 8; col++) {
+                    inputPacked += (uint256(board[layer][row][col]) * 2**(row*8+col));
+                }
+            }
+            packedInputs[layer] = inputPacked;
+        }
+
+        return packedInputs;
     }
 
     /**
@@ -283,7 +301,7 @@ contract Chess is Ownable, IChess {
         }
         newOpponentState = opponentState | en_passant_const;
         require(
-            !checkForCheck(boardState, opponentState),
+            !checkForCheck(newGameState, newPlayerState),
             "You can't make a move that keeps you in check."
         );
         boardState = newGameState;
@@ -379,6 +397,9 @@ contract Chess is Ownable, IChess {
         uint8 toPos = (uint8)(move & 0x3f);
         uint8 moveExtra = (uint8)(move >> 12);
         newPlayerState = playerState;
+        if (toPos > 64) {
+            return (invalid_move_constant, playerState);
+        }
         // require ((currentTurnBlack && (toPos < fromPos)) || (!currentTurnBlack && (fromPos < toPos)), "inv move");
         if (currentTurnBlack != (toPos < fromPos)) {
             // newGameState = invalid_move_constant;
@@ -443,7 +464,7 @@ contract Chess is Ownable, IChess {
             newGameState = setPosition(
                 zeroPosition(newGameState, toPos),
                 toPos,
-                (toPos != 0 ? moveExtra | color_const : moveExtra)
+                (currentTurnBlack ? moveExtra | color_const : moveExtra)
             );
         }
     }
@@ -461,6 +482,9 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
+        if (toPos > 64) {
+            return invalid_move_constant;
+        }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -491,6 +515,9 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
+        if (toPos > 64) {
+            return invalid_move_constant;
+        }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -523,6 +550,9 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
+        if (toPos > 64) {
+            return invalid_move_constant;
+        }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -556,6 +586,9 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
+        if (toPos > 64) {
+            return invalid_move_constant;
+        }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -590,9 +623,13 @@ contract Chess is Ownable, IChess {
         uint8 toPos,
         uint32 playerState
     ) public view returns (uint256 newGameState, uint32 newPlayerState) {
+        bool castlingPrivleges = ((playerState >> rook_king_side_move_bit) & 0xff) < 0x80 && ((playerState >> rook_queen_side_move_bit) & 0xff) < 0x80;
         newPlayerState =
             ((playerState | king_move_mask) & king_pos_zero_mask) |
             ((uint32)(toPos) << king_pos_bit);
+        if (toPos > 64) {
+            return (invalid_move_constant, newPlayerState);
+        }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
         if (pieceToPosition > 0) {
             if (
@@ -608,7 +645,7 @@ contract Chess is Ownable, IChess {
         uint8 v = getVerticalMovement(fromPos, toPos);
         if ((h <= 1) && (v <= 1)) {
             return (commitMove(gameState, fromPos, toPos), newPlayerState);
-        } else if ((h == 2) && (v == 0)) {
+        } else if ((h == 2) && (v == 0) && castlingPrivleges) {
             if (!pieceUnderAttack(gameState, fromPos)) {
                 // TODO: must we check king's 'from' position?
                 // Reasoning: castilngRookPosition resolves to an invalid toPos when the rook or the king have already moved.
@@ -686,22 +723,27 @@ contract Chess is Ownable, IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Queen's movement */
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
 
         // Check left
-        for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
-            ) {
-                return true;
+        if(fromPos >= 1) {
+            for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
+                newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
         // Check right
@@ -711,7 +753,8 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
@@ -724,23 +767,27 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down
-        for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
-            ) {
-                return true;
+        if(fromPos >= 8) {
+            for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
+                newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
         // Check up-right
@@ -754,7 +801,8 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
@@ -771,57 +819,71 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down-right
-        for (
-            toPos = fromPos - 7;
-            (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
-            toPos -= 7
-        ) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
+        if(fromPos >= 7) {
+            for (
+                toPos = fromPos - 7;
+                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
+                toPos -= 7
             ) {
-                return true;
+                newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
         // Check down-left
-        for (
-            toPos = fromPos - 9;
-            (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
-            toPos -= 9
-        ) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
+        if(fromPos >= 9) {
+            for (
+                toPos = fromPos - 9;
+                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
+                toPos -= 9
             ) {
-                return true;
+                newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     function checkBishopValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Bishop's movement */
+
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
 
         // Check up-right
         for (
@@ -834,7 +896,8 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
@@ -851,69 +914,86 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down-right
-        for (
-            toPos = fromPos - 7;
-            (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
-            toPos -= 7
-        ) {
-            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
+        if (fromPos >= 7) {
+            for (
+                toPos = fromPos - 7;
+                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
+                toPos -= 7
             ) {
-                return true;
+                newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
         // Check down-left
-        for (
-            toPos = fromPos - 9;
-            (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
-            toPos -= 9
-        ) {
-            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
+        if(fromPos >= 9) {
+            for (
+                toPos = fromPos - 9;
+                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
+                toPos -= 9
             ) {
-                return true;
+                newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     function checkRookValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Rook's movement */
 
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
+
         // Check left
-        for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
-            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
-            ) {
-                return true;
+        if(fromPos != 0) {
+            for (toPos = fromPos - 1; (toPos & 0x7) < (fromPos & 0x7); toPos--) {
+                newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
         // Check right
@@ -923,7 +1003,8 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
@@ -937,36 +1018,47 @@ contract Chess is Ownable, IChess {
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                return true;
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
             }
             if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down
-        for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
-            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
-            if (
-                (newGameState != invalid_move_constant) &&
-                (!pieceUnderAttack(newGameState, kingPos))
-            ) {
-                return true;
+        if (fromPos >= 8) {
+            for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
+                newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, kingPos))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                    break;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
-                break;
         }
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     function checkKnightValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by knight's movement */
+
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
 
         toPos = fromPos + 6;
         newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
@@ -974,16 +1066,20 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
-        toPos = fromPos - 6;
-        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, kingPos))
-        ) {
-            return true;
+        if(fromPos >= 6) {
+            toPos = fromPos - 6;
+            newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, kingPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
         toPos = fromPos + 10;
@@ -992,25 +1088,32 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
-        toPos = fromPos - 10;
-        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, kingPos))
-        ) {
-            return true;
+        if (fromPos >= 10) {
+            toPos = fromPos - 10;
+            newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, kingPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
-        toPos = fromPos - 17;
-        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, kingPos))
-        ) {
-            return true;
+        if(fromPos >= 17) {
+            toPos = fromPos - 17;
+            newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, kingPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
         toPos = fromPos + 17;
@@ -1019,7 +1122,8 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = fromPos + 15;
@@ -1028,19 +1132,27 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
-        toPos = fromPos - 15;
-        newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, kingPos))
-        ) {
-            return true;
+        if (fromPos >= 15) {
+            toPos = fromPos - 15;
+            newGameState = verifyExecuteKnightMove(gameState, fromPos, toPos);
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, kingPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     function checkPawnValidMoves(
@@ -1048,13 +1160,19 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint32 playerState,
         uint32 opponentState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
-        uint8 moveExtra = queen_const; /* Since this is supposed to be endgame, movement of promoted piece is irrelevant. */
+        uint16 move;
+        uint16 moveExtra = uint16(queen_const); /* Since this is supposed to be endgame, movement of promoted piece is irrelevant. */
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by pawn's movement */
-        uint16 move = fromPos + (toPos << 6) + (moveExtra << 12);
         toPos = currentTurnBlack ? fromPos - 7 : fromPos + 7;
+        move = ((moveExtra << 12) | (uint16(fromPos) << 6)) | uint16(toPos);
+
+
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
+
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
@@ -1065,10 +1183,12 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = currentTurnBlack ? fromPos - 8 : fromPos + 8;
+        move = ((moveExtra << 12) | (uint16(fromPos) << 6)) | uint16(toPos);
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
@@ -1079,10 +1199,12 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = currentTurnBlack ? fromPos - 9 : fromPos + 9;
+        move = ((moveExtra << 12) | (uint16(fromPos) << 6)) | uint16(toPos);
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
@@ -1093,10 +1215,12 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = currentTurnBlack ? fromPos - 16 : fromPos + 16;
+        move = ((moveExtra << 12) | (uint16(fromPos) << 6)) | uint16(toPos);
         (newGameState, ) = verifyExecutePawnMove(
             gameState,
             move,
@@ -1107,74 +1231,94 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, kingPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     function checkKingValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) public view returns (bool) {
+    ) public view returns (bool, uint16[64] memory, uint8) {
         uint256 newGameState;
         uint8 toPos;
 
-        toPos = fromPos - 9;
-        (newGameState, ) = verifyExecuteKingMove(
-            gameState,
-            fromPos,
-            toPos,
-            playerState
-        );
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, toPos))
-        ) {
-            return true;
+        uint16[64] memory validMoves;
+        uint8 validMoveIndex = 0;
+
+        if(fromPos >= 9) {
+            toPos = fromPos - 9;
+            (newGameState, ) = verifyExecuteKingMove(
+                gameState,
+                fromPos,
+                toPos,
+                playerState
+            );
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, toPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
-        toPos = fromPos - 8;
-        (newGameState, ) = verifyExecuteKingMove(
-            gameState,
-            fromPos,
-            toPos,
-            playerState
-        );
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, toPos))
-        ) {
-            return true;
+        if(fromPos >= 8) {
+            toPos = fromPos - 8;
+            (newGameState, ) = verifyExecuteKingMove(
+                gameState,
+                fromPos,
+                toPos,
+                playerState
+            );
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, toPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
-        toPos = fromPos - 7;
-        (newGameState, ) = verifyExecuteKingMove(
-            gameState,
-            fromPos,
-            toPos,
-            playerState
-        );
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, toPos))
-        ) {
-            return true;
+        if(fromPos >= 7) {
+            toPos = fromPos - 7;
+            (newGameState, ) = verifyExecuteKingMove(
+                gameState,
+                fromPos,
+                toPos,
+                playerState
+            );
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, toPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
-        toPos = fromPos - 1;
-        (newGameState, ) = verifyExecuteKingMove(
-            gameState,
-            fromPos,
-            toPos,
-            playerState
-        );
-        if (
-            (newGameState != invalid_move_constant) &&
-            (!pieceUnderAttack(newGameState, toPos))
-        ) {
-            return true;
+        if(fromPos >= 1) {
+            toPos = fromPos - 1;
+            (newGameState, ) = verifyExecuteKingMove(
+                gameState,
+                fromPos,
+                toPos,
+                playerState
+            );
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, toPos))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
         }
 
         toPos = fromPos + 1;
@@ -1188,7 +1332,8 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, toPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = fromPos + 7;
@@ -1202,7 +1347,8 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, toPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = fromPos + 8;
@@ -1216,7 +1362,8 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, toPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
 
         toPos = fromPos + 9;
@@ -1230,11 +1377,16 @@ contract Chess is Ownable, IChess {
             (newGameState != invalid_move_constant) &&
             (!pieceUnderAttack(newGameState, toPos))
         ) {
-            return true;
+            validMoves[validMoveIndex] = toPos;
+            validMoveIndex++;
         }
         /* TODO: Check castling */
 
-        return false;
+        if (validMoveIndex == 0) {
+            return (false, validMoves, validMoveIndex);
+        }
+
+        return (true, validMoves, validMoveIndex);
     }
 
     /**
@@ -1284,48 +1436,61 @@ contract Chess is Ownable, IChess {
             }
         } else {
             uint8 piece = (uint8)((gameState >> pBitOffset) & 0xF);
-
             // --- TODO(ryancao): IS THIS CORRECT??? ---
             // if ((piece > 0) && ((piece & color_const) == color)) {
-            if (piece > 0) {
+            if (piece > 0 && ((piece & color_const) == color_const) == currentTurnBlack) {
                 uint8 pos = uint8(pBitOffset / piece_bit_size);
-                // bool currentTurnBlack = color != 0;
                 uint8 pieceType = piece & type_mask_const;
+                
+
                 if (
-                    (pieceType == king_const) &&
-                    checkKingValidMoves(gameState, pos, playerState)
+                    (pieceType == king_const)
                 ) {
-                    return true;
+                    (bool validKingMoves, , ) = checkKingValidMoves(gameState, pos, playerState);
+                    if (validKingMoves) {
+                        return true;
+                    }
                 } else if (
-                    (pieceType == pawn_const) &&
-                    checkPawnValidMoves(
+                    (pieceType == pawn_const)
+                ) {
+                    (bool validPawnMoves, , ) = checkPawnValidMoves(
                         gameState,
                         pos,
                         playerState,
                         opponentState
-                    )
-                ) {
-                    return true;
+                    );
+                    if (validPawnMoves) {
+                        return true;
+                    }
                 } else if (
-                    (pieceType == knight_const) &&
-                    checkKnightValidMoves(gameState, pos, playerState)
+                    (pieceType == knight_const)
                 ) {
-                    return true;
+                    (bool validKnightMoves, , ) = checkKnightValidMoves(gameState, pos, playerState);
+
+                    if (validKnightMoves) {
+                        return true;
+                    }
                 } else if (
-                    (pieceType == rook_const) &&
-                    checkRookValidMoves(gameState, pos, playerState)
+                    (pieceType == rook_const)
                 ) {
-                    return true;
+                    (bool validRookMoves, , ) = checkRookValidMoves(gameState, pos, playerState);
+                    if (validRookMoves) {
+                        return true;
+                    }
                 } else if (
-                    (pieceType == bishop_const) &&
-                    checkBishopValidMoves(gameState, pos, playerState)
+                    (pieceType == bishop_const)
                 ) {
-                    return true;
+                    (bool validBishopMoves, , ) = checkBishopValidMoves(gameState, pos, playerState);
+                    if (validBishopMoves) {
+                        return true;
+                    }
                 } else if (
-                    (pieceType == queen_const) &&
-                    checkQueenValidMoves(gameState, pos, playerState)
+                    (pieceType == queen_const)
                 ) {
-                    return true;
+                    (bool validQueenMoves, , ) = checkQueenValidMoves(gameState, pos, playerState);
+                    if (validQueenMoves) {
+                        return true;
+                    }
                 }
             }
         }
@@ -1336,6 +1501,7 @@ contract Chess is Ownable, IChess {
         uint256 gameState = boardState;
         uint32 playerState;
         uint32 opponentState;
+        console.log(currentTurnBlack);
         if (currentTurnBlack) {
             playerState = blackState;
             opponentState = whiteState;
@@ -1356,6 +1522,7 @@ contract Chess is Ownable, IChess {
             0,
             256
         );
+        console.log(legalMoves);
         // If the player is in check but also
         if (checkForCheck(gameState, playerState)) {
             return legalMoves ? 0 : 2;
@@ -1445,7 +1612,7 @@ contract Chess is Ownable, IChess {
 
     function checkForCheck(uint256 gameState, uint32 playerState)
         public
-        pure
+        view
         returns (bool)
     {
         uint8 kingsPosition = (uint8)(playerState >> king_pos_bit);
@@ -1455,7 +1622,7 @@ contract Chess is Ownable, IChess {
 
     function pieceUnderAttack(uint256 gameState, uint8 pos)
         public
-        pure
+        view
         returns (bool)
     {
         uint8 currPiece = (uint8)(gameState >> (pos * piece_bit_size)) & 0xf;
@@ -1496,8 +1663,10 @@ contract Chess is Ownable, IChess {
 
         // Check down
         firstSq = true;
-        currPos = pos - 8;
-        while (currPos < pos) {
+        currPos = pos;
+
+        while (currPos <= pos && currPos >= 8) {
+            currPos -= 8;
             currPiece = (uint8)(gameState >> (currPos * piece_bit_size)) & 0xf;
             if (currPiece > 0) {
                 if (
@@ -1507,7 +1676,6 @@ contract Chess is Ownable, IChess {
                 ) return true;
                 break;
             }
-            currPos -= 8;
             firstSq = false;
         }
 
@@ -1530,8 +1698,9 @@ contract Chess is Ownable, IChess {
 
         // Check left
         firstSq = true;
-        currPos = pos - 1;
-        while ((pos >> 3) == (currPos >> 3)) {
+        currPos = pos;
+        while ((pos >> 3) == (currPos >> 3) && currPos >= 1) {
+            currPos -= 1;
             currPiece = (uint8)(gameState >> (currPos * piece_bit_size)) & 0xf;
             if (currPiece > 0) {
                 if (
@@ -1541,7 +1710,6 @@ contract Chess is Ownable, IChess {
                 ) return true;
                 break;
             }
-            currPos -= 1;
             firstSq = false;
         }
 
@@ -1564,6 +1732,7 @@ contract Chess is Ownable, IChess {
             currPos += 9;
             firstSq = false;
         }
+
         // Check up-left
         firstSq = true;
         currPos = pos + 7;
@@ -1583,10 +1752,12 @@ contract Chess is Ownable, IChess {
             currPos += 7;
             firstSq = false;
         }
+
         // Check down-right
         firstSq = true;
-        currPos = pos - 7;
-        while ((currPos < 0x40) && ((currPos & 0x7) > (pos & 0x7))) {
+        currPos = pos;
+        while ((currPos < 0x40) && ((currPos & 0x7) >= (pos & 0x7)) && currPos >= 7) {
+            currPos -= 7;
             currPiece = (uint8)(gameState >> (currPos * piece_bit_size)) & 0xf;
             if (currPiece > 0) {
                 if (
@@ -1599,13 +1770,13 @@ contract Chess is Ownable, IChess {
                 ) return true;
                 break;
             }
-            currPos -= 7;
             firstSq = false;
         }
         // Check down-left
         firstSq = true;
-        currPos = pos - 9;
-        while ((currPos < 0x40) && ((currPos & 0x7) < (pos & 0x7))) {
+        currPos = pos;
+        while ((currPos < 0x40) && ((currPos & 0x7) <= (pos & 0x7)) && currPos >= 9) {
+            currPos -= 9;
             currPiece = (uint8)(gameState >> (currPos * piece_bit_size)) & 0xf;
             if (currPiece > 0) {
                 if (
@@ -1618,7 +1789,6 @@ contract Chess is Ownable, IChess {
                 ) return true;
                 break;
             }
-            currPos -= 9;
             firstSq = false;
         }
         // Check knights
@@ -1656,39 +1826,48 @@ contract Chess is Ownable, IChess {
         ) return true;
 
         // 1 left 2 down
-        currPos = pos - 17;
-        if (
-            (currPos < pos) &&
-            ((currPos & 0x7) < (pos & 0x7)) &&
-            (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
-                enemyKnight)
-        ) return true;
+        if(pos >= 17) {
+            currPos = pos - 17;
+            if (
+                (currPos < pos) &&
+                ((currPos & 0x7) < (pos & 0x7)) &&
+                (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
+                    enemyKnight)
+            ) return true;
+        }
 
         // 2 left 1 down
-        currPos = pos - 10;
-        if (
-            (currPos < pos) &&
-            ((currPos & 0x7) < (pos & 0x7)) &&
-            (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
-                enemyKnight)
-        ) return true;
+        if(pos >= 10) {
+            currPos = pos - 10;
+            if (
+                (currPos < pos) &&
+                ((currPos & 0x7) < (pos & 0x7)) &&
+                (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
+                    enemyKnight)
+            ) return true;
+        }
 
         // 1 right 2 down
-        currPos = pos - 15;
-        if (
-            (currPos < pos) &&
-            ((currPos & 0x7) > (pos & 0x7)) &&
-            (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
-                enemyKnight)
-        ) return true;
+        if(pos >= 15) {
+            currPos = pos - 15;
+            if (
+                (currPos < pos) &&
+                ((currPos & 0x7) > (pos & 0x7)) &&
+                (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
+                    enemyKnight)
+            ) return true;
+
+        }
         // 2 right 1 down
-        currPos = pos - 6;
-        if (
-            (currPos < pos) &&
-            ((currPos & 0x7) > (pos & 0x7)) &&
-            (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
-                enemyKnight)
-        ) return true;
+        if(pos >= 6) {
+            currPos = pos - 6;
+            if (
+                (currPos < pos) &&
+                ((currPos & 0x7) > (pos & 0x7)) &&
+                (((uint8)(gameState >> (currPos * piece_bit_size)) & 0xf) ==
+                    enemyKnight)
+            ) return true;
+        }
 
         return false;
     }
@@ -1758,5 +1937,87 @@ contract Chess is Ownable, IChess {
         returns (uint8)
     {
         return (uint8)((gameState >> (pos * piece_bit_size)) & 0xF);
+    }
+
+    function getLegalMoves() public returns (uint16[] memory) {
+        uint32 playerState = blackState;
+        bool currentTurn = currentTurnBlack;
+        currentTurnBlack = true;
+        delete validMovesFinal;
+        //loop over all spaces, if there is a piece there, gather it's legal moves.
+        for (uint8 col = 0; col < 8; col++) {
+            for (uint8 row = 0; row < 8; row++) {
+                uint8 pos = (row << 3) | col;
+                uint16 bitshiftedPos = uint16(pos) << 6;
+                uint8 piece = pieceAtPosition(boardState, pos);
+                uint8 pieceType = piece & type_mask_const;
+                if (piece & color_const != color_const) {
+                    continue;
+                }
+                if (
+                    (pieceType == king_const)
+                ) {
+                    (bool validKingMove, uint16[64] memory validKingMoves, uint8 length) = checkKingValidMoves(boardState, pos, playerState);
+                    if (validKingMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validKingMoves[i]);
+                        }
+                    }
+                } else if (
+                    (pieceType == pawn_const)
+                ) {
+                    (bool validPawnMove, uint16[64] memory validPawnMoves, uint8 length) = checkPawnValidMoves(
+                        boardState,
+                        pos,
+                        playerState,
+                        whiteState
+                    );
+                    if (validPawnMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validPawnMoves[i]);
+                        }
+                    }
+                } else if (
+                    (pieceType == knight_const)
+                ) {
+                    (bool validKnightMove, uint16[64] memory validKnightMoves, uint8 length) = checkKnightValidMoves(boardState, pos, playerState);
+
+                    if (validKnightMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validKnightMoves[i]);
+                        }
+                    }
+                } else if (
+                    (pieceType == rook_const)
+                ) {
+                    (bool validRookMove, uint16[64] memory validRookMoves, uint8 length) = checkRookValidMoves(boardState, pos, playerState);
+                    if (validRookMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validRookMoves[i]);
+                        }
+                    }
+                } else if (
+                    (pieceType == bishop_const)
+                ) {
+                    (bool validBishopMove, uint16[64] memory validBishopMoves, uint8 length) = checkBishopValidMoves(boardState, pos, playerState);
+                    if (validBishopMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validBishopMoves[i]);
+                        }
+                    }
+                } else if (
+                    (pieceType == queen_const)
+                ) {
+                    (bool validQueenMove, uint16[64] memory validQueenMoves, uint8 length) = checkQueenValidMoves(boardState, pos, playerState);
+                    if (validQueenMove) {
+                        for (uint8 i = 0; i < length; i++) {
+                            validMovesFinal.push(bitshiftedPos | validQueenMoves[i]);
+                        }
+                    }
+                }
+            }
+        }
+        currentTurnBlack = currentTurn;
+        return validMovesFinal;
     }
 }

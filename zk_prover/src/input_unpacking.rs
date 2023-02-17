@@ -154,7 +154,8 @@ impl<F: FieldExt> NNLayer<F> for InputUnpackingChip<F> {
                         ).unwrap()
                 }).collect::<Vec<_>>()
             }).collect::<Vec<AssignedCell<F, F>>>();
-            Ok(Array::from_shape_vec((input.len(), self.config.output_width, self.config.output_height), out).unwrap())
+            let out = Array::from_shape_vec((input.len(), self.config.output_width, self.config.output_height), out).unwrap();
+            Ok(out.permuted_axes([0, 2, 1]))
         })
     }
 }

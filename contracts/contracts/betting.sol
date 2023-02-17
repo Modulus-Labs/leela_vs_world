@@ -2,9 +2,10 @@ pragma solidity >=0.8.0;
 
 import {Ownable} from "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
-import "./leela.sol";
+// import "./leela.sol";
+
+import "./Validator.sol";
 import "./IChess.sol";
-import "../node_modules/hardhat/console.sol";
 
 // SPDX-License-Identifier: UNLICENSED
 /// @title BettingGame
@@ -25,7 +26,7 @@ contract BettingGame is Ownable {
     IChess public chess;
 
     /// @dev Leela AI contract
-    Leela public leela;
+    Validator public leela;
 
     /// @dev Minimum stake size.
     uint256 public minStake = 0.001 ether;
@@ -75,6 +76,8 @@ contract BettingGame is Ownable {
     /// @dev Leela's last move
     uint16 public leelaMove;
 
+    bool public leelaTurn;
+
     /// @dev gameIndex => moveIndex => moves => number of staked votes.
     mapping(uint16 => mapping(uint16 => mapping(uint16 => uint256)))
         private movesToVotes;
@@ -95,7 +98,8 @@ contract BettingGame is Ownable {
     //EVENTS
 
     // A move was played.
-    event movePlayed(uint16 worldMove, uint16 leelaMove);
+    event worldMovePlayed(uint16 worldMove);
+    event leelaMovePlayed(uint16 leelaMove);
     // Some player staked.
     event stakeMade(address player, bool leelaSide);
     // A vote was made with stake.
@@ -114,6 +118,11 @@ contract BettingGame is Ownable {
         locked = 0;
     }
 
+    modifier worldTurnOnly() {
+        require(leelaTurn == false);
+        _;
+    }
+
     //     modifier onlyOwner() {
     //       require(msg.sender == owner, "Not owner");
     //       _;
@@ -129,8 +138,7 @@ contract BettingGame is Ownable {
     ) public {
         chess = IChess(_chess); // not sure if this is right
         chess.initializeGame();
-        leela = Leela(_leela);
-        registeredMoves[0][0] = leela.initializeLeela();
+        leela = Validator(_leela);
         leelaPoolSize = initialPoolSize;
         worldPoolSize = initialPoolSize;
         initVal = initialPoolSize;
@@ -146,7 +154,7 @@ contract BettingGame is Ownable {
 
     function setLeela(address _leela) public onlyOwner {
         //onlyOwner
-        leela = Leela(_leela);
+        leela = Validator(_leela);
     }
 
     function setMinStake(uint256 _minStake) public onlyOwner {
@@ -250,10 +258,11 @@ contract BettingGame is Ownable {
             votersList[gameIndex].push(msg.sender);
         }
         emit stakeMade(msg.sender, leelaSide);
-        bool timerOver = checkTimer();
-        if (timerOver) {
-            makeMove();
-        }
+        // don't let random user calls incur a large gas fee
+        // bool timerOver = checkTimer();
+        // if (timerOver) {
+        //     makeMove();
+        // }
     }
 
     /**
@@ -264,7 +273,7 @@ contract BettingGame is Ownable {
     }
 
     /// @dev For voting on a move for the World
-    function voteWorldMove(uint16 move) public nonReentrancy {
+    function voteWorldMove(uint16 move) public nonReentrancy worldTurnOnly {
         // Skip if 0x1000, 0x2000, 0x3000 (request draw, accept draw, resign)
         require(move != 0, "Invalid move"); // 0 == 0x0000
         require(
@@ -293,7 +302,7 @@ contract BettingGame is Ownable {
     }
 
     /// @dev allows anyone to call this function to play the next move(s) if the timer has ended.
-    function callTimerOver() public {
+    function callTimerOver() public worldTurnOnly {
         bool timerOver = checkTimer();
         if (timerOver) {
             makeMove();
@@ -328,31 +337,60 @@ contract BettingGame is Ownable {
     /// @dev For executing the most voted move for the World
     function makeMove() internal nonReentrancy {
         uint16 worldMove = getWorldMove();
-        uint16 _leelaMove = leela.getMove();
-        leelaMove = _leelaMove;
+        // uint16 _leelaMove = leela.getMove();
+        // leelaMove = _leelaMove;
         chess.playMove(worldMove);
         moveIndex++;
         uint8 isGameEnded = chess.checkEndgame();
         if (isGameEnded != 0) {
             updateAccounts(false);
-            emit movePlayed(worldMove, 0);
+            emit worldMovePlayed(worldMove);
             emit gameEnd(false);
             resetGame();
             return;
         }
+        leelaTurn = true;
+        emit worldMovePlayed(worldMove);
+
+        uint16[] memory legalMoves = chess.getLegalMoves();
+        leela.setLegalMoveIndicies(legalMoves);
+        // chess.playMove(leelaMove);
+        // moveIndex++;
+        // registeredMoves[gameIndex][moveIndex].push(worldMove);
+        // registeredMoves[gameIndex][moveIndex].push(leelaMove);
+        // isGameEnded = chess.checkEndgame();
+        // if (isGameEnded == 0) {
+        //     updateAccounts(true);
+        //     resetGame();
+        //     emit gameEnd(true);
+        //     return;
+        // }
+        // startVoteTimer();
+    }
+
+    function makeLeelaMove(bytes calldata proof, bytes calldata instances) public {
+        require(leelaTurn == true);
+        uint16 _leelaMove = leela.verify(proof, instances);
+        leelaMove = _leelaMove;
         chess.playMove(leelaMove);
         moveIndex++;
-        emit movePlayed(worldMove, leelaMove);
-        registeredMoves[gameIndex][moveIndex].push(worldMove);
-        registeredMoves[gameIndex][moveIndex].push(leelaMove);
-        isGameEnded = chess.checkEndgame();
-        if (isGameEnded == 0) {
+        uint8 isGameEnded = chess.checkEndgame();
+        if (isGameEnded != 0) {
             updateAccounts(true);
-            resetGame();
+            emit leelaMovePlayed(leelaMove);
             emit gameEnd(true);
+            resetGame();
             return;
-        }
+        }     
+        emit leelaMovePlayed(leelaMove);
+        leelaTurn = false;
+
         startVoteTimer();
+    }
+
+    function leelaHashInputs() public {
+        require(leelaTurn == true);
+        leela.hashInputs(chess.convertToCircuit());
     }
 
     //TODO make the checkmove into a try function? chat with jdub
@@ -362,10 +400,9 @@ contract BettingGame is Ownable {
         leelaPoolSize = initVal;
         gameIndex++;
         moveIndex = 0;
-        leelaColor = !leelaColor;
         chess.initializeGame();
-        leela.initializeLeela();
         emit gameStart(leelaColor);
+        leelaTurn = false;
         startVoteTimer();
     }
 

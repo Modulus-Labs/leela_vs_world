@@ -1,8 +1,8 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-gas-reporter";
-import "hardhat-tracer";
-import 'hardhat-contract-sizer';
+// import "hardhat-gas-reporter";
+// import "hardhat-tracer";
+// import 'hardhat-contract-sizer';
 require('dotenv').config();
 // require("@nomiclabs/hardhat-ethers");
 
@@ -36,9 +36,13 @@ const config: HardhatUserConfig = {
     // }
   },
 
-  gasReporter: {
-    enabled: true,
-  },
+  // gasReporter: {
+  //   enabled: true,
+  // },
+
+  mocha: {
+    timeout: 400000
+  }
 
 
 };

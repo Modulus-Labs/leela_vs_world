@@ -22,19 +22,19 @@ fn main() -> Result<(), PlonkError> {
 
 
     let input: Vec<Fr> = {
-        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "bgnet_intermediates_new.json").unwrap();
+        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "leelaInputs.json").unwrap();
         let inputs = json::parse(&inputs_raw).unwrap();
-        let input: Vec<_> = inputs["input"].members().map(|input| input.as_i64().unwrap()).collect();
+        inputs.members().map(|input| Fr::from_str_vartime(input.as_str().unwrap()).unwrap()).collect()
 
-        let input = Array::from_shape_vec((112, 8, 8), input).unwrap();
+        // let input = Array::from_shape_vec((112, 8, 8), input).unwrap();
 
-        input.axis_iter(Axis(0)).map(|layer| {
-            let out = layer.iter().enumerate().fold(0_i128, |accum, (row, item)| {
-                accum + ((item/1_048_576) as i128 * 2_i128.pow(row as u32))
-            });
+        // input.axis_iter(Axis(0)).map(|layer| {
+        //     let out = layer.iter().enumerate().fold(0_i128, |accum, (row, item)| {
+        //         accum + ((item/1_048_576) as i128 * 2_i128.pow(row as u32))
+        //     });
 
-            Fr::from_u128(out as u128)
-        }).collect()
+        //     Fr::from_u128(out as u128)
+        // }).collect()
 
         // let outputs: Vec<_> = inputs["output"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
     };
