@@ -11,13 +11,13 @@ interface Hasher {
 
 contract Validator {
 
-    Hasher poseidonContract;
+    Hasher public poseidonContract;
     address public chessContract;
     address public verifierContract;
     uint256 public inputHash;
     uint256 public outputHash;
-    uint[] public legalMoveIndicies;
-    uint public nextLegalMoveIndex;
+    uint16[] public legalMoveIndicies;
+    int16 public nextLegalMoveIndex;
     uint public winningMoveIndex;
     int256 public winningMoveValue;
     uint public lastChunkEndIndex;
@@ -47,6 +47,9 @@ contract Validator {
         for (uint8 i = 0; i < _legalMoves.length; i++) {
             legalMoveIndicies.push(reverseMoveMap[_legalMoves[i]]);
         }
+
+        nextLegalMoveIndex = -1;
+        advanceNextLegalMoveIndex();
     }
 
     function hashInputs(uint256[INPUT_LEN] calldata inputs) public {
@@ -59,11 +62,11 @@ contract Validator {
         inputHash = _inputHash;
     }
 
-    function hashOutputChunk(uint256[] calldata outputChunk, uint chunkStart, uint chunkEnd) public {
-        require(chunkStart == lastChunkEndIndex);
-        require(chunkEnd <= OUTPUT_LEN);
+    function hashOutputChunk(uint256[] calldata outputChunk, uint16 chunkStart, uint16 chunkEnd) public {
+        require(chunkStart == lastChunkEndIndex, "Must start chunk where last chunk ended");
+        require(chunkEnd <= OUTPUT_LEN, "cannot chunk past output length for leela nn");
         uint256 currHash = outputHash;
-        uint init = 0;
+        uint16 init = 0;
 
         if (outputHash == 0) {
             currHash = poseidonContract.poseidon([outputChunk[0], outputChunk[1]]);
@@ -74,12 +77,21 @@ contract Validator {
             winningMoveValue = -1_000_000_000_000;
 
             if (nextLegalMoveIndex == 0) {
+                winningMoveValue = feltToInt(outputChunk[0]);
+                advanceNextLegalMoveIndex();
+            }
+            if (nextLegalMoveIndex == 1) {
+                int256 outputInt = feltToInt(outputChunk[1]);
+                if (winningMoveValue < outputInt) {
+                    winningMoveValue = outputInt;
+                    winningMoveIndex = 1;
+                }
                 advanceNextLegalMoveIndex();
             }
         }
 
-        for (uint i = init; i < chunkEnd - chunkStart; i++) {
-            if (i + chunkStart == nextLegalMoveIndex) {
+        for (uint16 i = init; i < chunkEnd - chunkStart; i++) {
+            if (int16(i + chunkStart) == nextLegalMoveIndex) {
                 advanceNextLegalMoveIndex();
                 int256 outputInt = feltToInt(outputChunk[i]);
                 if (outputInt > winningMoveValue) {
@@ -94,16 +106,25 @@ contract Validator {
         lastChunkEndIndex = chunkEnd;
     }
 
+    function resetOutputHashing() public {
+        outputHash = 0;
+        lastChunkEndIndex = 0;
+        winningMoveIndex = 0;
+        winningMoveValue = 0;
+        nextLegalMoveIndex = -1;
+        advanceNextLegalMoveIndex();
+    }
+
     function advanceNextLegalMoveIndex() private {
-        uint currHeighestIndex = 10000;
+        uint16 currHeighestIndex = 10000;
         for (uint i = 0; i < legalMoveIndicies.length; i++) {
-            if (legalMoveIndicies[i] > nextLegalMoveIndex) {
+            if (int16(legalMoveIndicies[i]) > nextLegalMoveIndex) {
                 if (legalMoveIndicies[i] < currHeighestIndex) {
                     currHeighestIndex = legalMoveIndicies[i];
                 }
             }
         }
-        nextLegalMoveIndex = currHeighestIndex;
+        nextLegalMoveIndex = int16(currHeighestIndex);
     }
 
     function verify(bytes calldata proof, bytes calldata instances) public returns (uint16) {

@@ -2,6 +2,8 @@
 
 use std::{time::Instant, path::Path, fs::{self, File}, io::Write, iter};
 
+use std::env::{set_var, var};
+
 use halo2_machinelearning::{felt_from_i64, felt_to_i64};
 use halo2_base::{halo2_proofs::{plonk::{Circuit, Error as PlonkError, keygen_vk, keygen_pk, create_proof, verify_proof}, circuit::Value, halo2curves::{bn256::{Fr, Bn256}, FieldExt, group::ff::PrimeField}, poly::{commitment::{ParamsProver, Params}, kzg::{commitment::ParamsKZG, multiopen::{ProverSHPLONK, VerifierSHPLONK, VerifierGWC}, strategy::SingleStrategy}}, dev::MockProver, transcript::{Challenge255, Blake2bWrite, Blake2bRead, TranscriptReadBuffer, TranscriptWriterBuffer}}, utils::{value_to_option, fs::gen_srs}};
 use ndarray::{Array, Axis};
@@ -17,6 +19,7 @@ use snark_verifier_sdk::{halo2::{gen_snark, gen_snark_shplonk, aggregation::Publ
 
 fn main() -> Result<(), PlonkError> {
     const PREFIX: &str = "";
+    set_var("VERIFY_CONFIG", "./configs/verify_circuit.config");
     let params = read_input(PREFIX, "./bgnet.json");
     let mut rng = ChaCha20Rng::from_entropy();
 
@@ -134,7 +137,7 @@ fn main() -> Result<(), PlonkError> {
 
     let proof = gen_evm_proof_shplonk(&params_max, &pk_agg, agg_circuit.clone(), agg_circuit.instances(), &mut rng);
 
-    let mut f = File::create("./prood_dir/proof")?;
+    let mut f = File::create("./proof_dir/proof")?;
 
     f.write_all(proof.as_slice()).unwrap();
 

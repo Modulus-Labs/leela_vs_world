@@ -280,7 +280,7 @@ describe("Integration Tests: Betting Contract", function () {
 
     })
 
-    it("Should Play 1 full move correctly", async function() {
+    it("Should Play 2 full moves correctly", async function() {
       var {bettingContract, leelaContract: validator, owner, chessContract} = await loadFixture(deployAndInitializeBettingContract);
       console.log("startin!");
       await bettingContract.setVotePeriod(30);
@@ -335,6 +335,54 @@ describe("Integration Tests: Betting Contract", function () {
 
       await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});
       console.log(await chessContract.boardState());
+
+      await bettingContract.startVoteTimer();
+      await bettingContract.voteWorldMove(convertMoveToUint16Repr("D", 2, "D", 3));
+      await time.increase(30);
+      console.log("callingtimerover");
+      var result = await bettingContract.callTimerOver();
+      console.log("next");
+      await bettingContract.giveLeelaLegalMoves({gasLimit: 1e7});
+      await bettingContract.leelaHashInputs();
+
+      var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
+      var outputsBn: any[] = [];
+      for (var i = 0; i < outputs.length; i++) {
+        var outputBn = ethers.BigNumber.from(outputs[i])
+        if (outputBn.isNegative()) {
+          outputBn = outputBn.add(ethers.BigNumber.from("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"));
+        }
+        outputsBn.push(outputBn)
+      }
+
+      var outputChunks = [outputsBn.slice(0, 250), outputsBn.slice(250, 500), outputsBn.slice(500, 750), outputsBn.slice(750, 1000), outputsBn.slice(1000, 1250), outputsBn.slice(1250, 1500), outputsBn.slice(1500, 1750)];
+
+      var chunkStart = 0;
+      var chunkEnd = 250;
+
+      for (var chunk of outputChunks) {
+        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
+        chunkStart += 250;
+        chunkEnd += 250;
+      }
+
+      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
+
+      var outputHash = await validator.outputHash();
+      var winningMoveValue = await validator.winningMoveValue();
+      var winningMoveIndex = await validator.winningMoveIndex()
+      console.log(outputHash);
+      console.log(winningMoveIndex);
+      console.log(winningMoveValue);
+
+      var proof_raw = fs.readFileSync("./proof_dir/proof");
+      var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
+
+      var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
+      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');  
+
+      await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});
+
     });
 
   })

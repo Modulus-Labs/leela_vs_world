@@ -24,7 +24,7 @@ async function main() {
     await bettingContract.deployed();
 
     // --- Deploy Leela and Chess contracts to pass into betting contract initializer ---
-    // const [owner] = await ethers.getSigners();
+    //const [owner] = await ethers.getSigners();
     const chessFactory = new Chess__factory().connect(owner);
     const chessContract = await chessFactory.deploy(bettingContract.address);
     await chessContract.deployed();

@@ -39,7 +39,14 @@ describe("VerifierExample", function () {
       // var inputs = input_json.input;
       // var outputs = input_json.output;
 
-      var legalMoves = [2740, 3964, 3966];
+      var legalMoves = [
+        3112, 3104, 3177, 3169, 3699,
+        3688, 3690, 3242, 3234, 3763,
+        3756, 3749, 3742, 3735, 3827,
+        3819, 3372, 3364, 3891, 3437,
+        3429, 3502, 3494, 4013, 4015,
+        3567, 3559
+      ];
       await validator.setLegalMoveIndicies(legalMoves);
 
       // var out_index = 0;
