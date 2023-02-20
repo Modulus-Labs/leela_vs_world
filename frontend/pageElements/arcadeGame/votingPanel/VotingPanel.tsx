@@ -12,7 +12,7 @@ import { useContractInteractionContext } from '../../../contexts/ContractInterac
 export const VotingPanel: FC = () => {
   const { currChessBoard } = useChessGameContext();
   const { setShowGameDetails, setShowInfoModal, setInfoModalDismissVisible, setInfoModalText } = useArcadeMachineContext();
-  const { bettingContractRef, walletAddr, setWalletAddr } = useContractInteractionContext();
+  const { bettingContractRef, walletAddr, setWalletAddr, setEthersProvider } = useContractInteractionContext();
   const { getUserStakeFromBettingContract, getUserVotedMove, voteForMove } = useBettingContext();
 
   // --- Sets up current move notation state ---
@@ -153,7 +153,11 @@ export const VotingPanel: FC = () => {
                 voteForMoveRequest?.then((_) => {
                   openModalWithOptions(`Success!! Voted for move [${moveNotation}] with ${votingPower} power.`, true);
                 }).catch((error) => {
-                  openModalWithOptions(`Failed to submit vote to contract. Error: ${error}`, true);
+                  if (error.message.includes("user rejected transaction")) {
+                    openModalWithOptions(`Oops -- you cancelled the transaction!`, true);
+                  } else {
+                    openModalWithOptions(`Failed to submit vote to contract. Error: ${error}`, true);
+                  }
                   console.error(error);
                 });
               }
@@ -183,10 +187,16 @@ export const VotingPanel: FC = () => {
             <RetroButton
               buttonImageUrl="bg-[url(/ConnectWalletButton.svg)]"
               onClick={() => {
-                connectWallet().then(({ status, address }) => {
-                  if (address !== null) {
+                connectWallet().then(({ status, address, provider }) => {
+                  if (address !== null && provider !== null) {
                     openModalWithOptions("Successfully connected wallet!", true);
                     setWalletAddr(address);
+                    setEthersProvider(provider);
+                    // console.log("Got a provider!");
+                    // console.log(provider);
+                    // const signer = provider.getSigner(address);
+                    // console.log(signer);
+                    // console.log(signer._address);
                   } else {
                     openModalWithOptions(status, true);
                   }

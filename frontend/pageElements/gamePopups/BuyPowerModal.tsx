@@ -6,6 +6,9 @@ import { useBettingContext } from '../../contexts/BettingContext';
 import { useContractInteractionContext } from '../../contexts/ContractInteractionContext';
 import { GamePopup } from './GamePopup';
 
+// --- TODO(ryancao): Change this to 1 MATIC for mainnet ---
+const MIN_STAKE_AMT = 0.1;
+
 const ButtonVariants: Variants = {
   initial: {
     filter: 'brightness(100%)',
@@ -49,7 +52,7 @@ export const GameDetails: FC = () => {
   } = useArcadeMachineContext();
   const { addStake, leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
   const { walletAddr } = useContractInteractionContext();
-  const [powerAmount, setPowerAmount] = useState<string>("0.001");
+  const [powerAmount, setPowerAmount] = useState<string>(`${MIN_STAKE_AMT}`);
 
   // --- To display error message to user ---
   const openModalWithOptions = (text: string, canDismiss: boolean) => {
@@ -72,15 +75,19 @@ export const GameDetails: FC = () => {
     try {
       const numberPowerAmount = Number(powerAmount);
       console.log(`Buying ${numberPowerAmount} power, betting on Leela`);
-      if (numberPowerAmount < 0.001) {
-        openModalWithOptions(`Error: cannot buy less than 0.001 ETH worth of power!`, false);
+      if (numberPowerAmount < MIN_STAKE_AMT) {
+        openModalWithOptions(`Error: cannot buy less than ${MIN_STAKE_AMT} MATIC worth of power!`, true);
         return;
       }
       addStake(numberPowerAmount, betOnLeela)?.then((result) => {
         openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on Leela!`, true);
         setShowGameDetails(false);
       }).catch((error) => {
-        openModalWithOptions(`Error in buying power: ${error.message}`, true);
+        if (error.message.includes("user rejected transaction")) {
+          openModalWithOptions("Oops: You cancelled the transaction!", true);
+        } else {
+          openModalWithOptions(`Error in buying power: ${error.message}`, true);
+        }
         console.error(`Oof: ${error.message}`);
       });
     } catch (error: any) {
@@ -94,7 +101,7 @@ export const GameDetails: FC = () => {
         <div className="relative mx-auto flex h-[230px] w-full flex-col bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
           <div className="ml-[350px] mt-[80px] mr-[30px] flex flex-col text-4xl">
             <div className="flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
-              {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(3)} ETH`}
+              {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(3)} MATIC`}
             </div>
             <div className="mt-[10px] flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
               {getDistDisplay()}
@@ -106,7 +113,7 @@ export const GameDetails: FC = () => {
             <input
               value={powerAmount}
               type={"number"}
-              step={0.001}
+              step={MIN_STAKE_AMT}
               onChange={(e) => setPowerAmount(e.target.value)}
               className="absolute top-[82.5px] left-[360px] w-[190px] border-2 border-off-white bg-transparent px-2 text-4xl text-off-white outline-none"
             />

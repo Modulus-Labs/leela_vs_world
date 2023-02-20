@@ -30,10 +30,11 @@ export const SquaresOverlay: FC = () => {
 
   const handleBoardSquareClick = (square: Square) => {
     console.log('handleBoardSquareClick', square.toString());
-    const { moveState, moveFrom, moveTo, validMoves } = currChessBoard;
+    const { moveState, moveFrom, moveTo, validMoves, fen } = currChessBoard;
+    console.log(moveState, moveFrom, moveTo, validMoves, fen);
 
     if (moveState === MOVE_STATE.IDLE) {
-      // console.log('idle');
+      console.log('idle');
       // If the square is occupied by a piece => start a move
       if (chessJsRef.current.get(square)) {
         resetMove();

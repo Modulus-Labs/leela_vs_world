@@ -71,7 +71,7 @@ export const BettingContextProvider = ({
   const [timeToNextMove, setTimeToNextMove] = useState(60 * 10);
   useEffect(() => {
     const timerInterval = setInterval(() => {
-      setTimeToNextMove((time) => (time - 1 > 0 ? time - 1 : 60 * 10));
+      setTimeToNextMove((time) => (time - 1 > 0 ? time - 1 : 0));
     }, 1000);
     return () => clearInterval(timerInterval);
   }, []);
@@ -210,12 +210,13 @@ export const BettingContextProvider = ({
 
   /**
    * Votes on the given move by the user.
+   * TODO(ryancao): Is this maxPriorityFeePerGas and maxFeePerGas correct on Polygon???
    * @param move 
    * @returns 
    */
   const voteForMove = (move: number) => {
     if (walletAddr === "") return;
-    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { gasLimit: 1e7 });
+    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { maxPriorityFeePerGas: 1e10, maxFeePerGas: 1e11, gasLimit: 1e7 });
     return voteWorldMoveRequest;
   }
 
@@ -248,7 +249,10 @@ export const BettingContextProvider = ({
    */
   const addStake = (amount: number, betOnLeela: boolean) => {
     if (walletAddr === "") return;
-    const addStakeRequest = bettingContractRef.current.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
+    // const parsedAmt = ethers.utils.parseUnits(amount.toString(), "ether");
+    // console.log(`Okay we're doing this much MATIC, apparently: ${parsedAmt}`);
+    console.log(`Okay we're doing this much MATIC, apparently: ${amount}`);
+    const addStakeRequest = bettingContractRef.current.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseEther("0.010") });
     return addStakeRequest;
   }
 

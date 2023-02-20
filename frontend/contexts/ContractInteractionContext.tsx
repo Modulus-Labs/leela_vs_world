@@ -20,7 +20,8 @@ import { BettingGame, BettingGame__factory, Chess, Chess__factory, Leela, Leela_
 interface IContractInteractionContext {
   walletAddr: string;
   setWalletAddr: Dispatch<SetStateAction<string>>;
-  ethersProvider: ethers.providers.JsonRpcProvider;
+  ethersProvider: ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider;
+  setEthersProvider: Dispatch<SetStateAction<ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider>>;
 
   // --- Contract references ---
   bettingContractRef: MutableRefObject<BettingGame>;
@@ -31,9 +32,9 @@ interface IContractInteractionContext {
 // --- Contract addresses ---
 // TODO(ryancao): Change to mainnet!
 const config = {
-  LEELA_CONTRACT_ADDR: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  BETTING_CONTRACT_ADDR: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-  CHESS_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  LEELA_CONTRACT_ADDR: "0x98086130Fc4dB6C1D6c2329313158DC54FbBD20a",
+  BETTING_CONTRACT_ADDR: "0xE7D929B9c36419cCf4B33C7f1Ae9b0B79f33C909",
+  CHESS_CONTRACT_ADDR: "0x3AA1864226b2041e9b97C08fEaD6eA535aA05BA0",
 }
 
 const ContractInteractionContext = createContext<IContractInteractionContext | undefined>(
@@ -45,56 +46,106 @@ const ContractInteractionContext = createContext<IContractInteractionContext | u
  * Grabs ethers provider.
  * @returns 
  */
-const getEthersProvider = () => {
+const getEthersProvider = (address?: string): ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider => {
   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
   // let ethersProvider: null | ethers.providers.Web3Provider = null;
   // if (window.ethereum) {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  // --- Polygon testnet (Mumbai) Alchemy link ---
+  // require('dotenv').config();
+  // const { API_KEY, PRIVATE_KEY } = process.env;
+  // const API_KEY = "C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
-  const API_URL = "http://127.0.0.1:8545/";
+  // const API_URL = "http://127.0.0.1:8545/";
+  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
+
+  // if (address !== undefined && window !== undefined && window.ethereum !== undefined) {
+  //   const polygonMumbai = {
+  //     name: "maticmum",
+  //     chainId: 80001
+  //   };
+  //   const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
+  //   console.log("Successfully got the web3 provider");
+  //   return provider;
+  // }
+  // const provider = new ethers.providers.AlchemyProvider(polygonMumbai, API_KEY);
+  // const owner = new ethers.Wallet(PRIVATE_KEY ?? "", provider);
+
   return ethersProvider;
+  // return provider;
 }
 
-const getBettingContract = (address: string): BettingGame => {
-  let ethersProvider = getEthersProvider();
+const getBettingContract = (address: string, alternateProvider?: ethers.providers.Web3Provider): BettingGame => {
 
-  // --- Connect to contract ---
-  let bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
-  if (address !== "") {
-    // console.log(`Connecting betting contract under ${address} address`);
-    const account = ethersProvider.getSigner(address);
-    bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, account);
+  // --- If we have a Web3Provider AFTER user has logged in with Metamask ---
+  if (alternateProvider !== undefined) {
+    let bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, alternateProvider);
+    if (address !== "") {
+      const signer = alternateProvider.getSigner(address);
+      bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, signer);
+    }
+    return bettingGameContract;
+  } else {
+    let ethersProvider = getEthersProvider(address);
+
+    // --- Connect to contract ---
+    let bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+    if (address !== "") {
+      // console.log(`Connecting betting contract under ${address} address`);
+      const account = ethersProvider.getSigner(address);
+      bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, account);
+    }
+    return bettingGameContract;
   }
-  return bettingGameContract;
 }
 
-const getChessContract = (address: string): Chess => {
-  let ethersProvider = getEthersProvider();
+const getChessContract = (address: string, alternateProvider?: ethers.providers.Web3Provider): Chess => {
+  // --- If we have a Web3Provider AFTER user has logged in with Metamask ---
+  if (alternateProvider !== undefined) {
+    let chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, alternateProvider);
+    if (address !== "") {
+      const signer = alternateProvider.getSigner(address);
+      chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, signer);
+    }
+    return chessContract;
+  } else {
+    let ethersProvider = getEthersProvider(address);
 
-  // --- Connect to contract ---
-  let chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
-  if (address !== "") {
-    const account = ethersProvider.getSigner(address);
-    chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, account);
+    // --- Connect to contract ---
+    let chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
+    if (address !== "") {
+      const account = ethersProvider.getSigner(address);
+      chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, account);
+    }
+    return chessContract;
   }
-  return chessGameContract;
 }
 
-const getLeelaContract = (address: string): Leela => {
-  let ethersProvider = getEthersProvider();
+const getLeelaContract = (address: string, alternateProvider?: ethers.providers.Web3Provider): Leela => {
+  // --- If we have a Web3Provider AFTER user has logged in with Metamask ---
+  if (alternateProvider !== undefined) {
+    let leelaContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, alternateProvider);
+    if (address !== "") {
+      const signer = alternateProvider.getSigner(address);
+      leelaContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, signer);
+    }
+    return leelaContract;
+  } else {
+    let ethersProvider = getEthersProvider(address);
 
-  // --- Connect to contract ---
-  let leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, ethersProvider);
-  if (address !== "") {
-    const account = ethersProvider.getSigner(address);
-    leelaGameContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, account);
+    // --- Connect to contract ---
+    let leelaContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, ethersProvider);
+    if (address !== "") {
+      // console.log(`Connecting betting contract under ${address} address`);
+      const account = ethersProvider.getSigner(address);
+      leelaContract = Leela__factory.connect(config.LEELA_CONTRACT_ADDR, account);
+    }
+    return leelaContract;
   }
-  return leelaGameContract;
 }
 
 export const ContractInteractionContextProvider = ({
@@ -105,7 +156,7 @@ export const ContractInteractionContextProvider = ({
 
   // --- TODO(ryancao): Check if any refs or states should be flipped ---
   const [walletAddr, setWalletAddr] = useState<string>("");
-  const [ethersProvider, setEthersProvider] = useState<ethers.providers.JsonRpcProvider>(getEthersProvider());
+  const [ethersProvider, setEthersProvider] = useState<ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider>(getEthersProvider());
   const bettingContractRef = useRef<BettingGame>(getBettingContract(""));
   const chessContractRef = useRef<Chess>(getChessContract(""));
   const leelaContractRef = useRef<Leela>(getLeelaContract(""));
@@ -117,11 +168,17 @@ export const ContractInteractionContextProvider = ({
 
     // --- Otherwise, update the contracts which are connected ---
     console.log(`Changing the contracts under wallet address ${walletAddr}`);
-    bettingContractRef.current = getBettingContract(walletAddr);
-    chessContractRef.current = getChessContract(walletAddr);
-    leelaContractRef.current = getLeelaContract(walletAddr);
+    if (ethersProvider instanceof ethers.providers.Web3Provider) {
+      bettingContractRef.current = getBettingContract(walletAddr, ethersProvider);
+      chessContractRef.current = getChessContract(walletAddr, ethersProvider);
+      leelaContractRef.current = getLeelaContract(walletAddr, ethersProvider);
+    } else {
+      bettingContractRef.current = getBettingContract(walletAddr);
+      chessContractRef.current = getChessContract(walletAddr);
+      leelaContractRef.current = getLeelaContract(walletAddr);
+    }
 
-  }, [walletAddr]), [walletAddr]);
+  }, [walletAddr, ethersProvider]), [walletAddr, ethersProvider]);
 
   return (
     <ContractInteractionContext.Provider
@@ -130,6 +187,7 @@ export const ContractInteractionContextProvider = ({
         walletAddr,
         setWalletAddr,
         ethersProvider,
+        setEthersProvider,
 
         // --- Contract references ---
         bettingContractRef,

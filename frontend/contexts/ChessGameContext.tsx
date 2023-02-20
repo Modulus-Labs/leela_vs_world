@@ -68,7 +68,20 @@ export const ChessGameContextProvider = ({
           moveTo: null,
           validMoves: null,
           chessGame: new Chess(fen),
+        });
+
+        // --- TODO(ryancao): DELETE THIS ---
+        console.log("Resetting the FEN from the chess game context");
+        const testingFen = "rn1qkb1r/p3pppp/2p5/1p1pP3/3Pn1b1/1B3N2/PPP2PPP/RNBQ1RK1 w kq - 0 1";
+        setCurrChessBoard({
+          fen: testingFen,
+          moveState: MOVE_STATE.IDLE,
+          moveFrom: null,
+          moveTo: null,
+          validMoves: null,
+          chessGame: new Chess(testingFen),
         })
+
       }).catch((error: any) => {
         console.error(`Failed to get board state: ${error}`);
       });

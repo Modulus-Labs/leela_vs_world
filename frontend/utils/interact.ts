@@ -42,10 +42,10 @@ const getEthersProvider = () => {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
-  const API_URL = "http://127.0.0.1:8545/";
+  // const API_URL = "http://127.0.0.1:8545/";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
@@ -229,20 +229,63 @@ export const connectWallet = async () => {
   // --- (Metamask injects a global `ethereum` object)
   if (window.ethereum) {
     try {
+
+      try {
+        // --- First try to switch to connecting to Polygon Testnet ---
+        // TODO(ryancao): Switch this to mainnet!
+        const swappedChain = await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x13881' }],
+        });
+        console.log(`Swapped chain: ${swappedChain}`);
+      } catch (error: any) {
+        // TODO(ryancao): Allow user to add the Polygon chain to their wallet
+        // if (error.code === 4902) {
+        //   try {
+        //     await window.ethereum.request({
+        //       method: 'wallet_addEthereumChain',
+        //       params: [
+        //         {
+        //           chainId: '0x61',
+        //           rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+        //         },
+        //       ],
+        //     });
+        //   } catch (addError) {
+        //     console.error(addError);
+        //   }
+        // }
+        console.error(error);
+      }
+
       // --- Returns an array containing all of the user's account
       // --- addresses connected to the dApp. We only use the first one.
       const addressArray = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
+
+      // --- Getting the actual provider ---
+      const polygonMumbai = {
+        name: "maticmum",
+        chainId: 80001
+      };
+      // const API_KEY = "C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+      // const alchemyProvider = new ethers.providers.AlchemyProvider(polygonMumbai, API_KEY);
+      // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+      // let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
+      const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
+
       const obj = {
         status: "Your wallet has been connected!",
-        address: addressArray[0]
+        address: addressArray[0],
+        provider: provider,
       };
       return obj;
     } catch (error: any) {
       return {
         status: error.message,
         address: null,
+        provider: null,
       }
     }
 
@@ -250,7 +293,8 @@ export const connectWallet = async () => {
   } else {
     return {
       address: null,
-      status: "You must install MetaMask, a virtual Ethereum wallet, in your browser."
+      status: "You must install MetaMask, a virtual Ethereum wallet, in your browser.",
+      provider: null,
     }
   }
 };

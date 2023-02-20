@@ -187,6 +187,9 @@ contract BettingGame is Ownable {
     }
 
     function getTimeLeft() public view returns (uint256) {
+        if (block.timestamp >= votePeriodEnd) {
+            return 0;
+        }
         return (votePeriodEnd - block.timestamp);
     }
 
@@ -295,10 +298,10 @@ contract BettingGame is Ownable {
             leelaStakes[gameIndex][msg.sender];
         voters[gameIndex][moveIndex][msg.sender] = move;
         emit voteMade(msg.sender, move);
-        bool timerOver = checkTimer();
-        if (timerOver) {
-            makeMove();
-        }
+        // bool timerOver = checkTimer();
+        // if (timerOver) {
+        //     makeMove();
+        // }
     }
 
     /// @dev allows anyone to call this function to play the next move(s) if the timer has ended.
@@ -353,7 +356,6 @@ contract BettingGame is Ownable {
         // uint16[] memory legalMoves = chess.getLegalMoves();
         // leela.setLegalMoveIndicies(legalMoves);
 
-        
         // chess.playMove(leelaMove);
         // moveIndex++;
         // registeredMoves[gameIndex][moveIndex].push(worldMove);
@@ -374,7 +376,9 @@ contract BettingGame is Ownable {
         leela.setLegalMoveIndicies(legalMoves);
     }
 
-    function makeLeelaMove(bytes calldata proof, bytes calldata instances) public {
+    function makeLeelaMove(bytes calldata proof, bytes calldata instances)
+        public
+    {
         require(leelaTurn == true);
         uint16 _leelaMove = leela.verify(proof, instances);
         leelaMove = _leelaMove;
@@ -387,7 +391,7 @@ contract BettingGame is Ownable {
             emit gameEnd(true);
             resetGame();
             return;
-        }     
+        }
         emit leelaMovePlayed(leelaMove);
         leelaTurn = false;
 

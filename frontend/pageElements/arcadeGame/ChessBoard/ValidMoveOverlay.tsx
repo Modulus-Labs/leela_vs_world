@@ -16,17 +16,19 @@ export const ValidMoveOverlay: FC<ValidMoveOverlayProps> = ({
 }) => {
   const { currChessBoard } = useChessGameContext();
 
-  if (
-    currChessBoard.validMoves === null ||
-    !currChessBoard.validMoves.some((move) => move === square)
-  )
-    return null;
+  // if (
+  //   currChessBoard.validMoves === null ||
+  //   !currChessBoard.validMoves.some((move) => move === square)
+  // )
+  //   return null;
 
   // FIXME: stop initializing so many Chess
-  const chess = new Chess(currChessBoard.fen);
-  const piece = chess.get(currChessBoard.moveFrom);
+  // const chess = new Chess(currChessBoard.fen);
+  // const piece = chess.get(currChessBoard.moveFrom);
 
-  if (!piece) return null;
+  // if (!piece) return null;
+
+  const piece = currChessBoard.chessGame.get(square);
 
   return (
     <div
@@ -37,12 +39,14 @@ export const ValidMoveOverlay: FC<ValidMoveOverlayProps> = ({
       }}
     >
       <div className="relative h-[65px] w-[65px]">
-        <Image
-          src={`/chessPieces/${piece.type}${piece.color}.svg`}
-          alt=""
-          fill
-          className="object-contain opacity-30"
-        />
+        {piece.type === "b" || piece.type === "k" || piece.type === "q" || piece.type === "r" || piece.type === "n" || piece.type === "p" ?
+          <Image
+            src={`/chessPieces/${piece.type}${piece.color}.svg`}
+            alt=""
+            fill
+            className="object-contain opacity-30"
+          /> : <></>
+        }
       </div>
     </div>
   );
