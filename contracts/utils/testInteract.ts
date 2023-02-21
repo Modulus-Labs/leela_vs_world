@@ -10,17 +10,12 @@ import { Chess__factory } from "../typechain-types";
  * Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
  */
 
-// --- TODO(ryancao): Figure out what these contract addresses are ---
-/** THIS IS FOR POLYGON TESTNET (MUMBAI)
- * Compiled 10 Solidity files successfully
- * Leela Contract deployed to address:  0x053dA459937fbF9051dB05DeeCE408ee05C496bA
- * Betting Contract deployed to address:  0xF726450B8bfe55Da3ADe09171958791E810b3EE4
- * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
- */
+// --- For Polygon Mumbai ---
+// TODO(ryancao): Change these to mainnet!
 const config = {
-  LEELA_CONTRACT_ADDR: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  BETTING_CONTRACT_ADDR: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-  CHESS_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  LEELA_CONTRACT_ADDR: "0x4E7d06478930b646D886FfD49bE757BbA4945A7d",
+  BETTING_CONTRACT_ADDR: "0x55Ad445A5801c63B89dab3283F10A1486C0dDB00",
+  CHESS_CONTRACT_ADDR: "0x879bc79683F073EE52e9aA01a638f27CD3931135",
 }
 
 /**

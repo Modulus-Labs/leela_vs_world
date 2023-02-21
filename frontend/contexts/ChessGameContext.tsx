@@ -71,16 +71,16 @@ export const ChessGameContextProvider = ({
         });
 
         // --- TODO(ryancao): DELETE THIS ---
-        console.log("Resetting the FEN from the chess game context");
-        const testingFen = "rn1qkb1r/p3pppp/2p5/1p1pP3/3Pn1b1/1B3N2/PPP2PPP/RNBQ1RK1 w kq - 0 1";
-        setCurrChessBoard({
-          fen: testingFen,
-          moveState: MOVE_STATE.IDLE,
-          moveFrom: null,
-          moveTo: null,
-          validMoves: null,
-          chessGame: new Chess(testingFen),
-        })
+        // console.log("Resetting the FEN from the chess game context");
+        // const testingFen = "r2qk2r/p1P2pbp/n1p1p1p1/1p1pP3/3Pn1b1/1BNQ1N2/PP1B1PPP/R3K2R w KQkq - 0 1";
+        // setCurrChessBoard({
+        //   fen: testingFen,
+        //   moveState: MOVE_STATE.IDLE,
+        //   moveFrom: null,
+        //   moveTo: null,
+        //   validMoves: null,
+        //   chessGame: new Chess(testingFen),
+        // })
 
       }).catch((error: any) => {
         console.error(`Failed to get board state: ${error}`);
@@ -92,8 +92,6 @@ export const ChessGameContextProvider = ({
 
   /**
    * Returns FEN string component representing castling privileges for black/white.
-   * TODO(ryancao): This is technically wrong! Castling privileges are stateful,
-   * not positional.
    * @param whiteState 
    * @param blackState 
    * @param currentTurnBlack 
@@ -248,7 +246,6 @@ export const ChessGameContextProvider = ({
 
   // Action to start a move
   const startMove = (square: Square) => {
-    console.log('startMove', square);
     const rawcurrGameStateidMoves: Move[] = currChessBoard.chessGame.moves({
       square,
       verbose: true,
@@ -258,6 +255,7 @@ export const ChessGameContextProvider = ({
       ...currChessBoard,
       moveState: MOVE_STATE.MOVING,
       moveFrom: square,
+      moveTo: null,
       validMoves: rawcurrGameStateidMoves.map((move) => move.to),
     } as MovingBoardState;
 
@@ -278,9 +276,6 @@ export const ChessGameContextProvider = ({
 
   // Action to reset the move
   const resetMove = () => {
-
-    console.log("Resetting move!");
-
     const newChessBoard = {
       ...currChessBoard,
       moveState: MOVE_STATE.IDLE,

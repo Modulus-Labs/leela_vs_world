@@ -16,19 +16,19 @@ export const ValidMoveOverlay: FC<ValidMoveOverlayProps> = ({
 }) => {
   const { currChessBoard } = useChessGameContext();
 
-  // if (
-  //   currChessBoard.validMoves === null ||
-  //   !currChessBoard.validMoves.some((move) => move === square)
-  // )
-  //   return null;
+  if (
+    currChessBoard.validMoves === null ||
+    !currChessBoard.validMoves.some((move) => move === square)
+  )
+    return null;
 
   // FIXME: stop initializing so many Chess
   // const chess = new Chess(currChessBoard.fen);
-  // const piece = chess.get(currChessBoard.moveFrom);
+  const piece = currChessBoard.chessGame.get(currChessBoard.moveFrom);
 
-  // if (!piece) return null;
+  if (!piece) return null;
 
-  const piece = currChessBoard.chessGame.get(square);
+  // const piece = currChessBoard.chessGame.get(square);
 
   return (
     <div

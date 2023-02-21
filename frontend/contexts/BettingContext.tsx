@@ -110,7 +110,7 @@ export const BettingContextProvider = ({
         return;
       }
       const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(leelaMove);
-      const parsedMove = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.fen);
+      const parsedMove = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
       setPrevMove(parsedMove);
     }).catch((error) => {
       console.error(error);
@@ -130,7 +130,7 @@ export const BettingContextProvider = ({
         const newLeaderboardMoves = moves.map((move, idx) => {
           const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
           const parsedNumVotes = Number(ethers.utils.formatEther(numVotesPerMove[idx]));
-          const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.fen);
+          const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
           // console.log(moveFrom, moveTo, moveRepr, parsedNumVotes);
           const leaderboardMove: ChessLeaderboardMove = {
             humanRepr: moveRepr,

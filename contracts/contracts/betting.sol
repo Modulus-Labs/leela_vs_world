@@ -101,9 +101,9 @@ contract BettingGame is Ownable {
     event worldMovePlayed(uint16 worldMove);
     event leelaMovePlayed(uint16 leelaMove);
     // Some player staked.
-    event stakeMade(address player, bool leelaSide);
+    event stakeMade(address player, uint256 amt, bool leelaSide);
     // A vote was made with stake.
-    event voteMade(address player, uint16 move);
+    event voteMade(address player, uint256 power, uint16 move);
     // The game started.
     event gameStart(bool leelaColor);
     // The game ended.
@@ -236,7 +236,7 @@ contract BettingGame is Ownable {
 
     /// @dev Stakes a bet on Leela or World for the game, called by user.
     function addStake(bool leelaSide) public payable nonReentrancy {
-        require(msg.value >= minStake, "Received ETH is less than min stake");
+        require(msg.value >= minStake, "Received MATIC is less than min stake");
         if (!leelaSide) {
             unchecked {
                 worldStakes[gameIndex][msg.sender] += msg.value;
@@ -260,7 +260,7 @@ contract BettingGame is Ownable {
             votersMap[gameIndex][msg.sender] = true;
             votersList[gameIndex].push(msg.sender);
         }
-        emit stakeMade(msg.sender, leelaSide);
+        emit stakeMade(msg.sender, msg.value, leelaSide);
         // don't let random user calls incur a large gas fee
         // bool timerOver = checkTimer();
         // if (timerOver) {
@@ -297,7 +297,9 @@ contract BettingGame is Ownable {
             worldStakes[gameIndex][msg.sender] +
             leelaStakes[gameIndex][msg.sender];
         voters[gameIndex][moveIndex][msg.sender] = move;
-        emit voteMade(msg.sender, move);
+        uint256 totalPowerStaked = worldStakes[gameIndex][msg.sender] +
+            leelaStakes[gameIndex][msg.sender];
+        emit voteMade(msg.sender, totalPowerStaked, move);
         // bool timerOver = checkTimer();
         // if (timerOver) {
         //     makeMove();

@@ -8,6 +8,7 @@ import { convertUint16ReprToMoveStrings, getAlgebraicNotation, getContractMoveRe
 import { useArcadeMachineContext } from '../../../contexts/ArcadeMachineContext';
 import { useBettingContext } from '../../../contexts/BettingContext';
 import { useContractInteractionContext } from '../../../contexts/ContractInteractionContext';
+import { Square } from 'chess.js';
 
 export const VotingPanel: FC = () => {
   const { currChessBoard } = useChessGameContext();
@@ -19,13 +20,19 @@ export const VotingPanel: FC = () => {
   // --- Updates state whenever chessboard UI state changes ---
   const [moveNotation, setMoveNotation] = useState<string>("");
   useEffect(useCallback(() => {
-    setMoveNotation(getAlgebraicNotation(currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.fen));
-  }, [currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.fen]),
-    [currChessBoard.moveTo, currChessBoard.moveFrom, currChessBoard.fen]);
+    if (currChessBoard.moveFrom === null || currChessBoard.moveTo === null) {
+      setMoveNotation("");
+      return;
+    }
+    const algebraicNotation = getAlgebraicNotation(currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.chessGame);
+    setMoveNotation(algebraicNotation);
+  }, [currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.chessGame, currChessBoard.fen]),
+    [currChessBoard.moveTo, currChessBoard.moveFrom, currChessBoard.chessGame, currChessBoard.fen]);
 
   // --- For voting power ---
   const [votingPower, setVotingPower] = useState<number>(0);
   useEffect(useCallback(() => {
+
     // --- No login --> no power ---
     if (walletAddr === "") return;
 
@@ -54,7 +61,7 @@ export const VotingPanel: FC = () => {
           return;
         }
         const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(moveNumRepr);
-        const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.fen);
+        const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
         setUserVotedMove(moveRepr);
       });
     } else {
@@ -83,19 +90,6 @@ export const VotingPanel: FC = () => {
             <RetroDropdown
               text={moveNotation}
               onClick={() => {
-                //todo: get valid moves from betting contract, and make the next item be the next valid move. 
-                // setSelectedMoveIndex((selectedMoveIndex + 1) % validMoves.length);
-                //square = new selected move
-
-                // const newChessBoard = {
-                //   ...currChessBoard,
-                //   moveState: MOVE_STATE.MOVED,
-                //   validMoves: null,
-                //   moveTo: square,
-                // } as MovedBoardState;
-
-                // setCurrChessBoard({ ...newChessBoard });
-                // 
               }}
             />
           </div>
