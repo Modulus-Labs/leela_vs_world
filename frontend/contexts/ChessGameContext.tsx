@@ -18,6 +18,7 @@ import {
 } from '../types/Chess.type';
 import { Chess, Square, Move, validateFen } from 'chess.js';
 import { useContractInteractionContext } from './ContractInteractionContext';
+import { convertUint16SquareToHumanRepr } from '../utils/helpers';
 
 interface ChessGameContextInterface {
   currChessBoard: BoardState;
@@ -55,15 +56,16 @@ export const ChessGameContextProvider = ({
   }
 
   // --- Load the actual board state in from the smart contract upon load ---
-  useEffect(() => {
+  useEffect(useCallback(() => {
     const chessStateRequest = getBoardStateFromChessContract();
     if (chessStateRequest !== null) {
       chessStateRequest.then(([boardState, whiteState, blackState, currentTurnBlack, gameIndex, moveIndex]) => {
         const fen = getFen(boardState.toHexString().substring(2), whiteState, blackState, currentTurnBlack, moveIndex + 1);
-        // console.log(`${boardState.toHexString()}, ${whiteState}, ${blackState}, ${currentTurnBlack}, ${moveIndex}`);
-        // console.log(`Successfully got fen ${fen} from the chess contract!`);
+        console.log(`${boardState.toHexString()}, ${whiteState}, ${blackState}, ${currentTurnBlack}, ${moveIndex}`);
+        console.log(`Successfully got fen ${fen} from the chess contract!`);
         // const newChessGame = new Chess(fen);
         // console.log(`New Chess game with FEN: ${newChessGame.fen()}`);
+        console.log(validateFen(fen));
         setCurrChessBoard({
           fen: fen,
           moveState: MOVE_STATE.IDLE,
@@ -80,13 +82,15 @@ export const ChessGameContextProvider = ({
     } else {
       console.error("Error: Board state from smart contract is null!");
     }
-  }, []);
+  }, []), []);
 
   // --- Set up listeners for when move is made ---
   useEffect(useCallback(() => {
     chessContract.removeAllListeners();
     chessContract.on(chessContract.filters.movePlayed(), (gameState, leelaState, worldState, leelaMove) => {
-      const newFen = getFen(gameState.toHexString().substring(2), worldState, leelaState, leelaMove, currChessBoard.moveIndex + 1);
+      const newFen = getFen(gameState.toHexString().substring(2), worldState, leelaState, !leelaMove, currChessBoard.moveIndex + 1);
+      console.log(`From listener got this FEN: ${newFen}`);
+      console.log(validateFen(newFen));
       const newChessGame = new Chess(newFen);
       setCurrChessBoard((curChessBoard) => {
         return {
@@ -110,13 +114,24 @@ export const ChessGameContextProvider = ({
    * @returns 
    */
   const computeCastlingAndEnPassant = (whiteState: number, blackState: number, currentTurnBlack: boolean): [string, string] => {
-    const whiteKingCorrectPos: boolean = ((whiteState >> 8) & 0xff) === 0x04;
-    const whiteKingRookCorrectPos: boolean = ((whiteState >> 16) & 0xff) == 0x07;
-    const whiteQueenRookCorrectPos: boolean = ((whiteState >> 24) & 0xff) == 0x00;
 
-    const blackKingCorrectPos = ((blackState >> 8) & 0xff) == 0x3c;
-    const blackKingRookCorrectPos = ((blackState >> 16) & 0xff) == 0x3f;
-    const blackQueenRookCorrectPos = ((blackState >> 24) & 0xff) == 0x38;
+    // --- Hints ---
+    // 07: Queenside rook at a1
+    // 00: Kingside rook at h1
+    // 03: King at e1
+    // ff: Enpassant
+    const whiteKingCorrectPos: boolean = ((whiteState >> 8) & 0xff) === 0x03;
+    const whiteKingRookCorrectPos: boolean = ((whiteState >> 16) & 0xff) == 0x00;
+    const whiteQueenRookCorrectPos: boolean = ((whiteState >> 24) & 0xff) == 0x07;
+
+    // --- More hints ---
+    // 3f: Queen-side rook at a8 position
+    // 38: King-side rook at h8 position
+    // 3b: King at e8 position
+    // ff: En-passant at invalid position
+    const blackKingCorrectPos = ((blackState >> 8) & 0xff) == 0x3b;
+    const blackKingRookCorrectPos = ((blackState >> 16) & 0xff) == 0x38;
+    const blackQueenRookCorrectPos = ((blackState >> 24) & 0xff) == 0x3f;
 
     let castling: string = "";
     if (whiteKingCorrectPos && whiteKingRookCorrectPos) {
@@ -136,7 +151,9 @@ export const ChessGameContextProvider = ({
     }
 
     let enPassantSquare: number = (currentTurnBlack ? blackState : whiteState) & 0xff;
-    let enPassant = (enPassantSquare == 0xff ? "-" : enPassantSquare.toString(16));
+    let enPassant = (enPassantSquare == 0xff ? "-" : convertUint16SquareToHumanRepr(enPassantSquare));
+
+    console.log(`Castling: ${castling} | En passant: ${enPassant}`);
 
     return [castling, enPassant];
   }
@@ -158,15 +175,15 @@ export const ChessGameContextProvider = ({
    */
   const getFen = (gameState: string, whiteState: number, blackState: number, currentTurnBlack: boolean, moveIndex: number) => {
 
-    // console.log(`Game state is: ${gameState}`);
+    console.log(`Game state is: ${gameState}`);
     // console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
 
     // --- Processing the board itself ---
     let ret = "";
-    for (let c = 0; c < 8; c++) {
+    for (let row = 0; row < 8; row++) {
       let numSpaces = 0;
-      for (let r = 0; r < 8; r++) {
-        if (gameState.charAt(c * 8 + r) != '0') {
+      for (let col = 0; col < 8; col++) {
+        if (gameState.charAt(row * 8 + col) != '0') {
           if (numSpaces > 0) {
             ret += numSpaces.toString();
             numSpaces = 0;
@@ -175,7 +192,7 @@ export const ChessGameContextProvider = ({
           numSpaces += 1;
           continue;
         }
-        switch (gameState.charAt(c * 8 + r)) {
+        switch (gameState.charAt(row * 8 + col)) {
           case '1':
             ret += 'P';
             break;
@@ -221,30 +238,37 @@ export const ChessGameContextProvider = ({
       ret += '/';
     }
     ret = ret.slice(0, -1);
+    console.log(`Ret so far 1: ${ret}`);
 
     // --- Whose turn it is ---
     const currMove = currentTurnBlack ? "b" : "w";
     ret += ' ' + currMove;
+    console.log(`Ret so far 2: ${ret}`);
 
     // --- Castling privileges + enpassant square ---
-    const [castling, enpassant] = computeCastlingAndEnPassant(whiteState, blackState, currentTurnBlack);
+    const [castling, enpassant] = computeCastlingAndEnPassant(whiteState, blackState, !currentTurnBlack);
+    console.log(`Got this from computing: ${castling} | ${enpassant}`);
     ret += ' ' + castling;
+    console.log(`Ret so far 3: ${ret}`);
     ret += ' ' + enpassant;
+    console.log(`Ret so far 3.5: ${ret}`);
 
     // --- Halfmove clock ---
     // TODO(ryancao): Are we doing 50-move rule or not?
     ret += ' 0';
+    console.log(`Ret so far 4: ${ret}`);
 
     // --- Fullmove index ---
     ret += ' ' + moveIndex.toString();
 
+    console.log(`Ret so far 5: ${ret}`);
     return ret.toString();
   }
 
   const getInitialBoardState = () => {
-    const initialGameState = "cbaedabc99999999000000000000000000000000000000001111111143265234";
-    const initialWhiteState = 0x000704ff;
-    const initialBlackState = 0x383f3cff;
+    const initialGameState = "cbadeabc99999999000000000000000000000000000000001111111143256234";
+    const initialWhiteState = 0x070003ff;
+    const initialBlackState = 0x3f383bff;
     const initialFen = getFen(initialGameState, initialWhiteState, initialBlackState, false, 1);
     const ret: BoardState = {
       fen: initialFen,

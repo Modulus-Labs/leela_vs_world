@@ -53,38 +53,80 @@ interface IChess {
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function checkBishopValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function checkRookValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function checkKnightValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function checkPawnValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState,
         uint32 opponentState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function checkKingValidMoves(
         uint256 gameState,
         uint8 fromPos,
         uint32 playerState
-    ) external view returns (bool, uint16[] memory, uint8);
+    )
+        external
+        view
+        returns (
+            bool,
+            uint16[] memory,
+            uint8
+        );
 
     function searchPiece(
         uint256 gameState,
@@ -145,7 +187,7 @@ interface IChess {
 
     function pieceAtPosition(uint256 gameState, uint8 pos)
         external
-        pure
+        view
         returns (uint8);
 
     function getLegalMoves() external returns (uint16[] memory);

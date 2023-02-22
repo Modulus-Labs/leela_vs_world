@@ -43,12 +43,12 @@ const ContractInteractionContext = createContext<IContractInteractionContext | u
  */
 const getEthersProvider = (address?: string): ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider => {
   // --- Polygon testnet (Mumbai) Alchemy link ---
-  // require('dotenv').config();
-  // const { API_KEY, PRIVATE_KEY } = process.env;
+  require('dotenv').config();
+  const { API_KEY } = process.env;
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
   // const API_URL = "http://127.0.0.1:8545/";
-  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/${API_KEY}`;
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
@@ -78,6 +78,7 @@ const getBettingContract = (address: string, alternateProvider?: ethers.provider
 }
 
 const getChessContract = (address: string, alternateProvider?: ethers.providers.Web3Provider): Chess => {
+
   // --- If we have a Web3Provider AFTER user has logged in with Metamask ---
   if (alternateProvider !== undefined) {
     let chessContract = Chess__factory.connect(addresses.CHESS_CONTRACT_ADDR, alternateProvider);

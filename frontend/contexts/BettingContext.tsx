@@ -145,7 +145,7 @@ export const BettingContextProvider = ({
   // --- For the move leaderboard display ---
   const { currChessBoard } = useChessGameContext();
   const [leaderboardMoves, setLeaderboardMoves] = useState<ChessLeaderboardMove[]>([]);
-  useEffect(useCallback(() => {
+  const getLeaderboardMoveFn = () => {
     const moveLeaderboardRequest = getMoveLeaderboardStateFromBettingContract();
     if (moveLeaderboardRequest !== null) {
       moveLeaderboardRequest.then(([moves, numVotesPerMove]) => {
@@ -180,7 +180,8 @@ export const BettingContextProvider = ({
     } else {
       console.error("Error: move leaderboard request returned null!");
     }
-  }, []), []);
+  }
+  useEffect(useCallback(getLeaderboardMoveFn, []), []);
 
   // --- Whichever move the user has already potentially voted for ---
   const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
@@ -258,8 +259,22 @@ export const BettingContextProvider = ({
         console.log(`Just voted! Setting our selected move to ${leaderboardMoveRepr}`);
         setUserVotedMove(leaderboardMoveRepr);
       }
-
     });
+
+    // --- Leela just played a move! Reset all our stuff ---
+    bettingContract.on(bettingContract.filters.leelaMovePlayed(), (leelaMove) => {
+      console.log(`Leela just played a move! Move: ${leelaMove}`);
+      // --- Grab the move leaderboard again ---
+      getLeaderboardMoveFn();
+      // --- Also reset what we voted for ---
+      setUserVotedMove("");
+    });
+
+    bettingContract.on(bettingContract.filters.worldMovePlayed(), (worldMove) => {
+      console.log(`The world just played a move! Move: ${worldMove}`);
+      // TODO(ryancao): Make the game state a "Leela is thinking" state
+    })
+
   }, [bettingContract]), [bettingContract]);
 
   // --- For not allowing the user to submit another move once they've done so already ---

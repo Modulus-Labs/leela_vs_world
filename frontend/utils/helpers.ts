@@ -34,6 +34,18 @@ export function convertUint16ReprToMoveStrings(uint16MoveRepr: number): [Square,
 }
 
 /**
+ * Converts a single square int (for en passant) back into a human-readable move
+ * (e.g. "E4")
+ * @param uint16SquareRepr 
+ * @returns 
+ */
+export function convertUint16SquareToHumanRepr(uint16SquareRepr: number): Square {
+  const col = 7 - (uint16SquareRepr & 0x7);
+  const row = (uint16SquareRepr >> 3) & 0x7;
+  return String.fromCharCode("a".charCodeAt(0) + col) + `${row + 1}` as Square;
+}
+
+/**
  * Returns the contract move representation notation.
  * @param moveFrom
  * @param moveTo

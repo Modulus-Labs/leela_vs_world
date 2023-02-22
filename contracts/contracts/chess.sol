@@ -33,8 +33,14 @@ contract Chess is Ownable, IChess {
                     07: King-side rook at h1 position
                     04: King at e1 position
                     ff: En-passant at invalid position
+
+                    // --- Ryan's edits ---
+                    07: Queenside rook at a1
+                    00: Kingside rook at h1
+                    03: King at e1
+                    ff: Enpassant
         */
-    uint32 public whiteState = 0x000704ff;
+    uint32 public whiteState = 0x070003ff;
 
     /** @dev    Initial black state:
                     
@@ -42,8 +48,14 @@ contract Chess is Ownable, IChess {
                     3f: King-side rook at h8 position
                     3c: King at e8 position
                     ff: En-passant at invalid position
+
+                    // --- Ryan's edits ---
+                    3f: Queen-side rook at a8 position
+                    38: King-side rook at h8 position
+                    3b: King at e8 position
+                    ff: En-passant at invalid position
         */
-    uint32 public blackState = 0x383f3cff;
+    uint32 public blackState = 0x3f383bff;
 
     uint8 constant empty_const = 0x0;
     uint8 constant pawn_const = 0x1; // 001
@@ -86,9 +98,11 @@ contract Chess is Ownable, IChess {
     uint8 constant draw_outcome = 0x1;
     uint8 constant white_win_outcome = 0x2;
     uint8 constant black_win_outcome = 0x3;
-    /// @dev the game state is stored as 64 4 bit integers representing pieces. The game board iterates A8-H8, A7-H7, ... , A1-H1.
+    /// @dev the game state is stored as 64 4 bit integers representing pieces.
+    // The game board iterates A8-H8, A7-H7, ... , A1-H1.
+    // 0xcbadeabc99999999000000000000000000000000000000001111111143256234;
     uint256 constant game_state_start =
-        0xcbaedabc99999999000000000000000000000000000000001111111143265234;
+        0xcbadeabc99999999000000000000000000000000000000001111111143256234;
 
     uint256 constant full_long_word_mask =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -128,8 +142,8 @@ contract Chess is Ownable, IChess {
         moveIndex = 0; // resets the move index
 
         // --- Leela is always playing black ---
-        whiteState = 0x000704ff;
-        blackState = 0x383f3cff;
+        whiteState = 0x070003ff;
+        blackState = 0x3f383bff;
 
         // --- Store the initial board state ---
         boardState = game_state_start;
@@ -314,6 +328,7 @@ contract Chess is Ownable, IChess {
         } else {
             revert("Inv move type");
         }
+
         require(newGameState != invalid_move_constant, "Invalid move: ");
         if (toPos == (opponentState & en_passant_const)) {
             if (currentTurnBlack) {
@@ -344,9 +359,6 @@ contract Chess is Ownable, IChess {
         uint256 gameState = boardState;
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
-        console.log("Alrighty we're here");
-        console.log(fromPos);
-        console.log(toPos);
         uint32 playerState;
         uint32 opponentState;
         if (currentTurnBlack) {
@@ -418,6 +430,10 @@ contract Chess is Ownable, IChess {
     ) public view returns (uint256 newGameState, uint32 newPlayerState) {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
+        // console.log("From pos is");
+        // console.log(fromPos);
+        // console.log("To pos is");
+        // console.log(toPos);
         uint8 moveExtra = queen_const;
         newPlayerState = playerState;
         if (toPos > 64) {
@@ -432,6 +448,11 @@ contract Chess is Ownable, IChess {
             Math.max(fromPos, toPos) - Math.min(fromPos, toPos)
         );
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
+        // console.log("Piece to position is ");
+        // console.log(pieceToPosition);
+        // uint8 pieceFromPosition = pieceAtPosition(gameState, fromPos);
+        // console.log("Piece from position is");
+        // console.log(pieceFromPosition);
 
         if (diff == 8 || diff == 16) {
             if (pieceToPosition != 0) {
@@ -439,6 +460,7 @@ contract Chess is Ownable, IChess {
                 return (invalid_move_constant, 0x0);
             }
             if (diff == 16) {
+                console.log("Should be getting here for E2E4");
                 if (
                     (currentTurnBlack && ((fromPos >> 3) != 0x6)) ||
                     (!currentTurnBlack && ((fromPos >> 3) != 0x1))
