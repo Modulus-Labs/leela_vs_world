@@ -372,6 +372,25 @@ contract BettingGame is Ownable {
         // startVoteTimer();
     }
 
+    /**
+     * NOTE: This is just for testing!! Will remove in full version.
+     */
+    function manualLeelaMove(uint16 manualMove) public onlyOwner {
+        chess.playMove(manualMove);
+        moveIndex++;
+        uint8 isGameEnded = chess.checkEndgame();
+        if (isGameEnded != 0) {
+            updateAccounts(true);
+            emit leelaMovePlayed(leelaMove);
+            emit gameEnd(true);
+            resetGame();
+            return;
+        }
+        emit leelaMovePlayed(leelaMove);
+        leelaTurn = false;
+        startVoteTimer();
+    }
+
     function giveLeelaLegalMoves() public {
         require(leelaTurn == true);
         uint16[] memory legalMoves = chess.getLegalMoves();
@@ -396,7 +415,6 @@ contract BettingGame is Ownable {
         }
         emit leelaMovePlayed(leelaMove);
         leelaTurn = false;
-
         startVoteTimer();
     }
 

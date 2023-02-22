@@ -99,8 +99,8 @@ contract Chess is Ownable, IChess {
     // TODO past game states on the chess side?
     event movePlayed(
         uint256 gameState,
-        uint256 leela_state,
-        uint256 world_state,
+        uint32 leela_state,
+        uint32 world_state,
         bool leelaMove
     );
     event check(); // stretch goal?
@@ -2046,7 +2046,7 @@ contract Chess is Ownable, IChess {
         @dev Gets the piece at a given position in the current gameState.
              Behavior is undefined for position values greater than 0x3f
         @param gameState current game state
-        @param pos is the position to get the piece: 6-bit var, 3-bit word, high word = COL, low word = ROW.
+        @param pos is the position to get the piece: 6-bit var, 3-bit word, high word = ROW, low word = COL.
         @return piece value including color
      */
     function pieceAtPosition(uint256 gameState, uint8 pos)

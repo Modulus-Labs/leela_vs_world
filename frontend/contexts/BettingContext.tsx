@@ -11,7 +11,6 @@ import {
   useState,
 } from 'react';
 import { ChessLeaderboardMove, CHESS_PLAYER } from '../types/Chess.type';
-import { dummyLeaderboardMoves } from '../utils/constants';
 import { convertUint16ReprToMoveStrings, getAlgebraicNotation } from '../utils/helpers';
 import { useChessGameContext } from './ChessGameContext';
 import { useContractInteractionContext } from './ContractInteractionContext';
@@ -24,6 +23,11 @@ interface BettingContextInterface {
   setWorldPrizePoolAmount: Dispatch<SetStateAction<number>>;
   leelaPrizePoolAmount: number;
   setLeelaPrizePoolAmount: Dispatch<SetStateAction<number>>;
+
+  votingPower: number;
+  setVotingPower: Dispatch<SetStateAction<number>>;
+  userVotedMove: string;
+  setUserVotedMove: Dispatch<SetStateAction<string>>;
 
   MAX_PRIZE_POOL: number;
 
@@ -68,7 +72,7 @@ export const BettingContextProvider = ({
 }) => {
 
   // --- For timer above the chessboard ---
-  const [timeToNextMove, setTimeToNextMove] = useState(60 * 10);
+  const [timeToNextMove, setTimeToNextMove] = useState(0);
   useEffect(() => {
     const timerInterval = setInterval(() => {
       setTimeToNextMove((time) => (time - 1 > 0 ? time - 1 : 0));
@@ -79,10 +83,10 @@ export const BettingContextProvider = ({
   // --- For prize pool bar up top ---
   // TODO(ryancao): Convert this into MATIC!
   // TODO(ryancao): Update prize pool when event is emitted!
-  const [worldPrizePoolAmount, setWorldPrizePoolAmount] = useState<number>(0.001);
-  const [leelaPrizePoolAmount, setLeelaPrizePoolAmount] = useState<number>(0.001);
-  useEffect(useCallback(() => {
+  const [worldPrizePoolAmount, setWorldPrizePoolAmount] = useState<number>(0);
+  const [leelaPrizePoolAmount, setLeelaPrizePoolAmount] = useState<number>(0);
 
+  useEffect(useCallback(() => {
     // --- Grabs betting state from contract ---
     const bettingPoolRequest = getBettingPoolStateFromBettingContract();
     if (bettingPoolRequest !== null) {
@@ -117,8 +121,28 @@ export const BettingContextProvider = ({
     });
   }, []), []);
 
+  // --- Contract-related stuff ---
+  const { walletAddr, bettingContract } = useContractInteractionContext();
+
+  // --- For voting power ---
+  const [votingPower, setVotingPower] = useState<number>(0);
+  useEffect(useCallback(() => {
+    // --- No login --> no power ---
+    if (walletAddr === "") return;
+    const userStakeRequest = getUserStakeFromBettingContract();
+    if (userStakeRequest !== undefined) {
+      userStakeRequest.then(([leelaStake, worldStake]) => {
+        const parsedTotal = Number(ethers.utils.formatEther(leelaStake.add(worldStake)));
+        setVotingPower(parsedTotal);
+      }).catch((error) => {
+        console.error(`Error from user stake request: ${error}`);
+      })
+    } else {
+      console.error("Error: Got null from smart contract");
+    }
+  }, [bettingContract]), [bettingContract]);
+
   // --- For the move leaderboard display ---
-  // const chessGameFenRef = useRef<string>("");
   const { currChessBoard } = useChessGameContext();
   const [leaderboardMoves, setLeaderboardMoves] = useState<ChessLeaderboardMove[]>([]);
   useEffect(useCallback(() => {
@@ -131,7 +155,6 @@ export const BettingContextProvider = ({
           const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
           const parsedNumVotes = Number(ethers.utils.formatEther(numVotesPerMove[idx]));
           const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
-          // console.log(moveFrom, moveTo, moveRepr, parsedNumVotes);
           const leaderboardMove: ChessLeaderboardMove = {
             humanRepr: moveRepr,
             stake: parsedNumVotes,
@@ -159,21 +182,110 @@ export const BettingContextProvider = ({
     }
   }, []), []);
 
-  // --- No clue what these are ---
-  // const [playerOption, setPlayerOption] = useState<CHESS_PLAYER>(
-  //   CHESS_PLAYER.LEELA
-  // );
+  // --- Whichever move the user has already potentially voted for ---
   const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
 
-  // --- Contract-related stuff ---
-  const { walletAddr, bettingContractRef } = useContractInteractionContext();
+  // --- Listener stuff ---
+  useEffect(useCallback(() => {
+    console.log("Using the callback to assign a new listener for bettingContractRef!");
+    bettingContract.removeAllListeners();
+
+    // --- Some user added stake to the pool ---
+    bettingContract.on(bettingContract.filters.stakeMade(), async function (player, amt, leelaSide) {
+      console.log(`We just saw a new stake made from player ${player} with amount ${amt} on side ${leelaSide}`);
+      const parsedMaticAmt = Number(ethers.utils.formatEther(amt.toHexString()));
+      // console.log(`Parsed matic amount: ${Number(parsedMaticAmt)}`);
+      if (leelaSide) {
+        // console.log("Updating the leela prize pool");
+        setLeelaPrizePoolAmount(leelaPrizePoolAmount + parsedMaticAmt);
+      } else {
+        // console.log("Updating the world prize pool");
+        setWorldPrizePoolAmount(worldPrizePoolAmount + parsedMaticAmt);
+      }
+      // --- If it's us, update the amount of power we display ---
+      // console.log(`For staking. Player is ${player.toLowerCase()} and walletAddr is ${walletAddr.toLowerCase()}`);
+      if (player.toLowerCase() === walletAddr.toLowerCase()) {
+        // console.log("Yes we're actually here");
+        setVotingPower((curVotingPower) => {
+          return curVotingPower + parsedMaticAmt;
+        })
+      }
+    });
+
+    // --- Some user voted for a move ---
+    bettingContract.on(bettingContract.filters.voteMade(), async function (player, power, move) {
+      console.log(`We just saw a new vote made from player ${player} on move ${move} with power ${power}`);
+      const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
+      const leaderboardMoveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
+      const parsedPower = Number(ethers.utils.formatEther(power.toHexString()));
+
+      // --- Update the leaderboard ---
+      let foundIdx = -1;
+      for (let i = 0; i < leaderboardMoves.length; ++i) {
+        if (leaderboardMoves[i].humanRepr === leaderboardMoveRepr) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      // --- If the current move already exists there ---
+      if (foundIdx >= 0) {
+        console.log("Move already exists! Updating leaderboard now");
+        setLeaderboardMoves((curLeaderboardMoves) => {
+          curLeaderboardMoves[foundIdx].stake += parsedPower;
+          return curLeaderboardMoves;
+        });
+      }
+
+      // --- Otherwise, add it ---
+      else {
+        console.log("Move doesn't yet exist! Updating leaderboard now");
+        const newLeaderboardMove: ChessLeaderboardMove = {
+          humanRepr: leaderboardMoveRepr,
+          stake: parsedPower,
+          ID: leaderboardMoves.length,
+        }
+        setLeaderboardMoves((curLeaderboardMoves) => {
+          curLeaderboardMoves = curLeaderboardMoves.concat([newLeaderboardMove]);
+          curLeaderboardMoves.sort(compareMoves);
+          return curLeaderboardMoves;
+        });
+      }
+
+      // --- If it's us, update the move we voted for ---
+      console.log(`Okay hang on now. Player is ${player.toLowerCase()} and walletAddr is ${walletAddr.toLowerCase()}`);
+      if (player.toLowerCase() === walletAddr.toLowerCase()) {
+        console.log(`Just voted! Setting our selected move to ${leaderboardMoveRepr}`);
+        setUserVotedMove(leaderboardMoveRepr);
+      }
+
+    });
+  }, [bettingContract]), [bettingContract]);
+
+  // --- For not allowing the user to submit another move once they've done so already ---
+  const [userVotedMove, setUserVotedMove] = useState<string>("");
+  useEffect(useCallback(() => {
+    if (walletAddr !== "") {
+      const getUserVotedMoveRequest = getUserVotedMove();
+      getUserVotedMoveRequest?.then((moveNumRepr) => {
+        if (moveNumRepr === 0) {
+          return;
+        }
+        const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(moveNumRepr);
+        const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
+        setUserVotedMove(moveRepr);
+      });
+    } else {
+      setUserVotedMove("");
+    }
+  }, [bettingContract]), [bettingContract]);
 
   /**
    * Grabs the pool state + timer from the betting contract.
    * This does NOT require the user to be logged in!
    */
   const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> => {
-    const bettingGamePoolRequest = bettingContractRef.current.getFrontEndPoolState();
+    const bettingGamePoolRequest = bettingContract.getFrontEndPoolState();
     return bettingGamePoolRequest;
   }
 
@@ -183,7 +295,7 @@ export const BettingContextProvider = ({
    * @returns 
    */
   const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> => {
-    const bettingGamePoolRequest = bettingContractRef.current.getCurMovesAndVotes();
+    const bettingGamePoolRequest = bettingContract.getCurMovesAndVotes();
     return bettingGamePoolRequest;
   }
 
@@ -192,7 +304,7 @@ export const BettingContextProvider = ({
    * @returns 
    */
   const getLastLeelaMove = (): Promise<number> => {
-    const leelaLastMoveRequest = bettingContractRef.current.leelaMove();
+    const leelaLastMoveRequest = bettingContract.leelaMove();
     return leelaLastMoveRequest;
   }
 
@@ -204,7 +316,7 @@ export const BettingContextProvider = ({
    */
   const getUserStakeFromBettingContract = (): Promise<[BigNumber, BigNumber]> | undefined => {
     if (walletAddr === "") return;
-    const userStakeRequest = bettingContractRef.current.getUserStakeState(walletAddr, { gasLimit: 1e7 });
+    const userStakeRequest = bettingContract.getUserStakeState(walletAddr, { gasLimit: 1e7 });
     return userStakeRequest;
   }
 
@@ -216,7 +328,7 @@ export const BettingContextProvider = ({
    */
   const voteForMove = (move: number) => {
     if (walletAddr === "") return;
-    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { maxPriorityFeePerGas: 1e10, maxFeePerGas: 1e11, gasLimit: 1e7 });
+    const voteWorldMoveRequest = bettingContract.voteWorldMove(move, { maxPriorityFeePerGas: 1e10, maxFeePerGas: 1e11, gasLimit: 1e7 });
     return voteWorldMoveRequest;
   }
 
@@ -226,7 +338,7 @@ export const BettingContextProvider = ({
    */
   const getUserVotedMove = (): Promise<number> | undefined => {
     if (walletAddr === "") return;
-    const userVotedMoveRequest = bettingContractRef.current.userVotedMove();
+    const userVotedMoveRequest = bettingContract.userVotedMove();
     return userVotedMoveRequest;
   }
 
@@ -237,7 +349,7 @@ export const BettingContextProvider = ({
    */
   const voteWorldMove = (move: number) => {
     if (walletAddr === "") return;
-    const voteWorldMoveRequest = bettingContractRef.current.voteWorldMove(move, { gasLimit: 1e7 });
+    const voteWorldMoveRequest = bettingContract.voteWorldMove(move, { maxPriorityFeePerGas: 1e10, maxFeePerGas: 1e11, gasLimit: 1e7 });
     return voteWorldMoveRequest;
   }
 
@@ -249,10 +361,8 @@ export const BettingContextProvider = ({
    */
   const addStake = (amount: number, betOnLeela: boolean) => {
     if (walletAddr === "") return;
-    // const parsedAmt = ethers.utils.parseUnits(amount.toString(), "ether");
-    // console.log(`Okay we're doing this much MATIC, apparently: ${parsedAmt}`);
     console.log(`Okay we're doing this much MATIC, apparently: ${amount}`);
-    const addStakeRequest = bettingContractRef.current.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseEther("0.010") });
+    const addStakeRequest = bettingContract.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseEther(`${amount}`) });
     return addStakeRequest;
   }
 
@@ -272,6 +382,10 @@ export const BettingContextProvider = ({
         selectedMoveIndex,
         setSelectedMoveIndex,
         prevMove,
+        votingPower,
+        setVotingPower,
+        userVotedMove,
+        setUserVotedMove,
 
         // --- Public Functions ---
         getBettingPoolStateFromBettingContract,

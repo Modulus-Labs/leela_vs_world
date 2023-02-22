@@ -14,36 +14,18 @@ export const SquaresOverlay: FC = () => {
     useChessGameContext();
 
   const [BoardGrid, setBoardGrid] = useState<JSX.Element[]>([]);
-  // const chessJsRef = useRef<Chess>(new Chess(currChessBoard.fen));
-
-  // const chess = new Chess(currChessBoard.fen);
-
-  // --- Update the board state from the smart contract ---
-  // TODO(ryancao): Is this usage correct?
-  // useEffect(useCallback(() => {
-  //   getBoardStateFromChessContract().then((result) => {
-  //     console.log(`Got board state from chess contract: ${result}`);
-  //   }).catch((error) => {
-  //     console.error(`Error within getting the board state from chess contract: ${error}`);
-  //   });
-  // }, []), []);
 
   const handleBoardSquareClick = (square: Square) => {
-    console.log('handleBoardSquareClick', square.toString());
     const { moveState, moveFrom, moveTo, validMoves, fen } = currChessBoard;
-    console.log(moveState, moveFrom, moveTo, validMoves, fen);
+    // console.log(moveState, moveFrom, moveTo, validMoves, fen);
 
     if (moveState === MOVE_STATE.IDLE) {
-      console.log('idle');
       // If the square is occupied by a piece => start a move
       if (currChessBoard.chessGame.get(square)) {
         resetMove();
         startMove(square);
-      } else {
-        console.log("Skipping LOL");
       }
     } else if (moveState === MOVE_STATE.MOVING) {
-      // console.log('moving');
       if (validMoves === null) {
         resetMove();
       } else if (moveFrom === square) {
@@ -60,7 +42,6 @@ export const SquaresOverlay: FC = () => {
         }
       }
     } else if (moveState === MOVE_STATE.MOVED) {
-      console.log('moved');
       if (moveTo === square) {
         resetMove();
       }

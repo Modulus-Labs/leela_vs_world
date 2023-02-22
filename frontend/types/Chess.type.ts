@@ -19,6 +19,7 @@ export interface IdleBoardState {
   moveTo: null;
   validMoves: null;
   chessGame: Chess;
+  moveIndex: number;
 }
 
 export interface MovingBoardState {
@@ -28,6 +29,7 @@ export interface MovingBoardState {
   moveTo: null;
   validMoves: Square[];
   chessGame: Chess;
+  moveIndex: number;
 }
 
 export interface MovedBoardState {
@@ -37,6 +39,7 @@ export interface MovedBoardState {
   moveTo: Square;
   validMoves: null;
   chessGame: Chess;
+  moveIndex: number;
 }
 
 export type BoardState = IdleBoardState | MovingBoardState | MovedBoardState;

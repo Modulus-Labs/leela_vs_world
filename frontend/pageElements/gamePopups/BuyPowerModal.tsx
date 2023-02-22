@@ -7,7 +7,7 @@ import { useContractInteractionContext } from '../../contexts/ContractInteractio
 import { GamePopup } from './GamePopup';
 
 // --- TODO(ryancao): Change this to 1 MATIC for mainnet ---
-const MIN_STAKE_AMT = 0.1;
+const MIN_STAKE_AMT = 0.01;
 
 const ButtonVariants: Variants = {
   initial: {
@@ -74,13 +74,16 @@ export const GameDetails: FC = () => {
   const buyPower = (betOnLeela: boolean) => {
     try {
       const numberPowerAmount = Number(powerAmount);
-      console.log(`Buying ${numberPowerAmount} power, betting on Leela`);
+      console.log(`Buying ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}`);
       if (numberPowerAmount < MIN_STAKE_AMT) {
         openModalWithOptions(`Error: cannot buy less than ${MIN_STAKE_AMT} MATIC worth of power!`, true);
         return;
       }
-      addStake(numberPowerAmount, betOnLeela)?.then((result) => {
-        openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on Leela!`, true);
+
+      addStake(numberPowerAmount, betOnLeela)?.then(async (result) => {
+        openModalWithOptions(`Processing... (You bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"})`, false);
+        const receipt = await result.wait();
+        openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}!`, true);
         setShowGameDetails(false);
       }).catch((error) => {
         if (error.message.includes("user rejected transaction")) {
@@ -90,6 +93,7 @@ export const GameDetails: FC = () => {
         }
         console.error(`Oof: ${error.message}`);
       });
+
     } catch (error: any) {
       openModalWithOptions(`Error in buying power: ${error}`, true);
     }

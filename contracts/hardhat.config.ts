@@ -4,7 +4,7 @@ import "hardhat-gas-reporter";
 // import "hardhat-tracer";
 // import 'hardhat-contract-sizer';
 require('dotenv').config();
-// require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-ethers");
 
 const { API_URL, PRIVATE_KEY } = process.env;
 const config: HardhatUserConfig = {

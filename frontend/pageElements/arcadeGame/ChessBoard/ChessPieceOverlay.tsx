@@ -1,7 +1,7 @@
-import { Chess, Square } from 'chess.js';
+import { Chess, Piece, Square } from 'chess.js';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { FC } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useChessGameContext } from '../../../contexts/ChessGameContext';
 
 type ChessPieceOverlayProps = {
@@ -16,10 +16,17 @@ export const ChessPieceOverlay: FC<ChessPieceOverlayProps> = ({
   square,
 }) => {
   const { currChessBoard } = useChessGameContext();
+  const [piece, setPiece] = useState<Piece>(currChessBoard.chessGame.get(square));
 
-  const piece = currChessBoard.chessGame.get(square);
+  // --- Update the piece ---
+  useEffect(useCallback(() => {
+    setPiece(currChessBoard.chessGame.get(square));
+  }, [currChessBoard]), [currChessBoard]);
 
-  if (!piece) return null;
+  if (!piece) {
+    // console.log(`No piece on square ${square}`);
+    return null;
+  }
 
   return (
     <div

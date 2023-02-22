@@ -8,13 +8,13 @@ describe("Unit Tests: Leela Vs. World", function () {
     describe("Deployement tests", function () {
 
         it("Testing deployment of leela contract", async function () {
-            const leela = await hre.ethers.getContractFactory("Leela");
+            const leela = await ethers.getContractFactory("Leela");
             const leelaDep = await leela.deploy();
             await leelaDep.deployed();
         })
 
         it("Testing deployment of chess contract", async function () {
-            const chess = await hre.ethers.getContractFactory("Chess");
+            const chess = await ethers.getContractFactory("Chess");
             const [owner] = await ethers.getSigners();
             const chessGame = await chess.deploy(owner.getAddress());
             await chessGame.deployed();
@@ -23,16 +23,16 @@ describe("Unit Tests: Leela Vs. World", function () {
         it("Testing deployment of betting contract", async function () {
             const [owner] = await ethers.getSigners();
             //need leela contract deployed
-            const leela = await hre.ethers.getContractFactory("Leela");
+            const leela = await ethers.getContractFactory("Leela");
             const leelaDep = await leela.deploy();
 
             //then betting contract...
-            const betting = await hre.ethers.getContractFactory("BettingGame");
+            const betting = await ethers.getContractFactory("BettingGame");
             const bettingGame = await betting.deploy();
             await bettingGame.deployed();
 
             //need chess contract deployed
-            const chess = await hre.ethers.getContractFactory("Chess");
+            const chess = await ethers.getContractFactory("Chess");
             const chessGame = await chess.deploy(bettingGame.address);
             await chessGame.deployed();
         })
@@ -43,7 +43,7 @@ describe("Unit Tests: Leela Vs. World", function () {
 
         async function deployContractAndInitialize() {
             //depolying contract
-            const leela = await hre.ethers.getContractFactory("Leela");
+            const leela = await ethers.getContractFactory("Leela");
             const leelaDep = await leela.deploy();
             await leelaDep.deployed();
 
@@ -72,16 +72,16 @@ describe("Unit Tests: Leela Vs. World", function () {
 
         async function deployContractAndInitialize() {
             //need leela contract deployed
-            const leela = await hre.ethers.getContractFactory("Leela");
+            const leela = await ethers.getContractFactory("Leela");
             const leelaDep = await leela.deploy();
 
             //then betting contract...
-            const betting = await hre.ethers.getContractFactory("BettingGame");
+            const betting = await ethers.getContractFactory("BettingGame");
             const bettingGame = await betting.deploy();
             await bettingGame.deployed();
 
             //then chess contract...
-            const chess = await hre.ethers.getContractFactory("Chess");
+            const chess = await ethers.getContractFactory("Chess");
             const chessGame = await chess.deploy(bettingGame.address);
             await chessGame.deployed();
 

@@ -1,23 +1,19 @@
 import { ethers } from "ethers";
-// import emoji from "node-emoji";
 
 // --- TODO(ryancao): Figure out what these contract addresses are ---
-/** THIS IS FOR POLYGON TESTNET (MUMBAI)
- * Compiled 10 Solidity files successfully
- * Leela Contract deployed to address:  0x053dA459937fbF9051dB05DeeCE408ee05C496bA
- * Betting Contract deployed to address:  0xF726450B8bfe55Da3ADe09171958791E810b3EE4
- * Chess Contract deployed to address:  0xfb1Ba163aB7551dEEb0819184EF9615b2cBb0E1b
- * 
- * THIS IS FOR LOCALHOST NETWORK
-Leela Contract deployed to address:  0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
-Betting Contract deployed to address:  0x610178dA211FEF7D417bC0e6FeD39F05609AD788
-Chess Contract deployed to address:  0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
- */
+// --- Polygon testnet ---
 const config = {
-  LEELA_CONTRACT_ADDR: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  BETTING_CONTRACT_ADDR: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-  CHESS_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  LEELA_CONTRACT_ADDR: "0x9E18aDc813d6b5b033d16AfE8C44C879B174c434",
+  BETTING_CONTRACT_ADDR: "0xCEf7acD91D1385E6e7142d90d8831e468489d5D8",
+  CHESS_CONTRACT_ADDR: "0x89510ce94Ab5491740eF3B05206C5488295b6f89",
 }
+
+// --- Localhost ---
+// const config = {
+//   LEELA_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+//   BETTING_CONTRACT_ADDR: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+//   CHESS_CONTRACT_ADDR: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+// }
 
 /**
  * Hook up against chess contract:
@@ -42,10 +38,10 @@ const getEthersProvider = () => {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
-  // const API_URL = "http://127.0.0.1:8545/";
+  const API_URL = "http://127.0.0.1:8545/";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
@@ -239,22 +235,24 @@ export const connectWallet = async () => {
         });
         console.log(`Swapped chain: ${swappedChain}`);
       } catch (error: any) {
-        // TODO(ryancao): Allow user to add the Polygon chain to their wallet
-        // if (error.code === 4902) {
-        //   try {
-        //     await window.ethereum.request({
-        //       method: 'wallet_addEthereumChain',
-        //       params: [
-        //         {
-        //           chainId: '0x61',
-        //           rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
-        //         },
-        //       ],
-        //     });
-        //   } catch (addError) {
-        //     console.error(addError);
-        //   }
-        // }
+        // TODO(ryancao): Check that this works!
+        if (error.code === 4902) {
+          try {
+            await window.ethereum.request({
+              // @ts-ignore (not sure why this isn't considered a function)
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x61',
+                  // @ts-ignore (change this to mainnet!)
+                  rpcUrl: "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo",
+                },
+              ],
+            });
+          } catch (addError) {
+            console.error(addError);
+          }
+        }
         console.error(error);
       }
 
@@ -264,15 +262,13 @@ export const connectWallet = async () => {
         method: "eth_requestAccounts",
       });
 
-      // --- Getting the actual provider ---
+      // --- Getting the actual provider which works on Polygon Mumbai ---
+      // TODO(ryancao): Switch this to mainnet
       const polygonMumbai = {
         name: "maticmum",
         chainId: 80001
       };
-      // const API_KEY = "C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
-      // const alchemyProvider = new ethers.providers.AlchemyProvider(polygonMumbai, API_KEY);
-      // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
-      // let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
+      // @ts-ignore
       const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
 
       const obj = {

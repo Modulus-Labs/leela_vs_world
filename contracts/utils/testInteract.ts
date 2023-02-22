@@ -1,3 +1,4 @@
+// @ts-ignore (yeah no idea why I have to do this)
 import { ethers } from "hardhat";
 import { BettingGame__factory } from "../typechain-types";
 import { Chess__factory } from "../typechain-types";
@@ -13,10 +14,20 @@ import { Chess__factory } from "../typechain-types";
 // --- For Polygon Mumbai ---
 // TODO(ryancao): Change these to mainnet!
 const config = {
-  LEELA_CONTRACT_ADDR: "0x4E7d06478930b646D886FfD49bE757BbA4945A7d",
-  BETTING_CONTRACT_ADDR: "0x55Ad445A5801c63B89dab3283F10A1486C0dDB00",
-  CHESS_CONTRACT_ADDR: "0x879bc79683F073EE52e9aA01a638f27CD3931135",
+  LEELA_CONTRACT_ADDR: "0x9E18aDc813d6b5b033d16AfE8C44C879B174c434",
+  BETTING_CONTRACT_ADDR: "0xCEf7acD91D1385E6e7142d90d8831e468489d5D8",
+  CHESS_CONTRACT_ADDR: "0x89510ce94Ab5491740eF3B05206C5488295b6f89",
 }
+
+// --- For localhost ---
+// const config = {
+//   LEELA_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+//   BETTING_CONTRACT_ADDR: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+//   CHESS_CONTRACT_ADDR: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+// }
+// Betting contract deployed to 0x5FbDB2315678afecb367f032d93F642f64180aa3
+// Chess contract deployed to 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+// Leela/validator contract deployed to 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
 
 /**
  * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
@@ -59,9 +70,9 @@ const getEthersProvider = () => {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  // const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
+  const API_URL = "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo";
   // console.log(`API URL IS: ${API_URL}`);
-  const API_URL = "http://127.0.0.1:8545/";
+  // const API_URL = "http://127.0.0.1:8545/";
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
@@ -75,9 +86,10 @@ const initializeLocalChessContractDeployment = async () => {
   // Also start voting timer
   const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
   await bettingContract.initialize(config.CHESS_CONTRACT_ADDR, config.LEELA_CONTRACT_ADDR, 1000, { gasLimit: 1e7 });
+  await bettingContract.setVotePeriod(60);
   await bettingContract.startVoteTimer();
 
-  const ryanAcc = ethersProvider.getSigner("0xD39511C7B8B15C58Fe71Bcfd430c1EB3ed94ff25");
+  // const ryanAcc = ethersProvider.getSigner("0xD39511C7B8B15C58Fe71Bcfd430c1EB3ed94ff25");
   // const bettingContractFromRyanView = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ryanAcc);
   // const [moves, votes] = await bettingContractFromRyanView.getCurMovesAndVotes({ gasLimit: 1e7 });
   // const [pool1, pool2, timer] = await bettingContractFromRyanView.getFrontEndPoolState({ gasLimit: 1e7 });
@@ -85,8 +97,10 @@ const initializeLocalChessContractDeployment = async () => {
   // console.log(`From betting contract pool state: ${pool1}, ${pool2}, ${timer}`);
 
   // --- Try and grab the current board state from the contract ---
-  const chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
-  // await chessContract.initializeGame();
+  // const chessContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, owner);
+  // const request = await chessContract.initializeGame();
+  // const receipt = await request.wait();
+  // console.log(receipt);
   // const boardState = await chessContract.boardState();
   // console.log(`Board state is: ${boardState}`);
 
@@ -95,6 +109,44 @@ const initializeLocalChessContractDeployment = async () => {
   // console.log(totalWorldShares);
   // const timeLeft = await bettingContract.getTimeLeft({ gasLimit: 1e7 });
   console.log("Finished!");
+}
+
+const testAddStake = async () => {
+  // --- Setup ---
+  const ethersProvider = getEthersProvider();
+  console.log(`Uh the polling interval is ${ethersProvider.pollingInterval}`);
+  // const [dummyOwner, dummyAccount2, dummyAccount3] = await ethers.getSigners();
+  // const owner = ethersProvider.getSigner(dummyOwner.address);
+  // const account2 = ethersProvider.getSigner(dummyAccount2.address);
+  // const account3 = ethersProvider.getSigner(dummyAccount3.address);
+  // const owner = ethersProvider.getSigner("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+  // const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+  const bettingContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+
+  bettingContract.on(bettingContract.filters.stakeMade(), (player, amt, leelaSide) => {
+    console.log(`Got a stake made event!`);
+    console.log(`From player ${player} with power ${amt} on Leela side: ${leelaSide}`);
+  });
+
+  // const addStakeRequest = await bettingContract.addStake(false, { value: ethers.utils.parseEther("0.01"), gasLimit: 1e7 });
+  // const receipt = await addStakeRequest.wait();
+  // if (receipt.events !== undefined) {
+  //   for (const event of receipt.events) {
+  //     console.log(`Event ${event.event} with args ${event.args}`);
+  //   }
+  // }
+
+  // const addStakeRequest2 = await bettingContract.addStake(true, { value: ethers.utils.parseEther("0.02"), gasLimit: 1e7 });
+  // const receipt2 = await addStakeRequest2.wait();
+  // if (receipt2.events !== undefined) {
+  //   for (const event of receipt2.events) {
+  //     console.log(`Event ${event.event} with args ${event.args}`);
+  //   }
+  // }
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  await sleep(100000);
+  console.log("All done!");
 }
 
 const addStateToLocalChessContractDeployment = async () => {
@@ -177,12 +229,17 @@ const readStateFromContracts = async () => {
 //   process.exit(1);
 // });
 
+testAddStake().then(() => process.exit(0)).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+
 // addStateToLocalChessContractDeployment().then(() => process.exit(0)).catch((error) => {
 //   console.error(error);
 //   process.exit(1);
 // });
 
-readStateFromContracts().then(() => process.exit(0)).catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// readStateFromContracts().then(() => process.exit(0)).catch((error) => {
+//   console.error(error);
+//   process.exit(1);
+// });

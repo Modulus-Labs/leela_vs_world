@@ -16,7 +16,7 @@ import {
   MOVE_STATE,
   MovingBoardState,
 } from '../types/Chess.type';
-import { Chess, Square, Move } from 'chess.js';
+import { Chess, Square, Move, validateFen } from 'chess.js';
 import { useContractInteractionContext } from './ContractInteractionContext';
 
 interface ChessGameContextInterface {
@@ -41,14 +41,14 @@ export const ChessGameContextProvider = ({
 }) => {
 
   // --- For contract-specific things ---
-  const { chessContractRef } = useContractInteractionContext();
+  const { chessContract } = useContractInteractionContext();
 
   // ------------------------ PUBLIC FUNCTIONS ------------------------
   /**
    * Calls the chess contract via ethers and reads the board state from it.
    */
   const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> => {
-    const chessGameStateRequest = chessContractRef.current.getChessGameState();
+    const chessGameStateRequest = chessContract.getChessGameState();
 
     // --- Grab result, feed back to caller ---
     return chessGameStateRequest;
@@ -60,7 +60,10 @@ export const ChessGameContextProvider = ({
     if (chessStateRequest !== null) {
       chessStateRequest.then(([boardState, whiteState, blackState, currentTurnBlack, gameIndex, moveIndex]) => {
         const fen = getFen(boardState.toHexString().substring(2), whiteState, blackState, currentTurnBlack, moveIndex + 1);
+        // console.log(`${boardState.toHexString()}, ${whiteState}, ${blackState}, ${currentTurnBlack}, ${moveIndex}`);
         // console.log(`Successfully got fen ${fen} from the chess contract!`);
+        // const newChessGame = new Chess(fen);
+        // console.log(`New Chess game with FEN: ${newChessGame.fen()}`);
         setCurrChessBoard({
           fen: fen,
           moveState: MOVE_STATE.IDLE,
@@ -68,19 +71,8 @@ export const ChessGameContextProvider = ({
           moveTo: null,
           validMoves: null,
           chessGame: new Chess(fen),
+          moveIndex: moveIndex,
         });
-
-        // --- TODO(ryancao): DELETE THIS ---
-        // console.log("Resetting the FEN from the chess game context");
-        // const testingFen = "r2qk2r/p1P2pbp/n1p1p1p1/1p1pP3/3Pn1b1/1BNQ1N2/PP1B1PPP/R3K2R w KQkq - 0 1";
-        // setCurrChessBoard({
-        //   fen: testingFen,
-        //   moveState: MOVE_STATE.IDLE,
-        //   moveFrom: null,
-        //   moveTo: null,
-        //   validMoves: null,
-        //   chessGame: new Chess(testingFen),
-        // })
 
       }).catch((error: any) => {
         console.error(`Failed to get board state: ${error}`);
@@ -89,6 +81,26 @@ export const ChessGameContextProvider = ({
       console.error("Error: Board state from smart contract is null!");
     }
   }, []);
+
+  // --- Set up listeners for when move is made ---
+  useEffect(useCallback(() => {
+    chessContract.removeAllListeners();
+    chessContract.on(chessContract.filters.movePlayed(), (gameState, leelaState, worldState, leelaMove) => {
+      const newFen = getFen(gameState.toHexString().substring(2), worldState, leelaState, leelaMove, currChessBoard.moveIndex + 1);
+      const newChessGame = new Chess(newFen);
+      setCurrChessBoard((curChessBoard) => {
+        return {
+          fen: newFen,
+          moveState: MOVE_STATE.IDLE,
+          moveFrom: null,
+          moveTo: null,
+          validMoves: null,
+          chessGame: newChessGame,
+          moveIndex: curChessBoard.moveIndex + 1,
+        }
+      });
+    })
+  }, [chessContract]), [chessContract]);
 
   /**
    * Returns FEN string component representing castling privileges for black/white.
@@ -145,6 +157,9 @@ export const ChessGameContextProvider = ({
    * @returns 
    */
   const getFen = (gameState: string, whiteState: number, blackState: number, currentTurnBlack: boolean, moveIndex: number) => {
+
+    // console.log(`Game state is: ${gameState}`);
+    // console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
 
     // --- Processing the board itself ---
     let ret = "";
@@ -238,6 +253,7 @@ export const ChessGameContextProvider = ({
       moveTo: null,
       validMoves: null,
       chessGame: new Chess(initialFen),
+      moveIndex: 0,
     }
     return ret;
   };

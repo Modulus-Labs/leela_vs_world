@@ -1,36 +1,14 @@
-import { ChessLeaderboardMove } from "../types/Chess.type";
 
-export const dummyLeaderboardMoves: ChessLeaderboardMove[] = [
-  {
-    humanRepr: 'Rdf8',
-    stake: 7.6,
-  },
-  {
-    humanRepr: 'Qh4e1',
-    stake: 1.0,
-  },
-  {
-    humanRepr: 'Bxe5',
-    stake: 0.4,
-  },
-  {
-    humanRepr: 'Nf3',
-    stake: 0.2,
-  },
-  {
-    humanRepr: 'Qh4xe1',
-    stake: 0.2,
-  },
-  {
-    humanRepr: 'Be5',
-    stake: 0.2,
-  },
-  {
-    humanRepr: 'Nc6',
-    stake: 0.2,
-  },
-  {
-    humanRepr: 'e8Q',
-    stake: 0.2,
-  },
-];
+// --- For Polygon Mumbai ---
+export const addresses = {
+  LEELA_CONTRACT_ADDR: "0xed10024615b69Be76A6ECb436BCD83C0Ce95207a",
+  BETTING_CONTRACT_ADDR: "0xCFf00B38fA0E229C24B55ec8666B1BaE5464473F",
+  CHESS_CONTRACT_ADDR: "0xe4abE6246145b237E06A05Fc4785E2035f033FEa",
+}
+
+// --- This is for local hardhat network ---
+// const config = {
+//   LEELA_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+//   BETTING_CONTRACT_ADDR: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+//   CHESS_CONTRACT_ADDR: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+// }

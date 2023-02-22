@@ -12,12 +12,12 @@ import { poseidonContract, buildPoseidon } from "circomlibjs";
 
 
 const SAMPLE_GAME = ["D2D4", "D7D5", "C2C4", "C7C6", "G1F3", "G8F6", "E2E3", "C8G4", "H2H3", "G4H5", "C4D5", "C6D5",
- "B1C3", "E7E6", "G2G4", "H5G6", "F3E5", "F6D7", "E5G6", "H7G6", "F1G2", "B8C6", "E3E4", "D5E4", "C3E4", "F8B4", "E4C3", 
- "D7B6", "E1G1", "E8G8", "D4D5", "E6D5", "C3D5", "B4C5", "D5C3", "C5D4", "D1F3", "D8F6", "F3F6", "D4F6", "C1F4", "A8D8",
- "A1D1", "F6C3", "B2C3", "B6A4", "C3C4", "A4C3", "D1D2", "D8D2", "F4D2", "C3E2", "G1H2", "F8D8", "D2E3", "E2C3", "A2A3",
- "D8D3", "F1C1", "C3D1", "G2E4", "D3D7", "E3C5", "D1B2", "C1C2", "B2A4", "C5E3", "A4B6", "C4C5", "B6D5", "C2D2", "D5F6",
- "D2D7", "F6D7", "H2G3", "G8F8", "F2F4", "D7F6", "E4F3", "F8E7", "F4F5", "G6F5", "G4F5", "E7D7", "G3F4", "F6E8", "F4G5",
- "D7E7", "E3F4", "A7A6", "H3H4", "E7F8", "F4G3", "E8F6", "G3D6"]
+  "B1C3", "E7E6", "G2G4", "H5G6", "F3E5", "F6D7", "E5G6", "H7G6", "F1G2", "B8C6", "E3E4", "D5E4", "C3E4", "F8B4", "E4C3",
+  "D7B6", "E1G1", "E8G8", "D4D5", "E6D5", "C3D5", "B4C5", "D5C3", "C5D4", "D1F3", "D8F6", "F3F6", "D4F6", "C1F4", "A8D8",
+  "A1D1", "F6C3", "B2C3", "B6A4", "C3C4", "A4C3", "D1D2", "D8D2", "F4D2", "C3E2", "G1H2", "F8D8", "D2E3", "E2C3", "A2A3",
+  "D8D3", "F1C1", "C3D1", "G2E4", "D3D7", "E3C5", "D1B2", "C1C2", "B2A4", "C5E3", "A4B6", "C4C5", "B6D5", "C2D2", "D5F6",
+  "D2D7", "F6D7", "H2G3", "G8F8", "F2F4", "D7F6", "E4F3", "F8E7", "F4F5", "G6F5", "G4F5", "E7D7", "G3F4", "F6E8", "F4G5",
+  "D7E7", "E3F4", "A7A6", "H3H4", "E7F8", "F4G3", "E8F6", "G3D6"]
 
 /**
  * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
@@ -120,10 +120,10 @@ describe("Integration Tests: Chess Contract", function () {
 
       console.log(await chessGame.boardState());
 
-      var legalMoves = await chessGame.callStatic.getLegalMoves({gasLimit: 15000000});
+      var legalMoves = await chessGame.callStatic.getLegalMoves({ gasLimit: 15000000 });
       console.log("legal inital moves!");
       for (var moveNum of legalMoves) {
-        if (moveNum == 0) {break;}
+        if (moveNum == 0) { break; }
         console.log(convertUint16ReprToHumanReadable(moveNum));
       }
 
@@ -133,7 +133,7 @@ describe("Integration Tests: Chess Contract", function () {
       // console.log(await chessGame.convertToCircuit());
     });
 
-    it("testing converToCircuit", async function () {
+    it("testing convertToCircuit", async function () {
       // const chessGame = await loadFixture(deployContractAndInitialize);
       // await chessGame.playMove(convertMoveToUint16Repr("E", 2, "E", 4));
       // await chessGame.playMove(convertMoveToUint16Repr("C", 7, "C", 5));
@@ -171,19 +171,19 @@ describe("Integration Tests: Betting Contract", function () {
 
     const leelaFactory = new Validator__factory().connect(owner);
     console.log("deploying validator!");
-    const leelaContract = await leelaFactory.deploy(poseidon.address, verifier.address, bettingContract.address, {gasLimit: 3e7});
+    const leelaContract = await leelaFactory.deploy(poseidon.address, verifier.address, bettingContract.address, { gasLimit: 3e7 });
     console.log("validator deployed!");
     await leelaContract.deployed();
 
     // --- Finally, initialize betting contract ---
     await bettingContract.initialize(chessContract.address, leelaContract.address, 1000, { gasLimit: 1e7 });
-    return {bettingContract, chessContract, leelaContract, owner};
+    return { bettingContract, chessContract, leelaContract, owner };
   }
 
   describe("Testing Betting Contract Getters + Setters", function () {
 
     it("Testing betting contract get time remaining", async function () {
-      const {bettingContract} = await loadFixture(deployAndInitializeBettingContract);
+      const { bettingContract } = await loadFixture(deployAndInitializeBettingContract);
 
       // --- Start the voting timer, then check to see how long is remaining (should be close to an hour) ---
       await bettingContract.startVoteTimer({ gasLimit: 1e7 });
@@ -193,7 +193,7 @@ describe("Integration Tests: Betting Contract", function () {
     })
 
     it("Testing betting contract pool state", async function () {
-      const {bettingContract} = await loadFixture(deployAndInitializeBettingContract);
+      const { bettingContract } = await loadFixture(deployAndInitializeBettingContract);
       const [owner, account2, account3] = await ethers.getSigners();
 
       // --- Add stake to the betting contract (using the default account) ---
@@ -230,7 +230,7 @@ describe("Integration Tests: Betting Contract", function () {
     it("Testing betting contract move leaderboard", async function () {
 
       // --- Setup ---
-      const {bettingContract} = await loadFixture(deployAndInitializeBettingContract);
+      const { bettingContract } = await loadFixture(deployAndInitializeBettingContract);
       const [owner, account2, account3] = await ethers.getSigners();
 
       // --- Add stake to the betting contract (using the default account) ---
@@ -261,7 +261,7 @@ describe("Integration Tests: Betting Contract", function () {
     it("Testing staking stuff", async function () {
 
       // --- Setup ---
-      const {bettingContract} = await loadFixture(deployAndInitializeBettingContract);
+      const { bettingContract } = await loadFixture(deployAndInitializeBettingContract);
       const [owner, account2, account3] = await ethers.getSigners();
 
       // --- Add stake to the betting contract (using the default account) ---
@@ -280,21 +280,21 @@ describe("Integration Tests: Betting Contract", function () {
 
     })
 
-    it("Should Play 2 full moves correctly", async function() {
-      var {bettingContract, leelaContract: validator, owner, chessContract} = await loadFixture(deployAndInitializeBettingContract);
+    it("Should Play 2 full moves correctly", async function () {
+      var { bettingContract, leelaContract: validator, owner, chessContract } = await loadFixture(deployAndInitializeBettingContract);
       console.log("startin!");
       await bettingContract.setVotePeriod(30);
       await bettingContract.startVoteTimer();
 
       console.log("blah");
 
-      await bettingContract.addStake(false, { value: ethers.utils.parseEther("1")});
+      await bettingContract.addStake(false, { value: ethers.utils.parseEther("1") });
       await bettingContract.voteWorldMove(convertMoveToUint16Repr("E", 2, "E", 4));
       await time.increase(30);
       console.log("callingtimerover");
       var result = await bettingContract.callTimerOver();
       console.log("next");
-      await bettingContract.giveLeelaLegalMoves({gasLimit: 1e7});
+      await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
       await bettingContract.leelaHashInputs();
 
       var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
@@ -313,12 +313,12 @@ describe("Integration Tests: Betting Contract", function () {
       var chunkEnd = 250;
 
       for (var chunk of outputChunks) {
-        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
+        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
         chunkStart += 250;
         chunkEnd += 250;
       }
 
-      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
+      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
 
       var outputHash = await validator.outputHash();
       var winningMoveValue = await validator.winningMoveValue();
@@ -331,9 +331,9 @@ describe("Integration Tests: Betting Contract", function () {
       var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
       var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
-      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');  
+      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});
+      await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
       console.log(await chessContract.boardState());
 
       await bettingContract.startVoteTimer();
@@ -342,7 +342,7 @@ describe("Integration Tests: Betting Contract", function () {
       console.log("callingtimerover");
       var result = await bettingContract.callTimerOver();
       console.log("next");
-      await bettingContract.giveLeelaLegalMoves({gasLimit: 1e7});
+      await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
       await bettingContract.leelaHashInputs();
 
       var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
@@ -361,12 +361,12 @@ describe("Integration Tests: Betting Contract", function () {
       var chunkEnd = 250;
 
       for (var chunk of outputChunks) {
-        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
+        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
         chunkStart += 250;
         chunkEnd += 250;
       }
 
-      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
+      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
 
       var outputHash = await validator.outputHash();
       var winningMoveValue = await validator.winningMoveValue();
@@ -379,9 +379,9 @@ describe("Integration Tests: Betting Contract", function () {
       var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
       var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
-      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');  
+      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});
+      await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
 
     });
 

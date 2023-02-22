@@ -13,8 +13,8 @@ import { Square } from 'chess.js';
 export const VotingPanel: FC = () => {
   const { currChessBoard } = useChessGameContext();
   const { setShowGameDetails, setShowInfoModal, setInfoModalDismissVisible, setInfoModalText } = useArcadeMachineContext();
-  const { bettingContractRef, walletAddr, setWalletAddr, setEthersProvider } = useContractInteractionContext();
-  const { getUserStakeFromBettingContract, getUserVotedMove, voteForMove } = useBettingContext();
+  const { walletAddr, setWalletAddr, setEthersProvider } = useContractInteractionContext();
+  const { voteForMove, votingPower, userVotedMove } = useBettingContext();
 
   // --- Sets up current move notation state ---
   // --- Updates state whenever chessboard UI state changes ---
@@ -28,46 +28,6 @@ export const VotingPanel: FC = () => {
     setMoveNotation(algebraicNotation);
   }, [currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.chessGame, currChessBoard.fen]),
     [currChessBoard.moveTo, currChessBoard.moveFrom, currChessBoard.chessGame, currChessBoard.fen]);
-
-  // --- For voting power ---
-  const [votingPower, setVotingPower] = useState<number>(0);
-  useEffect(useCallback(() => {
-
-    // --- No login --> no power ---
-    if (walletAddr === "") return;
-
-    const userStakeRequest = getUserStakeFromBettingContract();
-    if (userStakeRequest !== undefined) {
-      userStakeRequest.then(([leelaStake, worldStake]) => {
-        console.log(`Got this from the contract: ${leelaStake} (leela), ${worldStake} (world)`)
-        const parsedTotal = Number(ethers.utils.formatEther(leelaStake.add(worldStake)));
-        setVotingPower(parsedTotal);
-      }).catch((error) => {
-        console.error(`Error from user stake request: ${error}`);
-      })
-    } else {
-      console.error("Error: Got null from smart contract");
-    }
-  }, [bettingContractRef.current]), [bettingContractRef.current]);
-
-  // --- For not allowing the user to submit another move once they've done so already ---
-  // TODO(ryancao): Get this from smart contract!
-  const [userVotedMove, setUserVotedMove] = useState<string>("");
-  useEffect(useCallback(() => {
-    if (walletAddr !== "") {
-      const getUserVotedMoveRequest = getUserVotedMove();
-      getUserVotedMoveRequest?.then((moveNumRepr) => {
-        if (moveNumRepr === 0) {
-          return;
-        }
-        const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(moveNumRepr);
-        const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
-        setUserVotedMove(moveRepr);
-      });
-    } else {
-      setUserVotedMove("");
-    }
-  }, [bettingContractRef.current]), [bettingContractRef.current]);
 
   // --- To display error message to user ---
   const openModalWithOptions = (text: string, canDismiss: boolean) => {
@@ -144,7 +104,9 @@ export const VotingPanel: FC = () => {
                 // --- TODO: Grab the actual amount of power from the betting contract ---
                 const voteForMoveRequest = voteForMove(selectedMoveRepr);
                 openModalWithOptions(`Submitting vote to contract -- this might take a moment...`, false);
-                voteForMoveRequest?.then((_) => {
+                voteForMoveRequest?.then(async (result) => {
+                  openModalWithOptions(`Processing... You voted for [${moveNotation}] with ${votingPower} power.`, false);
+                  await result.wait();
                   openModalWithOptions(`Success!! Voted for move [${moveNotation}] with ${votingPower} power.`, true);
                 }).catch((error) => {
                   if (error.message.includes("user rejected transaction")) {
@@ -186,11 +148,6 @@ export const VotingPanel: FC = () => {
                     openModalWithOptions("Successfully connected wallet!", true);
                     setWalletAddr(address);
                     setEthersProvider(provider);
-                    // console.log("Got a provider!");
-                    // console.log(provider);
-                    // const signer = provider.getSigner(address);
-                    // console.log(signer);
-                    // console.log(signer._address);
                   } else {
                     openModalWithOptions(status, true);
                   }
