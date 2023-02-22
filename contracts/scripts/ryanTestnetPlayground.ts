@@ -4,9 +4,9 @@ import { Network } from "@ethersproject/networks";
 
 // --- Testnet ---
 export const addresses = {
-    LEELA_CONTRACT_ADDR: "0x3AC6DB16fa527D7eD85fDC2E334271c9678C408c",
-    BETTING_CONTRACT_ADDR: "0x5AD13d2f26E0344217A98cDCc252963c1b52F272",
-    CHESS_CONTRACT_ADDR: "0x209A32B477F9B30b793d77Ed42E9E47bE8284398",
+    LEELA_CONTRACT_ADDR: "0x260Cc32092cF3c530De657879e090Fb805d23f02",
+    BETTING_CONTRACT_ADDR: "0xe1ffA826bAA1B347172F6955602f79983D60c598",
+    CHESS_CONTRACT_ADDR: "0x9E75394b1f0Fd0F2C7d0Da5AB809F95773b27b77",
 }
 
 /**
@@ -17,9 +17,9 @@ export const addresses = {
  * @returns 
  */
 function convertMoveToUint16Repr(fromCol: string, fromRow: number, toCol: string, toRow: number): number {
-    const fromColRepr = fromCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
+    const fromColRepr = 7 - (fromCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0));
     const fromRowRepr = fromRow - 1;
-    const toColRepr = toCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
+    const toColRepr = 7 - (toCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0));
     const toRowRepr = toRow - 1;
     return (fromRowRepr << 9) | (fromColRepr << 6) | (toRowRepr << 3) | (toColRepr);
 }
@@ -38,10 +38,10 @@ async function main() {
 
     // --- Connect to betting contract, set vote period to 10 seconds, start timer ---
     const bettingContract = BettingGame__factory.connect(addresses.BETTING_CONTRACT_ADDR, owner);
-    await bettingContract.setVotePeriod(10);
-    console.log("Set vote period");
-    await bettingContract.startVoteTimer();
-    console.log("Started vote timer");
+    // await bettingContract.setVotePeriod(10, { gasLimit: 1e7 });
+    // console.log("Set vote period");
+    // await bettingContract.startVoteTimer({ gasLimit: 1e7 });
+    // console.log("Started vote timer");
 
     // --- Try to make a bet and then listen for event ---
     // bettingContract.on(bettingContract.filters.stakeMade(), (player, amt, leelaSide) => {
@@ -52,16 +52,16 @@ async function main() {
     // await addStakeRequest;
 
     // --- Try playing the world's move ---
-    // const result = await bettingContract.callTimerOver({ gasLimit: 1e7 });
-    // console.log(`Result was: ${result}`);
-    // console.log(result);
-    // const receipt = await result.wait();
-    // console.log(`Receipt was:`);
-    // if (receipt.events !== undefined) {
-    //     console.log("Receipt has events!");
-    //     console.log(receipt.events);
-    // }
-    // console.log("All done forcing the world to make a move!");
+    const result = await bettingContract.callTimerOver({ gasLimit: 1e7 });
+    console.log(`Result was: ${result}`);
+    console.log(result);
+    const receipt = await result.wait();
+    console.log(`Receipt was:`);
+    if (receipt.events !== undefined) {
+        console.log("Receipt has events!");
+        console.log(receipt.events);
+    }
+    console.log("All done forcing the world to make a move!");
 
     // --- Play a move manually for Leela ---
     // const move = convertMoveToUint16Repr("E", 8, "F", 8);

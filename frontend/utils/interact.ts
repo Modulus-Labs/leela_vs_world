@@ -38,9 +38,9 @@ const getEthersProvider = () => {
   //   // --- TODO(ryancao): Hacky hack for type checking??? ---
   //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
   // }
-  require('dotenv').config();
-  const { API_KEY } = process.env;
-  const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/${API_KEY}`;
+  // require('dotenv').config();
+  // const { API_KEY } = process.env;
+  const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/-eJGoKkTEMre3-CY_NksLQhZX2-E7RZQ`;
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
   // const API_URL = "http://127.0.0.1:8545/";

@@ -48,7 +48,7 @@ const SAMPLE_GAME = ["D2D4", "D7D5", "C2C4", "C7C6", "G1F3", "G8F6", "E2E3", "C8
 // const RYAN_TEST_GAME = ["E2E4", "C7C6", "D2D4", "D7D5", "B1C3", "D5E4", "C3E4", "G8F6", "D1D3", "E7E5", "D4E5", "D8A5", "C1D2", "A5E5", "E1C1", "F6E4", "D3D8", "E8D8", "D2G5", "E5G5"];
 // const RYAN_TEST_GAME = ["E2E4", "C7C6", "D2D4", "D7D5", "B1C3", "D5E4", "C3E4", "G8F6", "D1D3", "E7E5", "D4E5", "D8A5", "C1D2", "A5E5", "E1C1", "F6E4", "D3D8", "E8D8", "D2G5", "E5D5"];
 // const RYAN_TEST_GAME = ["E2E4", "C7C6", "D2D4", "D7D5", "B1C3", "D5E4", "C3E4", "G8F6", "D1D3", "E7E5", "D4E5", "D8A5", "C1D2", "A5E5", "E1C1", "F6E4", "D3D8", "E8D8", "D2G5", "D8C7", "G5D8"];
-const RYAN_TEST_GAME = ["E2E4"];
+// const RYAN_TEST_GAME = ["E2E4"];
 
 /**
  * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
@@ -90,11 +90,16 @@ function convertUint16ReprToHumanReadable(uint16MoveRepr: number): string {
  */
 function convertBoardStateBigNumberToHumanReadable(boardState: BigNumber): string {
   const boardStateString = boardState.toHexString().substring(2);
+  const remainder = 64 - boardStateString.length;
   let ret = "";
   for (let row = 0; row < 8; row++) {
     let rowStr = "";
     for (let col = 0; col < 8; col++) {
-      switch (boardStateString.charAt(row * 8 + col)) {
+      if (row * 8 + col < remainder) {
+        rowStr += ".";
+        continue;
+      }
+      switch (boardStateString.charAt(row * 8 + col - remainder)) {
         case '0': rowStr += "."; break;
         case '1': rowStr += "P"; break;
         case '2': rowStr += "B"; break;
@@ -137,7 +142,7 @@ describe("Integration Tests: Chess Contract", function () {
 
       // --- Play real move ---
       let idx = 0;
-      for (var move of RYAN_TEST_GAME) {
+      for (var move of SAMPLE_GAME) {
         const moveUint16Repr = convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4)));
         console.log(`Playing ${move}!`);
         try {

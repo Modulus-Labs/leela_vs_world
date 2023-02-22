@@ -675,10 +675,16 @@ contract Chess is Ownable, IChess {
         newPlayerState =
             ((playerState | king_move_mask) & king_pos_zero_mask) |
             ((uint32)(toPos) << king_pos_bit);
+        console.log("In verifying executing king move");
+        console.log(newPlayerState);
+        console.log("toPos");
+        console.log(toPos);
         if (toPos > 64) {
             return (invalid_move_constant, newPlayerState);
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
+        console.log("Piece to position");
+        console.log(pieceToPosition);
         if (pieceToPosition > 0) {
             if (
                 ((pieceToPosition & color_const) == color_const) ==
@@ -692,74 +698,99 @@ contract Chess is Ownable, IChess {
         uint8 h = getHorizontalMovement(fromPos, toPos);
         uint8 v = getVerticalMovement(fromPos, toPos);
         if ((h <= 1) && (v <= 1)) {
+            console.log("Got here!");
+            console.log(fromPos);
+            console.log(toPos);
+            console.log(gameState);
+            console.log(newPlayerState);
             return (commitMove(gameState, fromPos, toPos), newPlayerState);
         } else if ((h == 2) && (v == 0) && castlingPrivleges) {
+            console.log("King is castling");
             if (!pieceUnderAttack(gameState, fromPos)) {
                 // TODO: must we check king's 'from' position?
-                // Reasoning: castilngRookPosition resolves to an invalid toPos when the rook or the king have already moved.
-                uint8 castilngRookPosition = (uint8)(
+                // Reasoning: castlingRookPosition resolves to an invalid toPos when the rook or the king have already moved.
+                uint8 castlingRookPosition = (uint8)(
                     playerState >> rook_queen_side_move_bit
                 );
-                if (castilngRookPosition + 2 == toPos) {
+                console.log("Castling rook position: ");
+                console.log(castlingRookPosition);
+                if (castlingRookPosition - 2 == toPos) {
                     // Queen-side castling
                     // Spaces between king and rook original positions must be empty
                     if (
-                        (getInBetweenMask(castilngRookPosition, fromPos) &
+                        (getInBetweenMask(castlingRookPosition, fromPos) &
                             gameState) == 0
                     ) {
                         // Move King 1 space to the left and check for attacks (there must be none)
                         newGameState = commitMove(
                             gameState,
                             fromPos,
-                            fromPos - 1
+                            fromPos + 1
                         );
-                        if (!pieceUnderAttack(newGameState, fromPos - 1)) {
+                        if (!pieceUnderAttack(newGameState, fromPos + 1)) {
                             return (
+                                // --- This one moves the rook to "fromPos - 1" ---
                                 commitMove(
+                                    // --- This one moves the king to the toPos ---
                                     commitMove(
                                         newGameState,
-                                        fromPos - 1,
+                                        fromPos + 1,
                                         toPos
                                     ),
-                                    castilngRookPosition,
-                                    fromPos - 1
+                                    castlingRookPosition,
+                                    fromPos + 1
                                 ),
                                 newPlayerState
                             );
                         }
                     }
                 } else {
-                    castilngRookPosition = (uint8)(
+                    console.log("King side castling");
+                    castlingRookPosition = (uint8)(
                         playerState >> rook_king_side_move_bit
                     );
-                    if (castilngRookPosition - 1 == toPos) {
+                    if (castlingRookPosition + 1 == toPos) {
                         // King-side castling
                         // Spaces between king and rook original positions must be empty
                         if (
-                            (getInBetweenMask(castilngRookPosition, fromPos) &
+                            (getInBetweenMask(castlingRookPosition, fromPos) &
                                 gameState) == 0
                         ) {
-                            // Move King 1 space to the left and check for attacks (there must be none)
+                            // Move King 1 space to the right and check for attacks (there must be none)
                             newGameState = commitMove(
                                 gameState,
                                 fromPos,
-                                fromPos + 1
+                                fromPos - 1
                             );
-                            if (!pieceUnderAttack(newGameState, fromPos + 1)) {
+                            if (!pieceUnderAttack(newGameState, fromPos - 1)) {
                                 return (
+                                    // --- Moving rook one space to the right of where the king was ---
                                     commitMove(
+                                        // --- Moving king 1 more space to the right ---
                                         commitMove(
                                             newGameState,
-                                            fromPos + 1,
+                                            fromPos - 1,
                                             toPos
                                         ),
-                                        castilngRookPosition,
-                                        fromPos + 1
+                                        castlingRookPosition,
+                                        fromPos - 1
                                     ),
                                     newPlayerState
                                 );
+                            } else {
+                                console.log(
+                                    "One of the squares inbetween is under attack"
+                                );
                             }
+                        } else {
+                            console.log(
+                                "So the inbetween stuff is not cleared out"
+                            );
                         }
+                    } else {
+                        console.log(
+                            "Hmm so it's not the right spot for either"
+                        );
                     }
                 }
             }
