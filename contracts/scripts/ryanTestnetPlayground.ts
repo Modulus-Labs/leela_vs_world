@@ -4,9 +4,9 @@ import { Network } from "@ethersproject/networks";
 
 // --- Testnet ---
 export const addresses = {
-    LEELA_CONTRACT_ADDR: "0x260Cc32092cF3c530De657879e090Fb805d23f02",
-    BETTING_CONTRACT_ADDR: "0xe1ffA826bAA1B347172F6955602f79983D60c598",
-    CHESS_CONTRACT_ADDR: "0x9E75394b1f0Fd0F2C7d0Da5AB809F95773b27b77",
+    LEELA_CONTRACT_ADDR: "0x573Bd87ba78c5Da205c1CBBd2AbB1C7898DEb95b",
+    BETTING_CONTRACT_ADDR: "0x0E2AfbCdb972E998587dDB6dd3C71876cF18367A",
+    CHESS_CONTRACT_ADDR: "0x9C9BA8303B97057F7811c23184C5aE731a52F17D",
 }
 
 /**
@@ -52,19 +52,20 @@ async function main() {
     // await addStakeRequest;
 
     // --- Try playing the world's move ---
-    const result = await bettingContract.callTimerOver({ gasLimit: 1e7 });
-    console.log(`Result was: ${result}`);
-    console.log(result);
-    const receipt = await result.wait();
-    console.log(`Receipt was:`);
-    if (receipt.events !== undefined) {
-        console.log("Receipt has events!");
-        console.log(receipt.events);
-    }
-    console.log("All done forcing the world to make a move!");
+    // const result = await bettingContract.callTimerOver({ gasLimit: 1e7 });
+    // console.log(`Result was: ${result}`);
+    // console.log(result);
+    // const receipt = await result.wait();
+    // console.log(`Receipt was:`);
+    // if (receipt.events !== undefined) {
+    //     console.log("Receipt has events!");
+    //     console.log(receipt.events);
+    // }
+    // console.log("All done forcing the world to make a move!");
 
     // --- Play a move manually for Leela ---
-    // const move = convertMoveToUint16Repr("E", 8, "F", 8);
+    // const move = convertMoveToUint16Repr("F", 6, "D", 7);
+    // console.log(`Move is ${move}`);
     // const result = await bettingContract.manualLeelaMove(move, { gasLimit: 1e7 });
     // console.log("Result from manual Leela move is");
     // console.log(result);

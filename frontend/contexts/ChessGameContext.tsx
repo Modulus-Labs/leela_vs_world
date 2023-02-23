@@ -16,7 +16,7 @@ import {
   MOVE_STATE,
   MovingBoardState,
 } from '../types/Chess.type';
-import { Chess, Square, Move, validateFen } from 'chess.js';
+import { Chess, Square, Move, validateFen, Piece } from 'chess.js';
 import { useContractInteractionContext } from './ContractInteractionContext';
 import { convertUint16SquareToHumanRepr } from '../utils/helpers';
 
@@ -176,6 +176,7 @@ export const ChessGameContextProvider = ({
   const getFen = (gameState: string, whiteState: number, blackState: number, currentTurnBlack: boolean, moveIndex: number) => {
 
     console.log(`Game state is: ${gameState}`);
+    const remainder = 64 - gameState.length;
     // console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
 
     // --- Processing the board itself ---
@@ -183,7 +184,19 @@ export const ChessGameContextProvider = ({
     for (let row = 0; row < 8; row++) {
       let numSpaces = 0;
       for (let col = 0; col < 8; col++) {
-        if (gameState.charAt(row * 8 + col) != '0') {
+
+        // --- All the implicit zeroes ---
+        if (row * 8 + col < remainder) {
+          numSpaces += 1;
+          if (numSpaces === 8) {
+            ret += numSpaces.toString();
+            numSpaces = 0;
+          }
+          continue;
+        }
+
+        // --- Regular shenanigans ---
+        if (gameState.charAt(row * 8 + col - remainder) != '0' || numSpaces === 8) {
           if (numSpaces > 0) {
             ret += numSpaces.toString();
             numSpaces = 0;
@@ -192,7 +205,9 @@ export const ChessGameContextProvider = ({
           numSpaces += 1;
           continue;
         }
-        switch (gameState.charAt(row * 8 + col)) {
+
+        // --- Piece stuff ---
+        switch (gameState.charAt(row * 8 + col - remainder)) {
           case '1':
             ret += 'P';
             break;
@@ -206,10 +221,10 @@ export const ChessGameContextProvider = ({
             ret += 'R';
             break;
           case '5':
-            ret += 'K';
+            ret += 'Q';
             break;
           case '6':
-            ret += 'Q';
+            ret += 'K';
             break;
           case '9':
             ret += 'p';
@@ -224,10 +239,10 @@ export const ChessGameContextProvider = ({
             ret += 'r';
             break;
           case 'd':
-            ret += 'k';
+            ret += 'q';
             break;
           case 'e':
-            ret += 'q';
+            ret += 'k';
             break;
         }
       }
@@ -284,12 +299,47 @@ export const ChessGameContextProvider = ({
 
   const [currChessBoard, setCurrChessBoard] = useState<BoardState>(getInitialBoardState);
 
+  /**
+   * Determines whether we're diagonal to an enpassant square
+   * @param attackerSquare 
+   * @param enemySquare 
+   * @returns 
+   */
+  const determineEnPassant = (attackerSquare: Square, enemySquare: Square): boolean => {
+    return (Math.abs(attackerSquare.charCodeAt(0) - enemySquare.charCodeAt(0)) === 1 &&
+      parseInt(attackerSquare.charAt(1)) === parseInt(enemySquare.charAt(1)));
+  }
+
+  const getEnPassantPawnDestSquare = (enemySquare: Square): Square => {
+    return (enemySquare.charAt(0) + (parseInt(enemySquare.charAt(1)) + 1).toString()) as Square;
+  }
+
   // Action to start a move
   const startMove = (square: Square) => {
     const rawcurrGameStateidMoves: Move[] = currChessBoard.chessGame.moves({
       square,
       verbose: true,
     }) as Move[];
+
+    // --- En passant...? ---
+    const whitePawn: Piece = {
+      color: "w",
+      type: "p",
+    }
+    const enPassantSquare = currChessBoard.fen.split(" ")[3];
+    const pieceAtSquare = currChessBoard.chessGame.get(square);
+    if (enPassantSquare !== "-" && pieceAtSquare.color === "w" && pieceAtSquare.type === "p" && determineEnPassant(square, enPassantSquare as Square)) {
+      const enPassantMove: Move = {
+        color: "w",
+        from: square,
+        to: getEnPassantPawnDestSquare(enPassantSquare as Square),
+        piece: "p",
+        flags: "",
+        san: "",
+      }
+      console.log(enPassantMove);
+      rawcurrGameStateidMoves.push(enPassantMove);
+    }
 
     const newChessBoard = {
       ...currChessBoard,

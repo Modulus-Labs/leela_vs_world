@@ -145,6 +145,7 @@ export const BettingContextProvider = ({
   // --- For the move leaderboard display ---
   const { currChessBoard } = useChessGameContext();
   const [leaderboardMoves, setLeaderboardMoves] = useState<ChessLeaderboardMove[]>([]);
+
   const getLeaderboardMoveFn = () => {
     const moveLeaderboardRequest = getMoveLeaderboardStateFromBettingContract();
     if (moveLeaderboardRequest !== null) {
@@ -153,6 +154,7 @@ export const BettingContextProvider = ({
         // --- Parse moves ---
         const newLeaderboardMoves = moves.map((move, idx) => {
           const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
+          console.log(`Got a new leaderboard move: ${moveFrom}, ${moveTo}, ${currChessBoard.fen}`);
           const parsedNumVotes = Number(ethers.utils.formatEther(numVotesPerMove[idx]));
           const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
           const leaderboardMove: ChessLeaderboardMove = {
@@ -181,7 +183,7 @@ export const BettingContextProvider = ({
       console.error("Error: move leaderboard request returned null!");
     }
   }
-  useEffect(useCallback(getLeaderboardMoveFn, []), []);
+  useEffect(useCallback(getLeaderboardMoveFn, [currChessBoard]), [currChessBoard]);
 
   // --- Whichever move the user has already potentially voted for ---
   const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
@@ -217,6 +219,7 @@ export const BettingContextProvider = ({
     bettingContract.on(bettingContract.filters.voteMade(), async function (player, power, move) {
       console.log(`We just saw a new vote made from player ${player} on move ${move} with power ${power}`);
       const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
+      console.log(moveFrom, moveTo);
       const leaderboardMoveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
       const parsedPower = Number(ethers.utils.formatEther(power.toHexString()));
 
@@ -268,6 +271,23 @@ export const BettingContextProvider = ({
       getLeaderboardMoveFn();
       // --- Also reset what we voted for ---
       setUserVotedMove("");
+      // --- Also reset the timer ---
+      // --- Grabs betting state from contract ---
+      const bettingPoolRequest = getBettingPoolStateFromBettingContract();
+      if (bettingPoolRequest !== null) {
+        bettingPoolRequest.then(([leelaPoolSize, worldPoolSize, timeLeft]) => {
+          // const parsedLeelaPrizePoolAmount = Number(ethers.utils.formatEther(leelaPoolSize));
+          // const parsedWorldPrizePoolAmount = Number(ethers.utils.formatEther(worldPoolSize));
+          // setLeelaPrizePoolAmount(parsedLeelaPrizePoolAmount);
+          // setWorldPrizePoolAmount(parsedWorldPrizePoolAmount);
+          setTimeToNextMove(timeLeft.toNumber());
+          // console.log(`From the pool state: ${parsedLeelaPrizePoolAmount}, ${parsedWorldPrizePoolAmount}, ${timeLeft.toNumber()}`);
+        }).catch((error) => {
+          console.error(`Got error from betting pool request: ${error}`);
+        })
+      } else {
+        console.error("Got null from betting pool request.");
+      }
     });
 
     bettingContract.on(bettingContract.filters.worldMovePlayed(), (worldMove) => {
@@ -287,6 +307,7 @@ export const BettingContextProvider = ({
           return;
         }
         const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(moveNumRepr);
+        // console.log(`User move from/to: ${moveFrom}, ${moveTo}`);
         const moveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
         setUserVotedMove(moveRepr);
       });

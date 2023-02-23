@@ -361,6 +361,8 @@ contract Chess is Ownable, IChess {
         uint8 toPos = (uint8)(move & 0x3f);
         uint32 playerState;
         uint32 opponentState;
+        console.log("Current turn black? (In checkMove)");
+        console.log(currentTurnBlack);
         if (currentTurnBlack) {
             playerState = blackState;
             opponentState = whiteState;
@@ -382,10 +384,13 @@ contract Chess is Ownable, IChess {
                 opponentState
             );
         } else if (fromType == knight_const) {
+            console.log("Yup we're verifying a knight move");
             newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos);
         } else if (fromType == bishop_const) {
+            console.log("Yup we're verifying a bishop move");
             newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos);
         } else if (fromType == rook_const) {
+            console.log("Yup we're verifying a rook move");
             newGameState = verifyExecuteRookMove(boardState, fromPos, toPos);
             // Reset playerState if necessary when one of the rooks move
             if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
@@ -396,8 +401,10 @@ contract Chess is Ownable, IChess {
                 newPlayerState = playerState | rook_queen_side_move_mask;
             }
         } else if (fromType == queen_const) {
+            console.log("Yup we're verifying a queen move");
             newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos);
         } else if (fromType == king_const) {
+            console.log("Yup we're verifying a king move");
             (newGameState, newPlayerState) = verifyExecuteKingMove(
                 boardState,
                 fromPos,
@@ -408,12 +415,17 @@ contract Chess is Ownable, IChess {
             require(false, "The fromType is incorrect");
             return false;
         }
+
         if (
             (newGameState != invalid_move_constant) &&
-            !checkForCheck(newGameState, opponentState)
+            !checkForCheck(newGameState, newPlayerState)
         ) {
             return true;
         } else {
+            console.log("newGameState");
+            console.log(newGameState);
+            console.log("Invalid move constant");
+            console.log(invalid_move_constant);
             require(false, "newGameState check failed");
         }
         return false;
@@ -430,10 +442,10 @@ contract Chess is Ownable, IChess {
     ) public view returns (uint256 newGameState, uint32 newPlayerState) {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
-        // console.log("From pos is");
-        // console.log(fromPos);
-        // console.log("To pos is");
-        // console.log(toPos);
+        console.log("From pos is");
+        console.log(fromPos);
+        console.log("To pos is");
+        console.log(toPos);
         uint8 moveExtra = queen_const;
         newPlayerState = playerState;
         if (toPos > 64) {
@@ -478,9 +490,11 @@ contract Chess is Ownable, IChess {
                     (uint32)(posToInBetween);
             }
         } else if (diff == 7 || diff == 9) {
+            console.log("Here for pawn taking another piece");
             if (getVerticalMovement(fromPos, toPos) != 1) {
                 return (invalid_move_constant, 0x0);
             }
+            console.log("Not trying to move really vertically");
             if ((uint8)(opponentState & en_passant_const) != toPos) {
                 if (
                     (pieceToPosition == 0) || // Must be moving to occupied square
@@ -492,6 +506,7 @@ contract Chess is Ownable, IChess {
             }
         } else return (invalid_move_constant, 0x0);
 
+        console.log("Wait a minute are we good?");
         newGameState = commitMove(gameState, fromPos, toPos);
         if (
             (currentTurnBlack && ((toPos >> 3) == 0x0)) ||
@@ -512,6 +527,7 @@ contract Chess is Ownable, IChess {
                 (currentTurnBlack ? moveExtra | color_const : moveExtra)
             );
         }
+        console.log("So we're good right?");
     }
 
     /**
@@ -1784,7 +1800,14 @@ contract Chess is Ownable, IChess {
         returns (bool)
     {
         uint8 kingsPosition = (uint8)(playerState >> king_pos_bit);
+        console.log("Player state within checkForCheck");
+        console.log(playerState);
+        console.log("Kings position within check for check");
+        console.log(kingsPosition);
+        console.log(gameState);
+        console.log(pieceAtPosition(gameState, kingsPosition) & 0x7);
         assert(king_const == (pieceAtPosition(gameState, kingsPosition) & 0x7));
+        console.log("Assertion passed within check for check");
         return pieceUnderAttack(gameState, kingsPosition);
     }
 
