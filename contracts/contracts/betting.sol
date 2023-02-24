@@ -56,6 +56,8 @@ contract BettingGame is Ownable {
     /// @dev User stakes on the World / Leela.
     mapping(uint16 => mapping(address => uint256)) public worldStakes;
     mapping(uint16 => mapping(address => uint256)) public leelaStakes;
+    uint64 public worldVoterCount;
+    uint64 public leelaVoterCount;
 
     /// @dev User shares on the World / Leela.
     mapping(uint16 => mapping(address => uint256)) public worldShares;
@@ -119,7 +121,7 @@ contract BettingGame is Ownable {
     }
 
     modifier worldTurnOnly() {
-        require(leelaTurn == false);
+        require(leelaTurn == false, "it is not the world's turn");
         _;
     }
 
@@ -245,6 +247,7 @@ contract BettingGame is Ownable {
                     worldPoolSize;
                 totalWorldShares += (msg.value * initVal) / worldPoolSize;
                 worldPoolSize += msg.value;
+                worldVoterCount += 1;
             }
         } else {
             unchecked {
@@ -254,6 +257,7 @@ contract BettingGame is Ownable {
                     leelaPoolSize;
                 totalLeelaShares += (msg.value * initVal) / leelaPoolSize;
                 leelaPoolSize += msg.value;
+                leelaVoterCount += 1;
             }
         }
         if (!votersMap[gameIndex][msg.sender]) {
@@ -376,6 +380,7 @@ contract BettingGame is Ownable {
      * NOTE: This is just for testing!! Will remove in full version.
      */
     function manualLeelaMove(uint16 manualMove) public onlyOwner {
+        require(leelaTurn == true, "it is not leela's move");
         chess.playMove(manualMove);
         moveIndex++;
         uint8 isGameEnded = chess.checkEndgame();
@@ -392,7 +397,7 @@ contract BettingGame is Ownable {
     }
 
     function giveLeelaLegalMoves() public {
-        require(leelaTurn == true);
+        require(leelaTurn == true, "it is not leela's turn");
         uint16[] memory legalMoves = chess.getLegalMoves();
         leela.setLegalMoveIndicies(legalMoves);
     }
@@ -400,7 +405,7 @@ contract BettingGame is Ownable {
     function makeLeelaMove(bytes calldata proof, bytes calldata instances)
         public
     {
-        require(leelaTurn == true);
+        require(leelaTurn == true, "it is not leela's turn");
         uint16 _leelaMove = leela.verify(proof, instances);
         leelaMove = _leelaMove;
         chess.playMove(leelaMove);
@@ -419,7 +424,7 @@ contract BettingGame is Ownable {
     }
 
     function leelaHashInputs() public {
-        require(leelaTurn == true);
+        require(leelaTurn == true, "it is not leela's turn");
         leela.hashInputs(chess.convertToCircuit());
     }
 
@@ -461,25 +466,46 @@ contract BettingGame is Ownable {
 
     function updateAccounts(bool leelaWon) internal {
         // TODO convert integers to floating numbers when appropriate
+        console.log(totalLeelaShares);
+        console.log(totalWorldShares);
+        console.log(leelaPoolSize);
+        console.log(worldPoolSize);
+        console.log(initVal);
+        // mapping(address => uint256) storage winningAccounts = leelaWon
+        //     ? leelaShares[gameIndex]
+        //     : worldShares[gameIndex];
         mapping(address => uint256) storage winningAccounts = leelaWon
-            ? leelaShares[gameIndex]
-            : worldShares[gameIndex];
-        uint256 totalShares = leelaWon ? totalLeelaShares : totalWorldShares;
+            ? leelaStakes[gameIndex]
+            : worldStakes[gameIndex];
+
+        console.log(winningAccounts[msg.sender]);
+        // uint256 totalShares = leelaWon ? totalLeelaShares : totalWorldShares;
         address[] memory listVoters = votersList[gameIndex];
+
         for (uint256 i = 0; i < listVoters.length; i++) {
-            uint256 accountShares = winningAccounts[listVoters[i]];
-            uint256 totalPayout = leelaPoolSize + worldPoolSize - 2 * initVal;
-            accountsPayable[msg.sender] +=
-                (accountShares * (totalPayout)) /
-                (totalShares);
+            // uint256 accountShares = winningAccounts[listVoters[i]];
+            // console.log(accountShares);
+            // uint256 totalPayout = leelaPoolSize + worldPoolSize - 2 * initVal;
+            // accountsPayable[msg.sender] +=
+            //     (accountShares * (totalPayout)) /
+            //     (totalShares);
+            uint256 accountStakes = winningAccounts[listVoters[i]];
+            console.log(accountStakes);
+            if (accountStakes != 0) {
+                console.log((leelaPoolSize * accountStakes)/(worldPoolSize));
+                uint256 payoutAmount = leelaWon ? (worldPoolSize * accountStakes)/(leelaPoolSize) : (leelaPoolSize * accountStakes)/(worldPoolSize);
+                accountsPayable[listVoters[i]] += accountStakes + payoutAmount;
+            }
+
         }
     }
 
     function claimPayout() public {
         // TODO not sure if this logic is correct
-        uint256 payoutAmount;
-        require(accountsPayable[msg.sender] >= payoutAmount);
+        uint256 payoutAmount = accountsPayable[msg.sender];
+        // require(accountsPayable[msg.sender] >= payoutAmount);
         accountsPayable[msg.sender] -= payoutAmount;
+        console.log(payoutAmount);
         (bool sent, ) = msg.sender.call{value: payoutAmount}("");
         require(sent, "Failed to send payout.");
         // don't need to emit an event bc the payout is sent over the blockchain

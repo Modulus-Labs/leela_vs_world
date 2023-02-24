@@ -19,6 +19,13 @@ const SAMPLE_GAME = ["D2D4", "D7D5", "C2C4", "C7C6", "G1F3", "G8F6", "E2E3", "C8
   "D2D7", "F6D7", "H2G3", "G8F8", "F2F4", "D7F6", "E4F3", "F8E7", "F4F5", "G6F5", "G4F5", "E7D7", "G3F4", "F6E8", "F4G5",
   "D7E7", "E3F4", "A7A6", "H3H4", "E7F8", "F4G3", "E8F6", "G3D6"]
 
+  // NON_CANON_ENDGAME "A3A4", "C6B4", "C5C6", "A6A5", "C6C7", "F8E7", "F3C6", "B7B6", "G3F2", "B6B5", "F2C5"]
+
+const FOOLS_MATE_LEELA_WIN = ["F2F3", "E7E6", "G2G4", "D8H4"]
+const FOOLS_MATE_WORLD_WIN = ["E2E3", "F7F6", "A2A3", "G7G5", "D1H5"]
+
+const GLITCHED_GAME = ["G1H3", "G8F6", "E2E4", "D7D5", "B1C3", "C7C5", "F2F3", "D5D4", "F1B5"]
+
 /**
  * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
  * @param fromRow 
@@ -26,26 +33,30 @@ const SAMPLE_GAME = ["D2D4", "D7D5", "C2C4", "C7C6", "G1F3", "G8F6", "E2E3", "C8
  * @param toRow 
  * @returns 
  */
-function convertMoveToUint16Repr(fromRow: string, fromCol: number, toRow: string, toCol: number): number {
-  const fromRowRepr = fromRow.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
-  const fromColRepr = fromCol - 1;
-  const toRowRepr = toRow.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
-  const toColRepr = toCol - 1;
-  return (fromColRepr << 9) | (fromRowRepr << 6) | (toColRepr << 3) | (toRowRepr);
+function convertMoveToUint16Repr(fromCol: string, fromRow: number, toCol: string, toRow: number): number {
+ const fromColRepr = 7 - (fromCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0));
+ const fromRowRepr = fromRow - 1;
+ const toColRepr = 7 - (toCol.toUpperCase().charCodeAt(0) - "A".charCodeAt(0));
+ const toRowRepr = toRow - 1;
+ const fromRepr = (fromRowRepr << 3) | (fromColRepr);
+ const toRepr = (toRowRepr << 3) | (toColRepr);
+ const finalMoveRepr = (fromRowRepr << 9) | (fromColRepr << 6) | (toRowRepr << 3) | (toColRepr);
+ console.log(`From repr: ${fromRepr} | To repr: ${toRepr} | Final move repr: ${finalMoveRepr}`);
+ return finalMoveRepr;
 }
 
 /**
- * Converts uint16 move repr back into human-readable format.
- * @param uint16MoveRepr 
- * @returns 
- */
+* Converts uint16 move repr back into human-readable format.
+* @param uint16MoveRepr 
+* @returns 
+*/
 function convertUint16ReprToHumanReadable(uint16MoveRepr: number): string {
-  const toRow = uint16MoveRepr & 0x7;
-  const toCol = (uint16MoveRepr >> 3) & 0x7;
-  const fromRow = (uint16MoveRepr >> 6) & 0x7;
-  const fromCol = (uint16MoveRepr >> 9) & 0x7;
-  return String.fromCharCode("A".charCodeAt(0) + fromRow) + `${fromCol + 1}` + " -> " +
-    String.fromCharCode("A".charCodeAt(0) + toRow) + `${toCol + 1}`
+ const toRow = uint16MoveRepr & 0x7;
+ const toCol = (uint16MoveRepr >> 3) & 0x7;
+ const fromRow = (uint16MoveRepr >> 6) & 0x7;
+ const fromCol = (uint16MoveRepr >> 9) & 0x7;
+ return String.fromCharCode("H".charCodeAt(0) - fromRow) + `${fromCol + 1}` + " -> " +
+   String.fromCharCode("H".charCodeAt(0) - toRow) + `${toCol + 1}`
 }
 
 describe("Integration Tests: Chess Contract", function () {
@@ -90,27 +101,31 @@ describe("Integration Tests: Chess Contract", function () {
     it("Testing ValidMove list", async function () {
       const chessGame = await loadFixture(deployContractAndInitialize);
 
-      // var legalMoves = await chessGame.callStatic.getLegalMoves({gasLimit: 15000000});
-      // console.log("legal inital moves!");
-      // for (var move of legalMoves) {
-      //   if (move == 0) {break;}
-      //   console.log(convertUint16ReprToHumanReadable(move));
-      // }
-      // var i = 1;
-      // for (var move of SAMPLE_GAME) {
-      //   try {
-      //     await chessGame.playMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
-      //   } catch (err) {
-      //     console.log("move is " + i/2 + " " + move);
-      //     console.log(await chessGame.boardState());
-      //     throw err;
-      //   }
-      //   i++
-      // }
+      var legalMoves = await chessGame.callStatic.getLegalMoves({gasLimit: 15000000});
+      console.log("legal inital moves!");
+      for (var legalMove of legalMoves) {
+        if (legalMove == 0) {break;}
+        console.log(convertUint16ReprToHumanReadable(legalMove));
+      }
+      var i = 1;
+      for (var move of SAMPLE_GAME) {
+        try {
+          await chessGame.playMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
+          //await chessGame.getLegalMoves();
+        } catch (err) {
+          console.log("move is " + i/2 + " " + move);
+          console.log(await chessGame.boardState());
+          throw err;
+        }
+        i++
+      }
+
+      // try { await chessGame.playMove(2) } catch {}
+      // await chessGame.playMove(convertMoveToUint16Repr("F", 6, "D", 7));
 
       console.log(await chessGame.whiteState());
 
-      await chessGame.playMove(convertMoveToUint16Repr("E", 2, "E", 4));
+      // await chessGame.playMove(convertMoveToUint16Repr("E", 2, "E", 4));
 
       console.log(await chessGame.whiteState());
 
@@ -118,7 +133,7 @@ describe("Integration Tests: Chess Contract", function () {
 
       console.log(gameEnd);
 
-      console.log(await chessGame.boardState());
+      // console.log(await chessGame.boardState());
 
       var legalMoves = await chessGame.callStatic.getLegalMoves({ gasLimit: 15000000 });
       console.log("legal inital moves!");
@@ -147,7 +162,7 @@ describe("Integration Tests: Chess Contract", function () {
 describe("Integration Tests: Betting Contract", function () {
 
   async function deployAndInitializeBettingContract() {
-    const [owner] = await ethers.getSigners();
+    const [owner, otherSigner] = await ethers.getSigners();
 
     // --- Deploy betting contract ---
     const bettingFactory = new BettingGame__factory().connect(owner);
@@ -177,7 +192,7 @@ describe("Integration Tests: Betting Contract", function () {
 
     // --- Finally, initialize betting contract ---
     await bettingContract.initialize(chessContract.address, leelaContract.address, 1000, { gasLimit: 1e7 });
-    return { bettingContract, chessContract, leelaContract, owner };
+    return { bettingContract, chessContract, leelaContract, owner, otherSigner };
   }
 
   describe("Testing Betting Contract Getters + Setters", function () {
@@ -280,108 +295,165 @@ describe("Integration Tests: Betting Contract", function () {
 
     })
 
+    it("Should release funds correctly on win", async function () {
+      const {bettingContract, chessContract, owner} = await loadFixture(deployAndInitializeBettingContract);
+      const [_, account2, account3, account4] = await ethers.getSigners();
+
+      const bettingContractOther = bettingContract.connect(account2);
+
+      await bettingContract.addStake(false, {value: ethers.utils.parseEther("0.1")});
+      await bettingContractOther.addStake(true, {value: ethers.utils.parseEther("0.2")});
+      await bettingContract.connect(account3).addStake(false, {value: ethers.utils.parseEther("0.2")});
+      await bettingContract.connect(account4).addStake(false, {value: ethers.utils.parseEther("0.2")});
+      await bettingContract.setVotePeriod(10);
+      console.log(await bettingContract.accountsPayable(owner.address))
+
+      var leelaTurn = false;
+      for (var move of GLITCHED_GAME) {
+        try {
+          if (leelaTurn == false) {
+            console.log("world move")
+            await bettingContract.startVoteTimer();
+            await bettingContract.voteWorldMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
+            time.increase(30);
+            console.log(await bettingContract.getWorldMove());
+            await bettingContract.callTimerOver({gasLimit: 1e7});
+            leelaTurn = true;
+          } else {
+            console.log("leela Move")
+            console.log(await bettingContract.leelaMove())
+            await bettingContract.manualLeelaMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))), {gasLimit: 1e7});
+            leelaTurn = false;
+          }
+        } catch(err) {
+          console.log(move);
+          throw err
+        }
+      }
+
+      try {await bettingContract.manualLeelaMove(convertMoveToUint16Repr("F", 6, "D", 6))} catch {};
+      console.log("blahblahblah");
+      console.log(await chessContract.boardState())
+      console.log(await chessContract.blackState());
+      console.log(await chessContract.whiteState());
+      console.log(await chessContract.currentTurnBlack());
+      await bettingContract.manualLeelaMove(convertMoveToUint16Repr("F", 6, "D", 7));
+      console.log("blblblb");
+
+
+      // console.log(await chessContract.callStatic.checkEndgame());
+
+      // console.log(await bettingContract.accountsPayable(owner.address))
+      // console.log(await bettingContract.accountsPayable(account2.address));
+      // console.log(await bettingContract.accountsPayable(account3.address));
+      // console.log(await bettingContract.accountsPayable(account4.address));
+
+      // await expect(bettingContractOther.claimPayout()).to.changeEtherBalance(account2, "699999999999998500")
+      // await expect(bettingContract.claimPayout()).to.changeEtherBalance(owner, 0);
+    });
+
     it("Should Play 2 full moves correctly", async function () {
-      var { bettingContract, leelaContract: validator, owner, chessContract } = await loadFixture(deployAndInitializeBettingContract);
-      console.log("startin!");
-      await bettingContract.setVotePeriod(30);
-      await bettingContract.startVoteTimer();
+      // var { bettingContract, leelaContract: validator, owner, chessContract } = await loadFixture(deployAndInitializeBettingContract);
+      // console.log("startin!");
+      // await bettingContract.setVotePeriod(30);
+      // await bettingContract.startVoteTimer();
 
-      console.log("blah");
+      // console.log("blah");
 
-      await bettingContract.addStake(false, { value: ethers.utils.parseEther("1") });
-      await bettingContract.voteWorldMove(convertMoveToUint16Repr("E", 2, "E", 4));
-      await time.increase(30);
-      console.log("callingtimerover");
-      var result = await bettingContract.callTimerOver();
-      console.log("next");
-      await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
-      await bettingContract.leelaHashInputs();
+      // await bettingContract.addStake(false, { value: ethers.utils.parseEther("1") });
+      // await bettingContract.voteWorldMove(convertMoveToUint16Repr("E", 2, "E", 4));
+      // await time.increase(30);
+      // console.log("callingtimerover");
+      // var result = await bettingContract.callTimerOver();
+      // console.log("next");
+      // await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
+      // await bettingContract.leelaHashInputs();
 
-      var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
-      var outputsBn: any[] = [];
-      for (var i = 0; i < outputs.length; i++) {
-        var outputBn = ethers.BigNumber.from(outputs[i])
-        if (outputBn.isNegative()) {
-          outputBn = outputBn.add(ethers.BigNumber.from("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"));
-        }
-        outputsBn.push(outputBn)
-      }
+      // var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
+      // var outputsBn: any[] = [];
+      // for (var i = 0; i < outputs.length; i++) {
+      //   var outputBn = ethers.BigNumber.from(outputs[i])
+      //   if (outputBn.isNegative()) {
+      //     outputBn = outputBn.add(ethers.BigNumber.from("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"));
+      //   }
+      //   outputsBn.push(outputBn)
+      // }
 
-      var outputChunks = [outputsBn.slice(0, 250), outputsBn.slice(250, 500), outputsBn.slice(500, 750), outputsBn.slice(750, 1000), outputsBn.slice(1000, 1250), outputsBn.slice(1250, 1500), outputsBn.slice(1500, 1750)];
+      // var outputChunks = [outputsBn.slice(0, 250), outputsBn.slice(250, 500), outputsBn.slice(500, 750), outputsBn.slice(750, 1000), outputsBn.slice(1000, 1250), outputsBn.slice(1250, 1500), outputsBn.slice(1500, 1750)];
 
-      var chunkStart = 0;
-      var chunkEnd = 250;
+      // var chunkStart = 0;
+      // var chunkEnd = 250;
 
-      for (var chunk of outputChunks) {
-        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
-        chunkStart += 250;
-        chunkEnd += 250;
-      }
+      // for (var chunk of outputChunks) {
+      //   await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
+      //   chunkStart += 250;
+      //   chunkEnd += 250;
+      // }
 
-      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
+      // await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
 
-      var outputHash = await validator.outputHash();
-      var winningMoveValue = await validator.winningMoveValue();
-      var winningMoveIndex = await validator.winningMoveIndex()
-      console.log(outputHash);
-      console.log(winningMoveIndex);
-      console.log(winningMoveValue);
+      // var outputHash = await validator.outputHash();
+      // var winningMoveValue = await validator.winningMoveValue();
+      // var winningMoveIndex = await validator.winningMoveIndex()
+      // console.log(outputHash);
+      // console.log(winningMoveIndex);
+      // console.log(winningMoveValue);
 
-      var proof_raw = fs.readFileSync("./proof_dir/proof");
-      var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
+      // var proof_raw = fs.readFileSync("./proof_dir/proof");
+      // var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
-      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
+      // var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
+      // var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
-      console.log(await chessContract.boardState());
+      // await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
+      // console.log(await chessContract.boardState());
 
-      await bettingContract.startVoteTimer();
-      await bettingContract.voteWorldMove(convertMoveToUint16Repr("D", 2, "D", 3));
-      await time.increase(30);
-      console.log("callingtimerover");
-      var result = await bettingContract.callTimerOver();
-      console.log("next");
-      await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
-      await bettingContract.leelaHashInputs();
+      // await bettingContract.startVoteTimer();
+      // await bettingContract.voteWorldMove(convertMoveToUint16Repr("D", 2, "D", 3));
+      // await time.increase(30);
+      // console.log("callingtimerover");
+      // var result = await bettingContract.callTimerOver();
+      // console.log("next");
+      // await bettingContract.giveLeelaLegalMoves({ gasLimit: 1e7 });
+      // await bettingContract.leelaHashInputs();
 
-      var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
-      var outputsBn: any[] = [];
-      for (var i = 0; i < outputs.length; i++) {
-        var outputBn = ethers.BigNumber.from(outputs[i])
-        if (outputBn.isNegative()) {
-          outputBn = outputBn.add(ethers.BigNumber.from("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"));
-        }
-        outputsBn.push(outputBn)
-      }
+      // var outputs = JSON.parse(fs.readFileSync("./proof_dir/calc_output.json").toString());
+      // var outputsBn: any[] = [];
+      // for (var i = 0; i < outputs.length; i++) {
+      //   var outputBn = ethers.BigNumber.from(outputs[i])
+      //   if (outputBn.isNegative()) {
+      //     outputBn = outputBn.add(ethers.BigNumber.from("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"));
+      //   }
+      //   outputsBn.push(outputBn)
+      // }
 
-      var outputChunks = [outputsBn.slice(0, 250), outputsBn.slice(250, 500), outputsBn.slice(500, 750), outputsBn.slice(750, 1000), outputsBn.slice(1000, 1250), outputsBn.slice(1250, 1500), outputsBn.slice(1500, 1750)];
+      // var outputChunks = [outputsBn.slice(0, 250), outputsBn.slice(250, 500), outputsBn.slice(500, 750), outputsBn.slice(750, 1000), outputsBn.slice(1000, 1250), outputsBn.slice(1250, 1500), outputsBn.slice(1500, 1750)];
 
-      var chunkStart = 0;
-      var chunkEnd = 250;
+      // var chunkStart = 0;
+      // var chunkEnd = 250;
 
-      for (var chunk of outputChunks) {
-        await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
-        chunkStart += 250;
-        chunkEnd += 250;
-      }
+      // for (var chunk of outputChunks) {
+      //   await validator.hashOutputChunk(chunk, chunkStart, chunkEnd, { gasLimit: 15000000 })
+      //   chunkStart += 250;
+      //   chunkEnd += 250;
+      // }
 
-      await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
+      // await validator.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, { gasLimit: 15000000 });
 
-      var outputHash = await validator.outputHash();
-      var winningMoveValue = await validator.winningMoveValue();
-      var winningMoveIndex = await validator.winningMoveIndex()
-      console.log(outputHash);
-      console.log(winningMoveIndex);
-      console.log(winningMoveValue);
+      // var outputHash = await validator.outputHash();
+      // var winningMoveValue = await validator.winningMoveValue();
+      // var winningMoveIndex = await validator.winningMoveIndex()
+      // console.log(outputHash);
+      // console.log(winningMoveIndex);
+      // console.log(winningMoveValue);
 
-      var proof_raw = fs.readFileSync("./proof_dir/proof");
-      var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
+      // var proof_raw = fs.readFileSync("./proof_dir/proof");
+      // var proof_hex = "0x" + proof_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
-      var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
+      // var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
+      // var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');
 
-      await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
+      // await bettingContract.makeLeelaMove(proof_hex, instance_hex, { gasLimit: 3000000 });
 
     });
 

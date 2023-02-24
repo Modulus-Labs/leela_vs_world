@@ -216,7 +216,6 @@ contract Chess is Ownable, IChess {
         //     for (uint256 row = 0; row < 8; row++) {
         //         for (uint256 col = 0; col < 8; col++) {
         //             if(layer == 0) {
-        //                 console.log("blah");
         //                 console.log(inputPacked);
         //                 console.log((board[layer][uint8(row)][uint8(col)] & 0x1));
         //             }
@@ -361,8 +360,8 @@ contract Chess is Ownable, IChess {
         uint8 toPos = (uint8)(move & 0x3f);
         uint32 playerState;
         uint32 opponentState;
-        console.log("Current turn black? (In checkMove)");
-        console.log(currentTurnBlack);
+        // console.log("Current turn black? (In checkMove)");
+        // console.log(currentTurnBlack);
         if (currentTurnBlack) {
             playerState = blackState;
             opponentState = whiteState;
@@ -376,7 +375,7 @@ contract Chess is Ownable, IChess {
         uint32 newPlayerState = playerState;
         uint256 newGameState;
         if (fromType == pawn_const) {
-            console.log("Yup we're verifying a pawn move");
+            // console.log("Yup we're verifying a pawn move");
             (newGameState, newPlayerState) = verifyExecutePawnMove(
                 boardState,
                 move,
@@ -384,13 +383,13 @@ contract Chess is Ownable, IChess {
                 opponentState
             );
         } else if (fromType == knight_const) {
-            console.log("Yup we're verifying a knight move");
+            // console.log("Yup we're verifying a knight move");
             newGameState = verifyExecuteKnightMove(boardState, fromPos, toPos);
         } else if (fromType == bishop_const) {
-            console.log("Yup we're verifying a bishop move");
+            // console.log("Yup we're verifying a bishop move");
             newGameState = verifyExecuteBishopMove(boardState, fromPos, toPos);
         } else if (fromType == rook_const) {
-            console.log("Yup we're verifying a rook move");
+            // console.log("Yup we're verifying a rook move");
             newGameState = verifyExecuteRookMove(boardState, fromPos, toPos);
             // Reset playerState if necessary when one of the rooks move
             if (fromPos == (uint8)(playerState >> rook_king_side_move_bit)) {
@@ -401,10 +400,10 @@ contract Chess is Ownable, IChess {
                 newPlayerState = playerState | rook_queen_side_move_mask;
             }
         } else if (fromType == queen_const) {
-            console.log("Yup we're verifying a queen move");
+            // console.log("Yup we're verifying a queen move");
             newGameState = verifyExecuteQueenMove(boardState, fromPos, toPos);
         } else if (fromType == king_const) {
-            console.log("Yup we're verifying a king move");
+            // console.log("Yup we're verifying a king move");
             (newGameState, newPlayerState) = verifyExecuteKingMove(
                 boardState,
                 fromPos,
@@ -422,10 +421,10 @@ contract Chess is Ownable, IChess {
         ) {
             return true;
         } else {
-            console.log("newGameState");
-            console.log(newGameState);
-            console.log("Invalid move constant");
-            console.log(invalid_move_constant);
+            // console.log("newGameState");
+            // console.log(newGameState);
+            // console.log("Invalid move constant");
+            // console.log(invalid_move_constant);
             require(false, "newGameState check failed");
         }
         return false;
@@ -442,13 +441,13 @@ contract Chess is Ownable, IChess {
     ) public view returns (uint256 newGameState, uint32 newPlayerState) {
         uint8 fromPos = (uint8)((move >> 6) & 0x3f);
         uint8 toPos = (uint8)(move & 0x3f);
-        console.log("From pos is");
-        console.log(fromPos);
-        console.log("To pos is");
-        console.log(toPos);
+        // console.log("From pos is");
+        // console.log(fromPos);
+        // console.log("To pos is");
+        // console.log(toPos);
         uint8 moveExtra = queen_const;
         newPlayerState = playerState;
-        if (toPos > 64) {
+        if (toPos >= 64) {
             return (invalid_move_constant, playerState);
         }
         // require ((currentTurnBlack && (toPos < fromPos)) || (!currentTurnBlack && (fromPos < toPos)), "inv move");
@@ -472,7 +471,7 @@ contract Chess is Ownable, IChess {
                 return (invalid_move_constant, 0x0);
             }
             if (diff == 16) {
-                console.log("Should be getting here for E2E4");
+                // console.log("Should be getting here for E2E4");
                 if (
                     (currentTurnBlack && ((fromPos >> 3) != 0x6)) ||
                     (!currentTurnBlack && ((fromPos >> 3) != 0x1))
@@ -490,11 +489,11 @@ contract Chess is Ownable, IChess {
                     (uint32)(posToInBetween);
             }
         } else if (diff == 7 || diff == 9) {
-            console.log("Here for pawn taking another piece");
+            // console.log("Here for pawn taking another piece");
             if (getVerticalMovement(fromPos, toPos) != 1) {
                 return (invalid_move_constant, 0x0);
             }
-            console.log("Not trying to move really vertically");
+            // console.log("Not trying to move really vertically");
             if ((uint8)(opponentState & en_passant_const) != toPos) {
                 if (
                     (pieceToPosition == 0) || // Must be moving to occupied square
@@ -506,7 +505,7 @@ contract Chess is Ownable, IChess {
             }
         } else return (invalid_move_constant, 0x0);
 
-        console.log("Wait a minute are we good?");
+        // console.log("Wait a minute are we good?");
         newGameState = commitMove(gameState, fromPos, toPos);
         if (
             (currentTurnBlack && ((toPos >> 3) == 0x0)) ||
@@ -527,7 +526,7 @@ contract Chess is Ownable, IChess {
                 (currentTurnBlack ? moveExtra | color_const : moveExtra)
             );
         }
-        console.log("So we're good right?");
+        // console.log("So we're good right?");
     }
 
     /**
@@ -543,7 +542,7 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
-        if (toPos > 64) {
+        if (toPos >= 64) {
             return invalid_move_constant;
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
@@ -576,7 +575,7 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
-        if (toPos > 64) {
+        if (toPos >= 64) {
             return invalid_move_constant;
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
@@ -611,7 +610,7 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
-        if (toPos > 64) {
+        if (toPos >= 64) {
             return invalid_move_constant;
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
@@ -647,7 +646,7 @@ contract Chess is Ownable, IChess {
         uint8 fromPos,
         uint8 toPos
     ) public view returns (uint256) {
-        if (toPos > 64) {
+        if (toPos >= 64) {
             return invalid_move_constant;
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
@@ -691,16 +690,17 @@ contract Chess is Ownable, IChess {
         newPlayerState =
             ((playerState | king_move_mask) & king_pos_zero_mask) |
             ((uint32)(toPos) << king_pos_bit);
-        console.log("In verifying executing king move");
-        console.log(newPlayerState);
-        console.log("toPos");
-        console.log(toPos);
-        if (toPos > 64) {
+        // console.log("In verifying executing king move");
+        // console.log(newPlayerState);
+        // console.log("toPos");
+        // console.log(toPos);
+        if (toPos >= 64) {
             return (invalid_move_constant, newPlayerState);
         }
         uint8 pieceToPosition = pieceAtPosition(gameState, toPos);
-        console.log("Piece to position");
-        console.log(pieceToPosition);
+
+        // console.log("Piece to position");
+        // console.log(pieceToPosition);
         if (pieceToPosition > 0) {
             if (
                 ((pieceToPosition & color_const) == color_const) ==
@@ -714,22 +714,22 @@ contract Chess is Ownable, IChess {
         uint8 h = getHorizontalMovement(fromPos, toPos);
         uint8 v = getVerticalMovement(fromPos, toPos);
         if ((h <= 1) && (v <= 1)) {
-            console.log("Got here!");
-            console.log(fromPos);
-            console.log(toPos);
-            console.log(gameState);
-            console.log(newPlayerState);
+            // console.log("Got here!");
+            // console.log(fromPos);
+            // console.log(toPos);
+            // console.log(gameState);
+            // console.log(newPlayerState);
             return (commitMove(gameState, fromPos, toPos), newPlayerState);
         } else if ((h == 2) && (v == 0) && castlingPrivleges) {
-            console.log("King is castling");
+            // console.log("King is castling");
             if (!pieceUnderAttack(gameState, fromPos)) {
                 // TODO: must we check king's 'from' position?
                 // Reasoning: castlingRookPosition resolves to an invalid toPos when the rook or the king have already moved.
                 uint8 castlingRookPosition = (uint8)(
                     playerState >> rook_queen_side_move_bit
                 );
-                console.log("Castling rook position: ");
-                console.log(castlingRookPosition);
+                // console.log("Castling rook position: ");
+                // console.log(castlingRookPosition);
                 if (castlingRookPosition - 2 == toPos) {
                     // Queen-side castling
                     // Spaces between king and rook original positions must be empty
@@ -761,7 +761,7 @@ contract Chess is Ownable, IChess {
                         }
                     }
                 } else {
-                    console.log("King side castling");
+                    // console.log("King side castling");
                     castlingRookPosition = (uint8)(
                         playerState >> rook_king_side_move_bit
                     );
@@ -794,19 +794,19 @@ contract Chess is Ownable, IChess {
                                     newPlayerState
                                 );
                             } else {
-                                console.log(
-                                    "One of the squares inbetween is under attack"
-                                );
+                                // console.log(
+                                //     "One of the squares inbetween is under attack"
+                                // );
                             }
                         } else {
-                            console.log(
-                                "So the inbetween stuff is not cleared out"
-                            );
+                            // console.log(
+                            //     "So the inbetween stuff is not cleared out"
+                            // );
                         }
                     } else {
-                        console.log(
-                            "Hmm so it's not the right spot for either"
-                        );
+                        // console.log(
+                        //     "Hmm so it's not the right spot for either"
+                        // );
                     }
                 }
             }
@@ -828,79 +828,80 @@ contract Chess is Ownable, IChess {
         )
     {
         uint256 newGameState;
-        uint8 toPos;
+        int8 toPos;
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Queen's movement */
         uint16[] memory validMoves = new uint16[](32);
         uint8 validMoveIndex = 0;
+        int8 fromPos = int8(fromPos);
 
         // Check left
         if (fromPos >= 1) {
             for (
                 toPos = fromPos - 1;
-                (toPos & 0x7) < (fromPos & 0x7);
+                (toPos & 0x7) < (fromPos & 0x7) && toPos >= 0;
                 toPos--
             ) {
                 newGameState = verifyExecuteQueenMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
 
         // Check right
         for (toPos = fromPos + 1; (toPos & 0x7) > (fromPos & 0x7); toPos++) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteQueenMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check up
         for (toPos = fromPos + 8; toPos < 0x40; toPos += 8) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteQueenMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down
         if (fromPos >= 8) {
-            for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
+            for (toPos = fromPos - 8; toPos < fromPos && toPos >= 0; toPos -= 8) {
                 newGameState = verifyExecuteQueenMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -911,15 +912,15 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos += 9
         ) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteQueenMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
@@ -929,15 +930,15 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos += 7
         ) {
-            newGameState = verifyExecuteQueenMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteQueenMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
@@ -945,22 +946,22 @@ contract Chess is Ownable, IChess {
         if (fromPos >= 7) {
             for (
                 toPos = fromPos - 7;
-                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
+                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7)) && toPos >= 0;
                 toPos -= 7
             ) {
                 newGameState = verifyExecuteQueenMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -969,22 +970,22 @@ contract Chess is Ownable, IChess {
         if (fromPos >= 9) {
             for (
                 toPos = fromPos - 9;
-                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
+                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7)) && toPos >= 0;
                 toPos -= 9
             ) {
                 newGameState = verifyExecuteQueenMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -1010,7 +1011,8 @@ contract Chess is Ownable, IChess {
         )
     {
         uint256 newGameState;
-        uint8 toPos;
+        int8 toPos;
+        int8 fromPos = int8(fromPos);
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Bishop's movement */
 
         uint16[] memory validMoves = new uint16[](16);
@@ -1022,15 +1024,15 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) > (fromPos & 0x7));
             toPos += 9
         ) {
-            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteBishopMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
@@ -1040,15 +1042,15 @@ contract Chess is Ownable, IChess {
             (toPos < 0x40) && ((toPos & 0x7) < (fromPos & 0x7));
             toPos += 7
         ) {
-            newGameState = verifyExecuteBishopMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteBishopMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
@@ -1056,22 +1058,22 @@ contract Chess is Ownable, IChess {
         if (fromPos >= 7) {
             for (
                 toPos = fromPos - 7;
-                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7));
+                (toPos < fromPos) && ((toPos & 0x7) > (fromPos & 0x7)) && toPos >= 0;
                 toPos -= 7
             ) {
                 newGameState = verifyExecuteBishopMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -1080,22 +1082,22 @@ contract Chess is Ownable, IChess {
         if (fromPos >= 9) {
             for (
                 toPos = fromPos - 9;
-                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7));
+                (toPos < fromPos) && ((toPos & 0x7) < (fromPos & 0x7)) && toPos >= 0;
                 toPos -= 9
             ) {
                 newGameState = verifyExecuteBishopMove(
                     gameState,
-                    fromPos,
-                    toPos
+                    uint8(fromPos),
+                    uint8(toPos)
                 );
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -1121,7 +1123,8 @@ contract Chess is Ownable, IChess {
         )
     {
         uint256 newGameState;
-        uint8 toPos;
+        int8 toPos;
+        int8 fromPos = int8(fromPos);
         uint8 kingPos = (uint8)(playerState >> king_pos_bit); /* Kings position cannot be affected by Rook's movement */
 
         uint16[] memory validMoves = new uint16[](16);
@@ -1131,63 +1134,63 @@ contract Chess is Ownable, IChess {
         if (fromPos != 0) {
             for (
                 toPos = fromPos - 1;
-                (toPos & 0x7) < (fromPos & 0x7);
+                (toPos & 0x7) < (fromPos & 0x7) && toPos >= 0;
                 toPos--
             ) {
-                newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+                newGameState = verifyExecuteRookMove(gameState, uint8(fromPos), uint8(toPos));
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
 
         // Check right
         for (toPos = fromPos + 1; (toPos & 0x7) > (fromPos & 0x7); toPos++) {
-            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteRookMove(gameState, uint8(fromPos), uint8(toPos));
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check up
         for (toPos = fromPos + 8; toPos < 0x40; toPos += 8) {
-            newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+            newGameState = verifyExecuteRookMove(gameState, uint8(fromPos), uint8(toPos));
 
             if (
                 (newGameState != invalid_move_constant) &&
                 (!pieceUnderAttack(newGameState, kingPos))
             ) {
-                validMoves[validMoveIndex] = toPos;
+                validMoves[validMoveIndex] = uint8(toPos);
                 validMoveIndex++;
             }
-            if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+            if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                 break;
         }
 
         // Check down
         if (fromPos >= 8) {
-            for (toPos = fromPos - 8; toPos < fromPos; toPos -= 8) {
-                newGameState = verifyExecuteRookMove(gameState, fromPos, toPos);
+            for (toPos = fromPos - 8; toPos < fromPos && toPos >= 0; toPos -= 8) {
+                newGameState = verifyExecuteRookMove(gameState, uint8(fromPos), uint8(toPos));
                 if (
                     (newGameState != invalid_move_constant) &&
                     (!pieceUnderAttack(newGameState, kingPos))
                 ) {
-                    validMoves[validMoveIndex] = toPos;
+                    validMoves[validMoveIndex] = uint8(toPos);
                     validMoveIndex++;
                 }
-                if (((gameState >> (toPos << piece_pos_shift_bit)) & 0xF) != 0)
+                if (((gameState >> (uint8(toPos) << piece_pos_shift_bit)) & 0xF) != 0)
                     break;
             }
         }
@@ -1685,7 +1688,7 @@ contract Chess is Ownable, IChess {
         uint256 gameState = boardState;
         uint32 playerState;
         uint32 opponentState;
-        console.log(currentTurnBlack);
+        // console.log(currentTurnBlack);
         if (currentTurnBlack) {
             playerState = blackState;
             opponentState = whiteState;
@@ -1697,7 +1700,7 @@ contract Chess is Ownable, IChess {
             gameState >>
                 ((uint8)(playerState >> king_pos_bit) << piece_pos_shift_bit)
         ) & 0xF;
-        assert((kingPiece & (~color_const)) == king_const);
+        assert((kingPiece & (~color_const)) == king_const, "King Piece is not where it should be!");
         bool legalMoves = searchPiece(
             gameState,
             playerState,
@@ -1706,7 +1709,7 @@ contract Chess is Ownable, IChess {
             0,
             256
         );
-        console.log(legalMoves);
+        // console.log(legalMoves);
         // If the player is in check but also
         if (checkForCheck(gameState, playerState)) {
             return legalMoves ? 0 : 2;
@@ -1800,14 +1803,14 @@ contract Chess is Ownable, IChess {
         returns (bool)
     {
         uint8 kingsPosition = (uint8)(playerState >> king_pos_bit);
-        console.log("Player state within checkForCheck");
-        console.log(playerState);
-        console.log("Kings position within check for check");
-        console.log(kingsPosition);
-        console.log(gameState);
-        console.log(pieceAtPosition(gameState, kingsPosition) & 0x7);
-        assert(king_const == (pieceAtPosition(gameState, kingsPosition) & 0x7));
-        console.log("Assertion passed within check for check");
+        // console.log("Player state within checkForCheck");
+        // console.log(playerState);
+        // console.log("Kings position within check for check");
+        // console.log(kingsPosition);
+        // console.log(gameState);
+        // console.log(pieceAtPosition(gameState, kingsPosition) & 0x7);
+        assert(king_const == (pieceAtPosition(gameState, kingsPosition) & 0x7), "King piece is not where it should be!");
+        // console.log("Assertion passed within check for check");
         return pieceUnderAttack(gameState, kingsPosition);
     }
 
@@ -2134,6 +2137,7 @@ contract Chess is Ownable, IChess {
     }
 
     function getLegalMoves() public returns (uint16[] memory) {
+        console.log("gettingLegal Moves");
         uint32 playerState = blackState;
         bool currentTurn = currentTurnBlack;
         currentTurnBlack = true;
