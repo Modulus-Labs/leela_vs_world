@@ -1700,7 +1700,7 @@ contract Chess is Ownable, IChess {
             gameState >>
                 ((uint8)(playerState >> king_pos_bit) << piece_pos_shift_bit)
         ) & 0xF;
-        assert((kingPiece & (~color_const)) == king_const, "King Piece is not where it should be!");
+        require((kingPiece & (~color_const)) == king_const, "King Piece is not where it should be!");
         bool legalMoves = searchPiece(
             gameState,
             playerState,
@@ -1809,7 +1809,7 @@ contract Chess is Ownable, IChess {
         // console.log(kingsPosition);
         // console.log(gameState);
         // console.log(pieceAtPosition(gameState, kingsPosition) & 0x7);
-        assert(king_const == (pieceAtPosition(gameState, kingsPosition) & 0x7), "King piece is not where it should be!");
+        require(king_const == (pieceAtPosition(gameState, kingsPosition) & 0x7), "King piece is not where it should be!");
         // console.log("Assertion passed within check for check");
         return pieceUnderAttack(gameState, kingsPosition);
     }
