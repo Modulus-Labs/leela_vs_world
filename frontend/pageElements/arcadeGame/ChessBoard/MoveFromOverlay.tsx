@@ -15,14 +15,14 @@ export const MoveFromOverlay: FC<MoveFromOverlayProps> = ({ x, y, square }) => {
   return (
     <div
       className={clsx(
-        'absolute h-[71px] w-[71px] cursor-pointer bg-yellow-200 opacity-50',
+        'absolute h-[50px] w-[50px] cursor-pointer bg-yellow-200 opacity-50',
         currChessBoard.validMoves !== null &&
-          currChessBoard.validMoves.some((move) => move === square) &&
-          'cursor-pointer'
+        currChessBoard.validMoves.some((move) => move === square) &&
+        'cursor-pointer'
       )}
       style={{
-        left: 35 + x * 71,
-        top: y * 71,
+        left: 25 + x * 50,
+        top: y * 50,
       }}
     />
   );
