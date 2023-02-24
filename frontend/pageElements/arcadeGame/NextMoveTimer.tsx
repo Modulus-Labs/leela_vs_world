@@ -19,9 +19,9 @@ export const NextMoveTimer: FC = () => {
   };
 
   return (
-    <div className="relative grid h-full w-full grid-cols-12 items-center bg-[url(/NextMoveTimer.png)] bg-contain bg-no-repeat px-[45px] pt-[60px] pb-[20px] text-4xl">
-      <p className="col-span-5 w-fit">{`Turn ${moveIndex}`}</p>
-      <p className="col-span-6 w-fit pl-[25px] text-align:center">{formattedTimeToNextMove()}</p>
+    <div className="relative grid h-full w-full grid-cols-12 items-center bg-[url(/NextMoveTimer.png)] bg-contain bg-no-repeat px-[45px] pt-[45px] pb-[20px] text-4xl">
+      <p className="col-span-5 w-fit" style={{ fontSize: 20 }}>{`Turn ${moveIndex}`}</p>
+      <p className="col-span-6 w-fit pl-[25px] text-align:center" style={{ fontSize: 20 }}>{formattedTimeToNextMove()}</p>
     </div>
   );
 };

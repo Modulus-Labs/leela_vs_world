@@ -38,6 +38,11 @@ async function main() {
 
     // --- Connect to betting contract, set vote period to 10 seconds, start timer ---
     const bettingContract = BettingGame__factory.connect(addresses.BETTING_CONTRACT_ADDR, owner);
+
+    // --- Betting contract transfer ownership ---
+    const result = await bettingContract.transferOwnership("0xB5D32C00a3E2ee89660064E98770b65E8779C53D");
+    await result.wait();
+
     // await bettingContract.setVotePeriod(10, { gasLimit: 1e7 });
     // console.log("Set vote period");
     // await bettingContract.startVoteTimer({ gasLimit: 1e7 });
@@ -64,17 +69,17 @@ async function main() {
     // console.log("All done forcing the world to make a move!");
 
     // --- Play a move manually for Leela ---
-    const move = convertMoveToUint16Repr("C", 8, "D", 7);
-    console.log(`Move is ${move}`);
-    const result = await bettingContract.manualLeelaMove(move, { gasLimit: 1e7 });
-    console.log("Result from manual Leela move is");
-    console.log(result);
-    const receipt = await result.wait();
-    console.log("Receipt from manual Leela move is");
-    if (receipt.events !== undefined) {
-        console.log("Receipt has events!");
-        console.log(receipt.events);
-    }
+    // const move = convertMoveToUint16Repr("C", 8, "D", 7);
+    // console.log(`Move is ${move}`);
+    // const result = await bettingContract.manualLeelaMove(move, { gasLimit: 1e7 });
+    // console.log("Result from manual Leela move is");
+    // console.log(result);
+    // const receipt = await result.wait();
+    // console.log("Receipt from manual Leela move is");
+    // if (receipt.events !== undefined) {
+    //     console.log("Receipt has events!");
+    //     console.log(receipt.events);
+    // }
 }
 
 main()

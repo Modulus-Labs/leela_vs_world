@@ -18,11 +18,12 @@ export const InfoModal = () => {
         isOpen={showInfoModal}
         style={{
           overlay: {
-            top: "20%",
-            bottom: "36%",
-            left: "30%",
-            right: "30%",
+            top: "12%",
+            bottom: "35%",
+            left: "25%",
+            right: "26%",
             borderRadius: 5,
+            transform: "translate(0%, 30%)",
           },
           content: {
             top: '50%',

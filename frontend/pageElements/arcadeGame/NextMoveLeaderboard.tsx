@@ -25,8 +25,8 @@ export const NextMoveLeaderboard: FC = () => {
               index % 2 === 0 && 'bg-emerald-green'
             )}
           >
-            <p>{humanRepr}</p>
-            <p>{stake > 0 ? `${stake} ETH` : ""}</p>
+            <p style={{ fontSize: 20 }}>{humanRepr}</p>
+            <p style={{ fontSize: 20 }}>{stake > 0 ? `${stake} ETH` : ""}</p>
           </div>
         ))}
       </div>

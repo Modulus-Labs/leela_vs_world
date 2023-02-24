@@ -35,7 +35,7 @@ const LeelaWorldButton: FC<LeelaWorldButtonProps> = ({
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-[50px] w-[175px]"
+      className="h-[45px] w-[160px]"
     >
       <Image fill src={buttonImageUrl} alt="" />
     </motion.button>
@@ -102,26 +102,32 @@ export const GameDetails: FC = () => {
   return (
     <GamePopup onClick={() => setShowGameDetails(false)}>
       <div className="mx-[107.5px]">
+
         <div className="relative mx-auto flex h-[230px] w-full flex-col bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
-          <div className="ml-[350px] mt-[80px] mr-[30px] flex flex-col text-4xl">
-            <div className="flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
-              {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(3)} MATIC`}
+          <div className="ml-[300px] mt-[70px] mr-[30px] flex flex-col text-4xl">
+            <div className="flex h-[45px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
+              <span style={{ fontSize: 25 }}>
+                {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(3)} MATIC`}
+              </span>
             </div>
-            <div className="mt-[10px] flex h-[50px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
-              {getDistDisplay()}
+            <div className="mt-[10px] flex h-[45px] flex-row items-center border-2 border-off-white px-[15px] text-off-white">
+              <span style={{ fontSize: 25 }}>
+                {getDistDisplay()}
+              </span>
             </div>
           </div>
         </div>
         <div className="relative mx-auto mt-[5px] h-[230px] w-full bg-[url(/BuyPowerDisplay.svg)] bg-contain bg-no-repeat">
           <div>
             <input
+              style={{ fontSize: 25 }}
               value={powerAmount}
               type={"number"}
               step={MIN_STAKE_AMT}
               onChange={(e) => setPowerAmount(e.target.value)}
-              className="absolute top-[82.5px] left-[360px] w-[190px] border-2 border-off-white bg-transparent px-2 text-4xl text-off-white outline-none"
+              className="absolute top-[70px] left-[310px] w-[170px] border-2 border-off-white bg-transparent px-2 text-4xl text-off-white outline-none"
             />
-            <div className="absolute left-[350px] top-[142.5px]">
+            <div className="absolute left-[300px] top-[125px]">
               <LeelaWorldButton
                 buttonImageUrl="/LeelaButton.svg"
                 onClick={() => {
@@ -129,7 +135,7 @@ export const GameDetails: FC = () => {
                 }}
               />
             </div>
-            <div className="absolute left-[610px] top-[142.5px]">
+            <div className="absolute left-[520px] top-[125px]">
               <LeelaWorldButton
                 buttonImageUrl="/WorldButton.svg"
                 onClick={() => {

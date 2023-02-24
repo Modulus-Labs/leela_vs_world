@@ -59,30 +59,30 @@ export const VotingPanel: FC = () => {
 
   return (
     <div className="relative h-full w-full bg-[url(/VotingDisplay.png)] bg-contain bg-bottom bg-no-repeat"
-      style={{}}>
+      style={{ alignItems: "center", justifyContent: "center" }}>
 
       {/* --- Thingy + dropdown --- */}
       {userVotedMove === "" ?
-        <>
-          <div className="absolute left-[250px] bottom-[245px]" style={{}}>
-            <span style={{ fontSize: 30 }}>
+        <div>
+          <div className="absolute left-[180px] bottom-[175px]">
+            <span style={{ fontSize: 20 }}>
               {`[${moveNotation === "" ? "-" : moveNotation}]`}
             </span>
           </div>
 
           {/* --- "with your purchased power: ___ " --- */}
-          <div className="absolute right-[100px] bottom-[175px]" style={{}}>
-            <span style={{ fontSize: 50 }}>{`${votingPower}`}</span>
+          <div className="absolute right-[110px] bottom-[135px]" style={{}}>
+            <span style={{ fontSize: 25 }}>{`${votingPower}`}</span>
           </div>
-        </>
+        </div>
         :
-        <div className="absolute left-[0px] bottom-[180px]" style={{ backgroundColor: "#ABE1BD", justifyContent: "center", flexDirection: "row" }}>
-          <p style={{ fontSize: 40, paddingRight: 20, paddingLeft: 20 }}>{`You voted for [${userVotedMove}] with ${votingPower} power!`}</p>
+        <div className="absolute left-[0px] bottom-[130px]" style={{ backgroundColor: "#ABE1BD", justifyContent: "center", flexDirection: "row" }}>
+          <p style={{ fontSize: 25, paddingBottom: 10, paddingTop: 10, paddingLeft: 20, paddingRight: 20 }}>{`You voted for [${userVotedMove}] with ${votingPower} power!`}</p>
         </div>
       }
 
-      <div className="absolute bottom-[20px] left-[0px] right-[0px] flex flex-col items-center gap-y-3" style={{}}>
-        <div className="h-[45px] w-[545px]">
+      <div className="absolute top-[90px] left-[0px] right-[0px] flex flex-col" style={{ alignItems: "center", justifyContent: "center", height: 120 }}>
+        <div className="h-[50px] w-[400px]">
           <RetroButton
             animating={submitMoveButtonAnimating}
             buttonImageUrl="bg-[url(/SubmitMoveButton.svg)]"
@@ -133,7 +133,7 @@ export const VotingPanel: FC = () => {
           />
         </div>
 
-        <div className="h-[45px] w-[545px]">
+        <div className="h-[50px] w-[400px]">
           <RetroButton
             animating={buyPowerButtonAnimating}
             buttonImageUrl="bg-[url(/BuyPowerButton.svg)]"
@@ -151,7 +151,7 @@ export const VotingPanel: FC = () => {
           />
         </div>
 
-        <div className="h-[45px] w-[545px]">
+        <div className="h-[50px] w-[400px]">
           {walletAddr === "" ?
             <RetroButton
               animating={walletButtonAnimating}
@@ -171,11 +171,11 @@ export const VotingPanel: FC = () => {
             />
             :
             <>
-              <span style={{ fontSize: 20 }}>{`Wallet connected: ${walletAddr}`}</span>
+              <span style={{ fontSize: 15 }}>{`Wallet connected: ${walletAddr}`}</span>
             </>
           }
         </div>
       </div>
-    </div>
+    </div >
   );
 };
