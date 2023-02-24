@@ -29,6 +29,24 @@ export const VotingPanel: FC = () => {
   }, [currChessBoard.moveFrom, currChessBoard.moveTo, currChessBoard.chessGame, currChessBoard.fen]),
     [currChessBoard.moveTo, currChessBoard.moveFrom, currChessBoard.chessGame, currChessBoard.fen]);
 
+  // --- Visuals to hint at the user that they should submit a move ---
+  const [submitMoveButtonAnimating, setSubmitMoveButtonAnimating] = useState<boolean>(false);
+  const [buyPowerButtonAnimating, setBuyPowerButtonAnimating] = useState<boolean>(false);
+  const [walletButtonAnimating, setWalletButtonAnimating] = useState<boolean>(true);
+  useEffect(useCallback(() => {
+    if (votingPower === 0 && !walletButtonAnimating) {
+      setBuyPowerButtonAnimating(true);
+    } else {
+      setBuyPowerButtonAnimating(false);
+    }
+    if (votingPower > 0 && userVotedMove === "" && !walletButtonAnimating) {
+      setSubmitMoveButtonAnimating(true);
+    } else {
+      setSubmitMoveButtonAnimating(false);
+    }
+  }, [votingPower, walletButtonAnimating, userVotedMove]), [votingPower, walletButtonAnimating, userVotedMove]);
+
+
   // --- To display error message to user ---
   const openModalWithOptions = (text: string, canDismiss: boolean) => {
     setInfoModalText(text);
@@ -40,23 +58,16 @@ export const VotingPanel: FC = () => {
   // if (leaderboardMoves.length === 0) return null;
 
   return (
-    <div className="relative h-full w-full bg-[url(/VotingDisplay.svg)] bg-contain bg-bottom bg-no-repeat"
+    <div className="relative h-full w-full bg-[url(/VotingDisplay.png)] bg-contain bg-bottom bg-no-repeat"
       style={{}}>
 
       {/* --- Thingy + dropdown --- */}
       {userVotedMove === "" ?
         <>
-          <div className="absolute left-[180px] bottom-[247.5px]" style={{}}>
-            <RetroDropdown
-              text={moveNotation}
-              onClick={() => {
-              }}
-            />
-          </div>
-
-          {/* --- "Move to ___ " --- */}
-          <div className="absolute right-[100px] bottom-[247.5px]" style={{}}>
-            <span>{"where you are moving to"}</span>
+          <div className="absolute left-[250px] bottom-[245px]" style={{}}>
+            <span style={{ fontSize: 30 }}>
+              {`[${moveNotation === "" ? "-" : moveNotation}]`}
+            </span>
           </div>
 
           {/* --- "with your purchased power: ___ " --- */}
@@ -73,6 +84,7 @@ export const VotingPanel: FC = () => {
       <div className="absolute bottom-[20px] left-[0px] right-[0px] flex flex-col items-center gap-y-3" style={{}}>
         <div className="h-[45px] w-[545px]">
           <RetroButton
+            animating={submitMoveButtonAnimating}
             buttonImageUrl="bg-[url(/SubmitMoveButton.svg)]"
             onClick={() => {
 
@@ -83,7 +95,7 @@ export const VotingPanel: FC = () => {
 
               // --- Already voted ---
               else if (userVotedMove !== "") {
-                openModalWithOptions("Oops -- already voted for a move this round! No voter fraud here, as much as we'd like to fulfill Trump's fantasies ;)", true);
+                openModalWithOptions("Oops -- already voted for a move this round!", true);
               }
 
               // --- No move selected ---
@@ -123,6 +135,7 @@ export const VotingPanel: FC = () => {
 
         <div className="h-[45px] w-[545px]">
           <RetroButton
+            animating={buyPowerButtonAnimating}
             buttonImageUrl="bg-[url(/BuyPowerButton.svg)]"
             onClick={() => {
               if (walletAddr == "") {
@@ -130,7 +143,7 @@ export const VotingPanel: FC = () => {
               }
               // --- Already submitted a move ---
               else if (userVotedMove !== "") {
-                openModalWithOptions("Already voted for a move! Buy more power before voting to give that next move some more oomph!", true);
+                openModalWithOptions("Already voted for a move! Buy more power on the next turn ;)", true);
               } else {
                 setShowGameDetails(true);
               }
@@ -141,6 +154,7 @@ export const VotingPanel: FC = () => {
         <div className="h-[45px] w-[545px]">
           {walletAddr === "" ?
             <RetroButton
+              animating={walletButtonAnimating}
               buttonImageUrl="bg-[url(/ConnectWalletButton.svg)]"
               onClick={() => {
                 connectWallet().then(({ status, address, provider }) => {
@@ -148,6 +162,7 @@ export const VotingPanel: FC = () => {
                     openModalWithOptions("Successfully connected wallet!", true);
                     setWalletAddr(address);
                     setEthersProvider(provider);
+                    setWalletButtonAnimating(false);
                   } else {
                     openModalWithOptions(status, true);
                   }

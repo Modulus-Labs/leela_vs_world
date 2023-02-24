@@ -47,8 +47,8 @@ const getEthersProvider = (address?: string): ethers.providers.JsonRpcProvider |
   // const { API_KEY } = process.env;
   // console.log(`API URL IS: ${API_URL}`);
   // console.log("Grabbing the ethers provider (again?)!");
-  // const API_URL = "http://127.0.0.1:8545/";
-  const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/-eJGoKkTEMre3-CY_NksLQhZX2-E7RZQ`;
+  const API_URL = "http://127.0.0.1:8545/";
+  // const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/-eJGoKkTEMre3-CY_NksLQhZX2-E7RZQ`;
   let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
   return ethersProvider;
 }
