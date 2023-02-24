@@ -21,8 +21,12 @@ import { useContractInteractionContext } from './ContractInteractionContext';
 import { convertUint16SquareToHumanRepr } from '../utils/helpers';
 
 interface ChessGameContextInterface {
+  // --- For stateful things ---
   currChessBoard: BoardState;
   setCurrChessBoard: Dispatch<SetStateAction<BoardState>>;
+  moveIndex: number;
+  setMoveIndex: Dispatch<SetStateAction<number>>;
+
   startMove: (square: Square) => void;
   endMove: (square: Square) => void;
   resetMove: () => void;
@@ -61,11 +65,11 @@ export const ChessGameContextProvider = ({
     if (chessStateRequest !== null) {
       chessStateRequest.then(([boardState, whiteState, blackState, currentTurnBlack, gameIndex, moveIndex]) => {
         const fen = getFen(boardState.toHexString().substring(2), whiteState, blackState, currentTurnBlack, moveIndex + 1);
-        console.log(`${boardState.toHexString()}, ${whiteState}, ${blackState}, ${currentTurnBlack}, ${moveIndex}`);
-        console.log(`Successfully got fen ${fen} from the chess contract!`);
+        console.log(`Got shenanigans: ${boardState.toHexString()}, ${whiteState}, ${blackState}, ${currentTurnBlack}, ${moveIndex}`);
+        // console.log(`Successfully got fen ${fen} from the chess contract!`);
         // const newChessGame = new Chess(fen);
         // console.log(`New Chess game with FEN: ${newChessGame.fen()}`);
-        console.log(validateFen(fen));
+        // console.log(validateFen(fen));
         setCurrChessBoard({
           fen: fen,
           moveState: MOVE_STATE.IDLE,
@@ -73,8 +77,9 @@ export const ChessGameContextProvider = ({
           moveTo: null,
           validMoves: null,
           chessGame: new Chess(fen),
-          moveIndex: moveIndex,
+          moveIndex: moveIndex + 1,
         });
+        setMoveIndex(moveIndex + 1);
 
       }).catch((error: any) => {
         console.error(`Failed to get board state: ${error}`);
@@ -297,7 +302,9 @@ export const ChessGameContextProvider = ({
     return ret;
   };
 
+  // --- Stateful things ---
   const [currChessBoard, setCurrChessBoard] = useState<BoardState>(getInitialBoardState);
+  const [moveIndex, setMoveIndex] = useState<number>(1);
 
   /**
    * Determines whether we're diagonal to an enpassant square
@@ -382,6 +389,8 @@ export const ChessGameContextProvider = ({
       value={{
         currChessBoard,
         setCurrChessBoard,
+        moveIndex,
+        setMoveIndex,
         startMove,
         endMove,
         resetMove,

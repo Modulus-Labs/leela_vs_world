@@ -10,15 +10,17 @@ import { GameDetails } from '../pageElements/gamePopups/BuyPowerModal';
 import { GameInstructions } from '../pageElements/gamePopups/GameInstructions';
 import { GameEarnings } from '../pageElements/gamePopups/GameEarnings';
 import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
-import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModulousLabs';
+import { CreatedByModulusLabs } from '../pageElements/arcadeGame/CreatedByModulusLabs';
 import { useMediaQueryContext } from '../contexts/MediaQueryContext';
 import { ScreenTooSmall } from '../pageElements/ScreenTooSmall';
 import { ArcadeFooter } from '../pageElements/arcadeGame/ArcadeFooter';
 import { InfoModal } from '../pageElements/gamePopups/InfoModal';
+import { useChessGameContext } from '../contexts/ChessGameContext';
 
 export default function Home() {
   const { isMobile } = useMediaQueryContext();
   const { showGameInstructions, showGameDetails, showInfoModal } = useArcadeMachineContext();
+  const { currChessBoard } = useChessGameContext();
 
   if (isMobile) {
     return <ScreenTooSmall />;
@@ -73,17 +75,29 @@ export default function Home() {
               <div className="mb-[20px] h-[125px]">
                 <PrizePool />
               </div>
-              <div className="flex h-[265px]">
-                <NextMoveLeaderboard />
-              </div>
-              <div className="flex-grow">
-                <VotingPanel />
-              </div>
+              {currChessBoard.chessGame.turn() === "w" ?
+                <>
+                  <div className="flex h-[265px]">
+                    <NextMoveLeaderboard />
+                  </div>
+                  <div className="flex-grow">
+                    <VotingPanel />
+                  </div>
+                </> :
+                <>
+                  <Image
+                    height={700}
+                    width={700}
+                    src="/leelaThinking.gif"
+                    alt="Leela-thinking-gif"
+                  />
+                </>
+              }
             </div>
           </div>
 
           <div className="mx-auto mt-[20px] h-[70px] w-[1475px]">
-            <CreatedByModulousLabs />
+            <CreatedByModulusLabs />
           </div>
 
           <div className="mx-auto mt-[-90px] h-[220px] w-[1375px]">

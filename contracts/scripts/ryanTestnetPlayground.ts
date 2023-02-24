@@ -64,17 +64,17 @@ async function main() {
     // console.log("All done forcing the world to make a move!");
 
     // --- Play a move manually for Leela ---
-    // const move = convertMoveToUint16Repr("F", 6, "D", 7);
-    // console.log(`Move is ${move}`);
-    // const result = await bettingContract.manualLeelaMove(move, { gasLimit: 1e7 });
-    // console.log("Result from manual Leela move is");
-    // console.log(result);
-    // const receipt = await result.wait();
-    // console.log("Receipt from manual Leela move is");
-    // if (receipt.events !== undefined) {
-    //     console.log("Receipt has events!");
-    //     console.log(receipt.events);
-    // }
+    const move = convertMoveToUint16Repr("C", 8, "D", 7);
+    console.log(`Move is ${move}`);
+    const result = await bettingContract.manualLeelaMove(move, { gasLimit: 1e7 });
+    console.log("Result from manual Leela move is");
+    console.log(result);
+    const receipt = await result.wait();
+    console.log("Receipt from manual Leela move is");
+    if (receipt.events !== undefined) {
+        console.log("Receipt has events!");
+        console.log(receipt.events);
+    }
 }
 
 main()

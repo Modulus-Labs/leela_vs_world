@@ -3,9 +3,14 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
+/* @font-face {
   font-family: 'Incognito-Inc';
   src: url('/fonts/IncognitoInc.ttf');
+} */
+
+@font-face {
+  font-family: 'Incognito-Inc';
+  src: url('./VCR_OSD_MONO_1.001.ttf');
 }
 
 :root {
@@ -50,7 +55,7 @@ div.scroll {
   background-color: transparent;
   overflow-x: auto;
   overflow-y: auto;
-  text-align:justify;
+  text-align: justify;
 }
 
 input {
@@ -92,11 +97,13 @@ html {
   height: 0.5rem;
   margin: 0px 10px;
 }
+
 ::-webkit-scrollbar {
   width: 0.5rem;
   border-radius: 0.125rem;
   height: 0.5rem;
 }
+
 ::-webkit-scrollbar-thumb {
   border-radius: 0.2rem;
   background-color: var(--dark-gray);
@@ -105,11 +112,14 @@ html {
 
 /* ---Custom highlight color--- */
 ::selection {
-  background: var(--off-black); /* WebKit/Blink Browsers */
+  background: var(--off-black);
+  /* WebKit/Blink Browsers */
   color: var(--off-white);
 }
+
 ::-moz-selection {
-  background: var(--off-black); /* Gecko Browsers */
+  background: var(--off-black);
+  /* Gecko Browsers */
   color: var(--off-white);
 }
 
@@ -133,8 +143,7 @@ html {
     }
 
     .page-container {
-      padding: theme(padding.10) theme(padding.width-clamp) theme(padding.20)
-        theme(padding.width-clamp);
+      padding: theme(padding.10) theme(padding.width-clamp) theme(padding.20) theme(padding.width-clamp);
     }
   }
 }

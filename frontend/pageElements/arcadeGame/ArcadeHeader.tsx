@@ -53,7 +53,7 @@ export const ArcadeHeader: FC = () => {
           console.log('Strategize on Discord');
         }}
       >
-        <a href={process.env.DISCORD_LINK!} target="_blank" rel="no-referrer">
+        <a href={"https://t.co/KlRkssJZvH"} target="_blank" rel="no-referrer">
           <Image
             priority
             fill
