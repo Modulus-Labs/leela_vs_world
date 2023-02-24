@@ -337,6 +337,10 @@ describe("Integration Tests: Betting Contract", function () {
       console.log(await chessContract.blackState());
       console.log(await chessContract.whiteState());
       console.log(await chessContract.currentTurnBlack());
+      console.log(await chessContract.gameIndex());
+      console.log(await chessContract.moveIndex());
+      console.log(await bettingContract.gameIndex());
+      console.log(await bettingContract.moveIndex());
       await bettingContract.manualLeelaMove(convertMoveToUint16Repr("F", 6, "D", 7));
       console.log("blblblb");
 
