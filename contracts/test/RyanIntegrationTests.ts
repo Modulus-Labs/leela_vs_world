@@ -21,10 +21,11 @@ const SAMPLE_GAME = ["D2D4", "D7D5", "C2C4", "C7C6", "G1F3", "G8F6", "E2E3", "C8
 
   // NON_CANON_ENDGAME "A3A4", "C6B4", "C5C6", "A6A5", "C6C7", "F8E7", "F3C6", "B7B6", "G3F2", "B6B5", "F2C5"]
 
-const FOOLS_MATE_LEELA_WIN = ["F2F3", "E7E6", "G2G4", "D8H4"]
+const FOOLS_MATE_LEELA_WIN = ["F2F3", "E7E6", "G2G4"]
 const FOOLS_MATE_WORLD_WIN = ["E2E3", "F7F6", "A2A3", "G7G5", "D1H5"]
 
 const GLITCHED_GAME = ["G1H3", "G8F6", "E2E4", "D7D5", "B1C3", "C7C5", "F2F3", "D5D4", "F1B5"]
+const SHENANIGANS_GAME = ["E2E3", "E7E6", "D2D3", "F8D6", "F2F3", "G8F6", "G2G3"]
 
 /**
  * Given chess move in e.g. "A2A4" format, converts into chess game-parseable repr.
@@ -101,14 +102,14 @@ describe("Integration Tests: Chess Contract", function () {
     it("Testing ValidMove list", async function () {
       const chessGame = await loadFixture(deployContractAndInitialize);
 
-      var legalMoves = await chessGame.callStatic.getLegalMoves({gasLimit: 15000000});
-      console.log("legal inital moves!");
-      for (var legalMove of legalMoves) {
-        if (legalMove == 0) {break;}
-        console.log(convertUint16ReprToHumanReadable(legalMove));
-      }
+      // var legalMoves = await chessGame.callStatic.getLegalMoves({gasLimit: 15000000});
+      // console.log("legal inital moves!");
+      // for (var legalMove of legalMoves) {
+      //   if (legalMove == 0) {break;}
+      //   console.log(convertUint16ReprToHumanReadable(legalMove));
+      // }
       var i = 1;
-      for (var move of SAMPLE_GAME) {
+      for (var move of SHENANIGANS_GAME) {
         try {
           await chessGame.playMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
           //await chessGame.getLegalMoves();
@@ -226,20 +227,20 @@ describe("Integration Tests: Betting Contract", function () {
       const worldStakes = await bettingContract.worldStakes(0, owner.getAddress(), { gasLimit: 1e7 });
       const leelaStakes = await bettingContract.leelaStakes(0, owner.getAddress(), { gasLimit: 1e7 });
 
-      const worldShares = await bettingContract.worldShares(0, owner.getAddress(), { gasLimit: 1e7 });
-      const leelaShares = await bettingContract.leelaShares(0, owner.getAddress(), { gasLimit: 1e7 });
+      // const worldShares = await bettingContract.worldShares(owner.getAddress(), { gasLimit: 1e7 });
+      // const leelaShares = await bettingContract.leelaShares(owner.getAddress(), { gasLimit: 1e7 });
 
-      const totalLeelaShares = await bettingContract.totalLeelaShares({ gasLimit: 1e7 });
-      const totalWorldShares = await bettingContract.totalWorldShares({ gasLimit: 1e7 });
+      // const totalLeelaShares = await bettingContract.totalLeelaShares({ gasLimit: 1e7 });
+      // const totalWorldShares = await bettingContract.totalWorldShares({ gasLimit: 1e7 });
 
       console.log(`worldPoolSize: ${worldPoolSize}`);
       console.log(`leelaPoolSize: ${leelaPoolSize}`);
       console.log(`worldStakes: ${worldStakes}`);
       console.log(`leelaStakes: ${leelaStakes}`);
-      console.log(`worldShares: ${worldShares}`);
-      console.log(`leelaShares: ${leelaShares}`);
-      console.log(`totalLeelaShares: ${totalLeelaShares}`);
-      console.log(`totalWorldShares: ${totalWorldShares}`);
+      // console.log(`worldShares: ${worldShares}`);
+      // console.log(`leelaShares: ${leelaShares}`);
+      // console.log(`totalLeelaShares: ${totalLeelaShares}`);
+      // console.log(`totalWorldShares: ${totalWorldShares}`);
     })
 
     it("Testing betting contract move leaderboard", async function () {
@@ -303,17 +304,17 @@ describe("Integration Tests: Betting Contract", function () {
 
       await bettingContract.addStake(false, {value: ethers.utils.parseEther("0.1")});
       await bettingContractOther.addStake(true, {value: ethers.utils.parseEther("0.2")});
-      await bettingContract.connect(account3).addStake(false, {value: ethers.utils.parseEther("0.2")});
+      await bettingContract.connect(account3).addStake(true, {value: ethers.utils.parseEther("0.2")});
       await bettingContract.connect(account4).addStake(false, {value: ethers.utils.parseEther("0.2")});
       await bettingContract.setVotePeriod(10);
+      await bettingContract.startVoteTimer();
       console.log(await bettingContract.accountsPayable(owner.address))
 
       var leelaTurn = false;
-      for (var move of GLITCHED_GAME) {
+      for (var move of FOOLS_MATE_LEELA_WIN) {
         try {
           if (leelaTurn == false) {
             console.log("world move")
-            await bettingContract.startVoteTimer();
             await bettingContract.voteWorldMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
             time.increase(30);
             console.log(await bettingContract.getWorldMove());
@@ -331,29 +332,23 @@ describe("Integration Tests: Betting Contract", function () {
         }
       }
 
-      try {await bettingContract.manualLeelaMove(convertMoveToUint16Repr("F", 6, "D", 6))} catch {};
-      console.log("blahblahblah");
-      console.log(await chessContract.boardState())
-      console.log(await chessContract.blackState());
-      console.log(await chessContract.whiteState());
-      console.log(await chessContract.currentTurnBlack());
-      console.log(await chessContract.gameIndex());
-      console.log(await chessContract.moveIndex());
-      console.log(await bettingContract.gameIndex());
-      console.log(await bettingContract.moveIndex());
-      await bettingContract.manualLeelaMove(convertMoveToUint16Repr("F", 6, "D", 7));
-      console.log("blblblb");
-
+      await expect(bettingContract.manualLeelaMove(convertMoveToUint16Repr("D", 8, "H", 4))).to.changeEtherBalance(owner, "35000000000000100");
 
       // console.log(await chessContract.callStatic.checkEndgame());
 
-      // console.log(await bettingContract.accountsPayable(owner.address))
-      // console.log(await bettingContract.accountsPayable(account2.address));
-      // console.log(await bettingContract.accountsPayable(account3.address));
-      // console.log(await bettingContract.accountsPayable(account4.address));
+      console.log(await bettingContract.accountsPayable(owner.address))
+      console.log(await bettingContract.accountsPayable(account2.address));
+      console.log(await bettingContract.accountsPayable(account3.address));
+      console.log(await bettingContract.accountsPayable(account4.address));
 
-      // await expect(bettingContractOther.claimPayout()).to.changeEtherBalance(account2, "699999999999998500")
-      // await expect(bettingContract.claimPayout()).to.changeEtherBalance(owner, 0);
+      await expect(bettingContractOther.claimPayout()).to.changeEtherBalance(account2, "332500000000000118")
+      await expect(bettingContract.claimPayout()).to.changeEtherBalance(owner, 0);
+
+      await bettingContract.moveStakeToNextGame();
+
+      console.log(await bettingContract.leelaStakes(1, account3.address));
+
+      await expect(bettingContract.connect(account3).claimPayout()).to.changeEtherBalance(owner, 0);
     });
 
     it("Should Play 2 full moves correctly", async function () {

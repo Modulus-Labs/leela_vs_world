@@ -56,16 +56,16 @@ contract BettingGame is Ownable {
     /// @dev User stakes on the World / Leela.
     mapping(uint16 => mapping(address => uint256)) public worldStakes;
     mapping(uint16 => mapping(address => uint256)) public leelaStakes;
-    uint64 public worldVoterCount;
-    uint64 public leelaVoterCount;
+    // uint64 public worldVoterCount;
+    // uint64 public leelaVoterCount;
 
     /// @dev User shares on the World / Leela.
-    mapping(uint16 => mapping(address => uint256)) public worldShares;
-    mapping(uint16 => mapping(address => uint256)) public leelaShares;
+    // mapping(uint16 => mapping(address => uint256)) public worldShares;
+    // mapping(uint16 => mapping(address => uint256)) public leelaShares;
 
     /// @dev The total number of shares in the contract, used to calculate the payout.
-    uint256 public totalLeelaShares;
-    uint256 public totalWorldShares;
+    // uint256 public totalLeelaShares;
+    // uint256 public totalWorldShares;
 
     /// @dev The color Leela is playing in this game -- true if white, false if black.
     bool public leelaColor;
@@ -137,7 +137,7 @@ contract BettingGame is Ownable {
         address _chess,
         address _leela,
         uint256 initialPoolSize
-    ) public {
+    ) public onlyOwner {
         chess = IChess(_chess); // not sure if this is right
         chess.initializeGame();
         leela = Validator(_leela);
@@ -147,6 +147,23 @@ contract BettingGame is Ownable {
         leelaColor = false;
         gameIndex = 0;
         moveIndex = 0;
+    }
+
+    function moveStakeToNextGame() public onlyOwner {
+        for (uint256 i = 0; i < votersList[gameIndex - 1].length; i++) {
+            address account = votersList[gameIndex - 1][i];
+            if (accountsPayable[account] != 0) {
+                if (worldStakes[gameIndex - 1][account] != 0) {
+                    worldPoolSize += accountsPayable[account];
+                    worldStakes[gameIndex][account] = accountsPayable[account];
+                }
+                if (leelaStakes[gameIndex - 1][account] != 0) {
+                    leelaPoolSize += accountsPayable[account];
+                    leelaStakes[gameIndex][account] = accountsPayable[account];
+                }
+                accountsPayable[account] = 0;
+            }
+        }
     }
 
     function setChess(address _chess) public onlyOwner {
@@ -233,6 +250,7 @@ contract BettingGame is Ownable {
 
     /// @dev Start staking period.
     function startVoteTimer() public {
+        require(checkTimer() || votePeriodEnd == 0, "Can't start a new timer until the last one has ended");
         votePeriodEnd = block.timestamp + votePeriodDuration;
     }
 
@@ -242,22 +260,22 @@ contract BettingGame is Ownable {
         if (!leelaSide) {
             unchecked {
                 worldStakes[gameIndex][msg.sender] += msg.value;
-                worldShares[gameIndex][msg.sender] +=
-                    (msg.value * initVal) /
-                    worldPoolSize;
-                totalWorldShares += (msg.value * initVal) / worldPoolSize;
+                // worldShares[gameIndex][msg.sender] +=
+                //     (msg.value * initVal) /
+                //     worldPoolSize;
+                // totalWorldShares += (msg.value * initVal) / worldPoolSize;
                 worldPoolSize += msg.value;
-                worldVoterCount += 1;
+                // worldVoterCount += 1;
             }
         } else {
             unchecked {
                 leelaStakes[gameIndex][msg.sender] += msg.value;
-                leelaShares[gameIndex][msg.sender] +=
-                    (msg.value * initVal) /
-                    leelaPoolSize;
-                totalLeelaShares += (msg.value * initVal) / leelaPoolSize;
+                // leelaShares[gameIndex][msg.sender] +=
+                //     (msg.value * initVal) /
+                //     leelaPoolSize;
+                // totalLeelaShares += (msg.value * initVal) / leelaPoolSize;
                 leelaPoolSize += msg.value;
-                leelaVoterCount += 1;
+                // leelaVoterCount += 1;
             }
         }
         if (!votersMap[gameIndex][msg.sender]) {
@@ -466,14 +484,25 @@ contract BettingGame is Ownable {
 
     function updateAccounts(bool leelaWon) internal {
         // TODO convert integers to floating numbers when appropriate
-        console.log(totalLeelaShares);
-        console.log(totalWorldShares);
-        console.log(leelaPoolSize);
-        console.log(worldPoolSize);
-        console.log(initVal);
+        // console.log(totalLeelaShares);
+        // console.log(totalWorldShares);
+        // console.log(leelaPoolSize);
+        // console.log(worldPoolSize);
+        // console.log(initVal);
         // mapping(address => uint256) storage winningAccounts = leelaWon
         //     ? leelaShares[gameIndex]
         //     : worldShares[gameIndex];
+
+        //extract 5% fee
+        uint worldFee = worldPoolSize / 20;
+        uint leelaFee = leelaPoolSize / 20;
+
+        worldPoolSize -= worldFee;
+        leelaPoolSize -= leelaFee;
+
+        (bool sent, ) = owner().call{value: worldFee + leelaFee}("");
+        require(sent, "Failed to send fees.");
+
         mapping(address => uint256) storage winningAccounts = leelaWon
             ? leelaStakes[gameIndex]
             : worldStakes[gameIndex];
@@ -492,7 +521,7 @@ contract BettingGame is Ownable {
             uint256 accountStakes = winningAccounts[listVoters[i]];
             console.log(accountStakes);
             if (accountStakes != 0) {
-                console.log((leelaPoolSize * accountStakes)/(worldPoolSize));
+                accountStakes -= accountStakes / 20;
                 uint256 payoutAmount = leelaWon ? (worldPoolSize * accountStakes)/(leelaPoolSize) : (leelaPoolSize * accountStakes)/(worldPoolSize);
                 accountsPayable[listVoters[i]] += accountStakes + payoutAmount;
             }

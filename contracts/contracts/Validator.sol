@@ -53,6 +53,7 @@ contract Validator {
     }
 
     function hashInputs(uint256[INPUT_LEN] calldata inputs) public {
+        require(msg.sender == chessContract);
         uint256 _inputHash = poseidonContract.poseidon([inputs[0], inputs[1]]);
 
         for(uint i = 2; i < INPUT_LEN; i++) {
@@ -150,9 +151,5 @@ contract Validator {
         } else {
             return int256(felt);
         }
-    }
-
-    function packInputs(uint256[][][] calldata inputs) public {
-
     }
 }

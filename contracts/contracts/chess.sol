@@ -23,7 +23,7 @@ contract Chess is Ownable, IChess {
 
     uint16 public moveIndex = 0x0; // move index
 
-    uint16[] public validMovesFinal;
+    uint16[] public validMovesInit;
 
     bool public currentTurnBlack = false; // is it Leela's turn
 
@@ -153,6 +153,8 @@ contract Chess is Ownable, IChess {
 
         // --- Append game state to current game state list ---
         gameStateLists[gameIndex].push(game_state_start);
+
+        //TODO Clear accountsPayable
     }
 
     function convertToCircuit() public view returns (uint256[112] memory) {
@@ -1558,6 +1560,43 @@ contract Chess is Ownable, IChess {
             validMoveIndex++;
         }
         /* TODO: Check castling */
+        bool castlingPrivleges = ((playerState >> rook_king_side_move_bit) &
+            0xff) <
+            0x80 &&
+            ((playerState >> rook_queen_side_move_bit) & 0xff) < 0x80;
+        if (castlingPrivleges) {
+            toPos = fromPos + 2;
+            (newGameState, ) = verifyExecuteKingMove(
+                gameState,
+                fromPos,
+                toPos,
+                playerState
+            );
+            if (
+                (newGameState != invalid_move_constant) &&
+                (!pieceUnderAttack(newGameState, toPos)) && (!pieceUnderAttack(newGameState, toPos-1))
+            ) {
+                validMoves[validMoveIndex] = toPos;
+                validMoveIndex++;
+            }
+
+            if (fromPos >= 2) {
+                toPos = fromPos - 2;
+                (newGameState, ) = verifyExecuteKingMove(
+                    gameState,
+                    fromPos,
+                    toPos,
+                    playerState
+                );
+                if (
+                    (newGameState != invalid_move_constant) &&
+                    (!pieceUnderAttack(newGameState, toPos)) && (!pieceUnderAttack(newGameState, toPos+1))
+                ) {
+                    validMoves[validMoveIndex] = toPos;
+                    validMoveIndex++;
+                }
+            }
+        }
 
         if (validMoveIndex == 0) {
             return (false, validMoves, validMoveIndex);
@@ -1799,7 +1838,7 @@ contract Chess is Ownable, IChess {
 
     function checkForCheck(uint256 gameState, uint32 playerState)
         public
-        view
+        pure
         returns (bool)
     {
         uint8 kingsPosition = (uint8)(playerState >> king_pos_bit);
@@ -1816,7 +1855,7 @@ contract Chess is Ownable, IChess {
 
     function pieceUnderAttack(uint256 gameState, uint8 pos)
         public
-        view
+        pure
         returns (bool)
     {
         uint8 currPiece = (uint8)(gameState >> (pos * piece_bit_size)) & 0xf;
@@ -2138,10 +2177,10 @@ contract Chess is Ownable, IChess {
 
     function getLegalMoves() public returns (uint16[] memory) {
         console.log("gettingLegal Moves");
+        require(currentTurnBlack == true, "getLegalMoves can only get Blacks (leela's) moves");
         uint32 playerState = blackState;
-        bool currentTurn = currentTurnBlack;
-        currentTurnBlack = true;
-        delete validMovesFinal;
+        delete validMovesInit;
+        uint16[] storage validMovesFinal = validMovesInit;
         //loop over all spaces, if there is a piece there, gather it's legal moves.
         for (uint8 col = 0; col < 8; col++) {
             for (uint8 row = 0; row < 8; row++) {
@@ -2239,7 +2278,6 @@ contract Chess is Ownable, IChess {
                 }
             }
         }
-        currentTurnBlack = currentTurn;
         return validMovesFinal;
     }
 }
