@@ -17,7 +17,7 @@ const ButtonVariants: Variants = {
 
 type FooterButtonProps = {
   children: ReactNode;
-  onClick: MouseEventHandler<HTMLButtonElement>;
+  onClick: any;
 };
 
 const FooterButton: FC<FooterButtonProps> = ({ children, onClick }) => {
@@ -27,13 +27,10 @@ const FooterButton: FC<FooterButtonProps> = ({ children, onClick }) => {
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-inherit cursor w-32 px-[45px]"
+      className="h-inherit cursor relative"
       style={{
-        position: "relative",
-        // bottom: 17,
-        height: 35,
-        width: 250,
-        // marginLeft: 235,
+        flex: 80,
+        paddingRight: 10,
       }}
     >
       {children}
@@ -48,14 +45,10 @@ const PressToStartButton: FC<FooterButtonProps> = ({ children, onClick }) => {
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-inherit cursor w-32"
+      className="h-inherit cursor"
       style={{
-        position: "absolute",
-        bottom: 17,
-        height: 35,
-        width: 350,
-        left: 500,
-        right: 0,
+        flex: 130,
+        paddingRight: 10,
       }}
     >
       {children}
@@ -70,14 +63,10 @@ const DisclosureButton: FC<FooterButtonProps> = ({ children, onClick }) => {
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-inherit cursor w-32"
+      className="h-inherit cursor"
       style={{
-        position: "absolute",
-        bottom: 17,
-        height: 35,
-        width: 200,
-        left: 865,
-        right: 0,
+        flex: 65,
+        paddingRight: 10,
       }}
     >
       {children}
@@ -94,12 +83,8 @@ const TwitterButton: FC<FooterButtonProps> = ({ children, onClick }) => {
       onClick={onClick}
       className="h-inherit cursor w-32"
       style={{
-        position: "absolute",
-        bottom: 17,
-        height: 35,
-        width: 200,
-        left: 1150,
-        right: 0,
+        flex: 45,
+        paddingRight: 10,
       }}
     >
       {children}
@@ -116,12 +101,7 @@ const MusicButton: FC<FooterButtonProps> = ({ children, onClick }) => {
       onClick={onClick}
       className="h-inherit cursor w-32"
       style={{
-        position: "absolute",
-        bottom: 17,
-        height: 35,
-        width: 200,
-        left: 1400,
-        right: 0,
+        flex: 50,
       }}
     >
       {children}
@@ -129,26 +109,54 @@ const MusicButton: FC<FooterButtonProps> = ({ children, onClick }) => {
   );
 };
 
-export const ArcadeFooter: FC = () => {
+interface ArcadeFooterProps {
+  isHomeScreen: boolean;
+}
+
+export const ArcadeFooter: FC<ArcadeFooterProps> = ({ isHomeScreen }) => {
   const { setGameEarnings, setLeelaSongPlaying } =
     useArcadeMachineContext();
 
   return (
-    <div className="" style={{ backgroundColor: "blue", maxHeight: "20%", alignSelf: "center", justifySelf: "center" }}>
-      <div className="bg-[url(/bottomBar/barBackground.png)]" style={{ alignSelf: "center", alignItems: "center", justifyItems: "center" }}>
-        <FooterButton onClick={() => setGameEarnings(true)}>
-          <Image priority fill src="/bottomBar/modulusAndFriends.png" alt="Modulus and friends button" />
-        </FooterButton>
-        <PressToStartButton onClick={() => setGameEarnings(true)}>
-          <Image priority fill src="/bottomBar/pressAnywhereToStart.png" alt="Press anywhere to start" />
-        </PressToStartButton>
-        <DisclosureButton onClick={() => setGameEarnings(true)}>
-          <Image priority fill src="/bottomBar/disclosureButton.png" alt="Legal/financial disclosure" />
-        </DisclosureButton>
+    <div style={{ display: "flex", alignSelf: "center", flex: 100, flexDirection: "row", paddingTop: 10, paddingBottom: 10, backgroundColor: "black" }}>
+      <span style={{ flex: 70, color: "white", fontSize: 20, textAlign: "center" }}>
+        {"MADE WITH LOVE BY "}
+      </span>
+      <FooterButton onClick={() => setGameEarnings(true)}>
+        <img
+          src={"bottomBar/modulusAndFriends.png"} alt={"Modulus and friends button"}></img>
+      </FooterButton>
+
+      {/* --- Press to start only available on home screen --- */}
+      {isHomeScreen ?
+        <PressToStartButton onClick={() => { }}>
+          <img
+            src={"bottomBar/pressAnywhereToStart.png"}
+            alt={"Press anywhere to start"}>
+          </img>
+        </PressToStartButton> : <></>
+        // <div style={{ flex: 110 }}/>
+      }
+
+      <DisclosureButton onClick={() => setGameEarnings(true)}>
+        <img
+          src="/bottomBar/disclosureButton.png" alt="Legal/financial disclosure">
+        </img>
+      </DisclosureButton>
+      <TwitterButton onClick={() => { }}>
+        <img
+          src="/bottomBar/twitterButton.png" alt="Modulus Twitter button">
+        </img>
+      </TwitterButton>
+
+      {/* --- Music is only on for chess screen --- */}
+      {isHomeScreen ? <></> :
         <MusicButton onClick={() => setLeelaSongPlaying((cur) => !cur)}>
-          <Image priority fill src="/bottomBar/musicButton.png" alt="Music play/pause button" />
+          <img
+            src="/bottomBar/musicButton.png" alt="Music play/pause button">
+          </img>
         </MusicButton>
-      </div>
-    </div>
+      }
+    </div >
   );
 };

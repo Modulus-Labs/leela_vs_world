@@ -6,13 +6,9 @@ import { PrizePool } from "../pageElements/arcadeGame/PrizePool";
 import { ChessBoard } from "../pageElements/arcadeGame/ChessBoard/ChessBoard";
 import { VotingPanel } from "../pageElements/arcadeGame/votingPanel/VotingPanel";
 import { useArcadeMachineContext } from "../contexts/ArcadeMachineContext";
-// import { GameDetails } from "../pageElements/gamePopups/GameDetails";
 import { GameInstructions } from "../pageElements/gamePopups/GameInstructions";
-// import { ArcadeControls } from '../pageElements/arcadeGame/ArcadeControls';
-// import { CreatedByModulousLabs } from '../pageElements/arcadeGame/CreatedByModulousLabs';
 import { useMediaQueryContext } from "../contexts/MediaQueryContext";
 import { ScreenTooSmall } from "../pageElements/ScreenTooSmall";
-import { AnimatePresence } from "framer-motion";
 import { FadingPageWrapper } from "../components/pageWrappers/FadingPageWrapper";
 import { GameDetails } from "../pageElements/gamePopups/BuyPowerModal";
 import { InfoModal } from "../pageElements/gamePopups/InfoModal";
@@ -22,7 +18,7 @@ import Sound from "react-sound";
 
 export default function ChessPage() {
   const { isMobile } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails, showInfoModal, leelaSongPlaying, setLeelaSongPlaying } = useArcadeMachineContext();
+  const { showGameInstructions, showGameDetails, showInfoModal, leelaSongPlaying } = useArcadeMachineContext();
   const { currChessBoard } = useChessGameContext();
 
   if (isMobile) {
@@ -31,7 +27,7 @@ export default function ChessPage() {
 
   return (
     <FadingPageWrapper>
-      <div className="flex h-screen flex-col items-end justify-center bg-off-black" >
+      <div className="flex h-screen flex-col items-end justify-center" style={{ backgroundColor: "off-black" }}>
         <svg className="h-full w-full object-contain" viewBox="0 0 1920 1080" >
           <foreignObject
             width="1920"
@@ -103,12 +99,11 @@ export default function ChessPage() {
             </div>
           </foreignObject>
         </svg>
-        <ArcadeFooter></ArcadeFooter>
+        <ArcadeFooter isHomeScreen={false}></ArcadeFooter>
       </div>
       <Sound
         url="/Leela_Song_Take_3.m4a"
         playStatus={leelaSongPlaying ? "PLAYING" : "PAUSED"}
-        playFromPosition={0 /* in milliseconds */}
       />
     </FadingPageWrapper >
   );

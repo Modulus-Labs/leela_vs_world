@@ -10,7 +10,7 @@ export const PrizePool: FC = () => {
   const worldPrizePoolPercentage = denominator === 0 ? 50 : 100 * worldPrizePoolAmount / denominator;
   return (
     <div className="relative h-full w-full bg-[url(/PrizePool.png)] bg-contain bg-no-repeat text-4xl">
-      <p className="absolute left-[230px] top-[10px] bg-transparent" style={{ fontSize: 20 }}>
+      <p className="absolute left-[230px] top-[10px] bg-transparent" style={{ fontSize: 20, color: "white" }}>
         {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(2)} MATIC`}
       </p>
       <div className="absolute top-[50px] left-[0px] h-[30px] w-full px-[17px]">
@@ -26,7 +26,7 @@ export const PrizePool: FC = () => {
         />
       </div>
       <div className="absolute top-[48px] left-[0px] h-[35px] w-full px-[17px]">
-        <p className="absolute left-[50px] bg-transparent" style={{ fontSize: 20 }}>
+        <p className="absolute left-[50px] bg-transparent" style={{ fontSize: 20, color: "white" }}>
           {`${leelaPrizePoolPercentage.toFixed(2)}% Leela | ${worldPrizePoolPercentage.toFixed(2)}% World`}
         </p>
       </div>
