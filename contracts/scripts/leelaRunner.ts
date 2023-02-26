@@ -114,15 +114,19 @@ async function checkLeela() {
         //get current timer length
         var timerLength = await bettingContract.getTimeLeft();
         //set callback for timer, when finished play move.
-        await new Promise((resolve, reject) => setTimeout(() => resolve(true), timerLength.toNumber()*1000 + 60000));
-        var move = await bettingContract.getWorldMove();
-        if (move != 0) {
-            await bettingContract.callTimerOver()
-            var command = new PutMetricDataCommand({Namespace: "Leela/dev", MetricData: [{MetricName: "WorldMove", Value: Date.now()}]});
-            await client.send(command);
-            console.log("-------- World Move Played --------")
-        } else {
-            console.log("-------- No World Move Ready --------")
+        while (true) {
+            await new Promise((resolve, reject) => setTimeout(() => resolve(true), timerLength.toNumber()*1000 + 60000));
+            var move = await bettingContract.getWorldMove();
+            if (move != 0) {
+                await bettingContract.callTimerOver()
+                var command = new PutMetricDataCommand({Namespace: "Leela/dev", MetricData: [{MetricName: "WorldMove", Value: Date.now()}]});
+                await client.send(command);
+                console.log("-------- World Move Played --------")
+                break;
+            } else {
+                await bettingContract.startVoteTimer();
+                console.log("-------- No World Move Ready --------")
+            }
         }
         console.log("");
     });

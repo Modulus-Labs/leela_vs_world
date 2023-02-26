@@ -201,10 +201,10 @@ contract Chess is Ownable, IChess {
         for (uint8 layer = 0; layer < 112; layer++) {
             uint256 inputPacked = 0;
             for (int8 row = 7; row >= 0; row--) {
-                for (int8 col = 7; col >= 0; col--) {
+                for (uint8 col = 0; col < 8; col++) {
                     inputPacked =
                         inputPacked |
-                        (board[layer][uint8(row)][uint8(col)] & 0x1);
+                        (board[layer][uint8(row)][col] & 0x1);
                     inputPacked = inputPacked << 1;
                 }
             }

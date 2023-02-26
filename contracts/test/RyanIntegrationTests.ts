@@ -109,7 +109,7 @@ describe("Integration Tests: Chess Contract", function () {
       //   console.log(convertUint16ReprToHumanReadable(legalMove));
       // }
       var i = 1;
-      for (var move of SHENANIGANS_GAME) {
+      for (var move of SAMPLE_GAME) {
         try {
           await chessGame.playMove(convertMoveToUint16Repr(move.substring(0, 1), Number.parseInt(move.substring(1, 2)), move.substring(2, 3), Number.parseInt(move.substring(3, 4))));
           //await chessGame.getLegalMoves();
