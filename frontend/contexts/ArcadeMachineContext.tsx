@@ -17,6 +17,9 @@ interface ArcadeMachineContextInterface {
   showGameEarnings: boolean;
   setGameEarnings: Dispatch<SetStateAction<boolean>>;
 
+  showDisclosureModal: boolean;
+  setShowDisclosureModal: Dispatch<SetStateAction<boolean>>;
+
   // --- Music ---
   leelaSongPlaying: boolean;
   setLeelaSongPlaying: Dispatch<SetStateAction<boolean>>;
@@ -42,6 +45,7 @@ export const ArcadeMachineContextProvider = ({
   const [showGameDetails, setShowGameDetails] = useState<boolean>(false);
   const [showGameInstructions, setShowGameInstructions] = useState<boolean>(false);
   const [showGameEarnings, setGameEarnings] = useState<boolean>(false);
+  const [showDisclosureModal, setShowDisclosureModal] = useState<boolean>(false);
 
   // --- For info modal ---
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -60,6 +64,8 @@ export const ArcadeMachineContextProvider = ({
         setShowGameInstructions,
         showGameEarnings,
         setGameEarnings,
+        showDisclosureModal,
+        setShowDisclosureModal,
         leelaSongPlaying,
         setLeelaSongPlaying,
         showInfoModal,

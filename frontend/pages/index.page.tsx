@@ -7,6 +7,8 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import clsx from "clsx";
 import { ArcadeFooter } from "../pageElements/arcadeGame/ArcadeFooter";
+import { InfoModal } from "../pageElements/gamePopups/InfoModal";
+import { DisclosureModal } from "../pageElements/gamePopups/DisclosureModal";
 
 const DARKEN_TIME = 3.5;
 const LOADING_TIME = 3;
@@ -51,7 +53,7 @@ export default function HomePage() {
   const router = useRouter();
 
   const { isMobile } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails } = useArcadeMachineContext();
+  const { showDisclosureModal } = useArcadeMachineContext();
 
   const [startNavigationSequence, setStartNavigationSequence] = useState(false);
   const [showLoadingText, setShowLoadingText] = useState(false);
@@ -80,44 +82,52 @@ export default function HomePage() {
   }
 
   return (
-    <div className="h-screen" style={{ display: "flex", flexDirection: "column", backgroundColor: "black", maxHeight: "100%", maxWidth: "100%", alignItems: "center", overflow: "hidden" }}>
-      <div
-        onClick={navigateToGame}
-        className="cursor-pointer"
-        style={{ display: "flex", flex: 100, overflow: "hidden", alignItems: "flex-start", alignContent: "center", justifyItems: "center", justifyContent: "center" }}
-      >
-        {showLoadingText ? <></> :
-          <motion.div
-            variants={BackgroundImageVariants}
-            initial="initial"
-            animate={startNavigationSequence ? "zoom" : "initial"}
-            className=""
-            style={{ display: "flex", flex: 1, overflow: "hidden" }}
-          >
-            <img
-              src="/AllArcadeMachines.gif"
-              alt="Landing page for Leela vs the world"
-              style={{ alignSelf: "center", overflow: "hidden" }}>
-            </img>
-          </motion.div>
-        }
-
-        <motion.div
-          variants={LoadingTextVariants}
-          initial="hidden"
-          animate={showLoadingText ? "visible" : "hidden"}
-          className={clsx(
-            "text-3xl text-off-white",
-            showLoadingText ? "block" : "hidden"
-          )}
-          style={{ textAlign: "center", alignSelf: "center", justifySelf: "center", flex: 1 }}
+    <div>
+      <div className="h-screen" style={{ display: "flex", flexDirection: "column", backgroundColor: "black", maxHeight: "100%", maxWidth: "100%", alignItems: "center", overflow: "hidden" }}>
+        <div
+          onClick={navigateToGame}
+          className="cursor-pointer"
+          style={{ display: "flex", flex: 100, overflow: "hidden", alignItems: "flex-start", alignContent: "center", justifyItems: "center", justifyContent: "center" }}
         >
-          {"Firing up Leela vs the World 🎮..."}
-        </motion.div>
-      </div>
-      <div style={{ flex: 10, backgroundColor: "black" }}>
-        <ArcadeFooter isHomeScreen={true}></ArcadeFooter>
-      </div>
-    </div >
+          {showLoadingText ? <></> :
+            <motion.div
+              variants={BackgroundImageVariants}
+              initial="initial"
+              animate={startNavigationSequence ? "zoom" : "initial"}
+              className=""
+              style={{ display: "flex", flex: 1, overflow: "hidden" }}
+            >
+              <img
+                src="/AllArcadeMachines.gif"
+                alt="Landing page for Leela vs the world"
+                style={{ alignSelf: "center", overflow: "hidden" }}>
+              </img>
+            </motion.div>
+          }
+
+          <motion.div
+            variants={LoadingTextVariants}
+            initial="hidden"
+            animate={showLoadingText ? "visible" : "hidden"}
+            className={clsx(
+              "text-3xl text-off-white",
+              showLoadingText ? "block" : "hidden"
+            )}
+            style={{ textAlign: "center", alignSelf: "center", justifySelf: "center", flex: 1 }}
+          >
+            {"Firing up Leela vs the World 🎮..."}
+          </motion.div>
+
+        </div>
+        <div style={{ flex: 10, backgroundColor: "black" }}>
+          <ArcadeFooter isHomeScreen={true}></ArcadeFooter>
+        </div>
+      </div >
+      {
+        showDisclosureModal && (
+          <DisclosureModal />
+        )
+      }
+    </div>
   );
 }

@@ -15,10 +15,11 @@ import { InfoModal } from "../pageElements/gamePopups/InfoModal";
 import { useChessGameContext } from "../contexts/ChessGameContext";
 import { ArcadeFooter } from "../pageElements/arcadeGame/ArcadeFooter";
 import Sound from "react-sound";
+import { DisclosureModal } from "../pageElements/gamePopups/DisclosureModal";
 
 export default function ChessPage() {
   const { isMobile } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails, showInfoModal, leelaSongPlaying } = useArcadeMachineContext();
+  const { showGameInstructions, showGameDetails, showInfoModal, leelaSongPlaying, showDisclosureModal } = useArcadeMachineContext();
   const { currChessBoard } = useChessGameContext();
 
   if (isMobile) {
@@ -63,6 +64,11 @@ export default function ChessPage() {
                     <InfoModal />
                   </div>
                 )}
+                {
+                  showDisclosureModal && (
+                    <DisclosureModal />
+                  )
+                }
 
                 <div className="col-span-1 flex flex-col justify-between">
                   <div className="h-[96px]">
