@@ -1,164 +1,115 @@
-import { motion, Variants } from 'framer-motion';
-import { url } from 'inspector';
-import Image from 'next/image';
-import { FC, MouseEventHandler, ReactNode } from 'react';
-import { useArcadeMachineContext } from '../../contexts/ArcadeMachineContext';
+import { motion, Variants } from "framer-motion";
+import { url } from "inspector";
+import Image from "next/image";
+import { FC, MouseEventHandler, ReactNode, useEffect, useState } from "react";
+import { useArcadeMachineContext } from "../../contexts/ArcadeMachineContext";
+import { useRouter } from "next/router";
+import clsx from "clsx";
+import { DisclosureModal } from "../gamePopups/DisclosureModal";
 
 const ButtonVariants: Variants = {
   initial: {
-    filter: 'brightness(100%)',
+    filter: "brightness(100%)",
     scale: 1,
   },
   tap: {
-    filter: 'brightness(85%)',
+    filter: "brightness(85%)",
     scale: 0.975,
   },
 };
 
 type FooterButtonProps = {
-  children: ReactNode;
-  onClick: any;
+  text: string;
+  darkMode?: boolean;
+  flexGrow?: boolean;
+  onClick?: any;
 };
 
-const FooterButton: FC<FooterButtonProps> = ({ children, onClick }) => {
+const FooterButton: FC<FooterButtonProps> = ({
+  text,
+  darkMode,
+  flexGrow,
+  onClick,
+}) => {
   return (
     <motion.button
       variants={ButtonVariants}
       initial="initial"
       whileTap="tap"
       onClick={onClick}
-      className="h-inherit cursor relative"
-      style={{
-        flex: 80,
-        paddingRight: 10,
-      }}
+      className={clsx(
+        "border-2 px-3 py-1 text-xl",
+        flexGrow && "flex-grow",
+        darkMode
+          ? "border-deep-forest-green bg-forest-green text-highlight-green"
+          : "border-forest-green bg-emerald-green text-off-white"
+      )}
     >
-      {children}
+      {text}
     </motion.button>
   );
 };
 
-const PressToStartButton: FC<FooterButtonProps> = ({ children, onClick }) => {
-  return (
-    <motion.button
-      variants={ButtonVariants}
-      initial="initial"
-      whileTap="tap"
-      onClick={onClick}
-      className="h-inherit cursor"
-      style={{
-        flex: 130,
-        paddingRight: 10,
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-};
+export const ArcadeFooter: FC = () => {
+  const router = useRouter();
+  const {
+    setGameEarnings,
+    setNavigateToChessGame,
+    setLeelaSongPlaying,
+    setShowDisclosureModal,
+    showDisclosureModal,
+  } = useArcadeMachineContext();
 
-const DisclosureButton: FC<FooterButtonProps> = ({ children, onClick }) => {
-  return (
-    <motion.button
-      variants={ButtonVariants}
-      initial="initial"
-      whileTap="tap"
-      onClick={onClick}
-      className="h-inherit cursor"
-      style={{
-        flex: 65,
-        paddingRight: 10,
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-};
+  const [isHomeScreen, setIsHomeScreen] = useState(false);
 
-const TwitterButton: FC<FooterButtonProps> = ({ children, onClick }) => {
-  return (
-    <motion.button
-      variants={ButtonVariants}
-      initial="initial"
-      whileTap="tap"
-      onClick={onClick}
-      className="h-inherit cursor w-32"
-      style={{
-        flex: 45,
-        paddingRight: 10,
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-};
-
-const MusicButton: FC<FooterButtonProps> = ({ children, onClick }) => {
-  return (
-    <motion.button
-      variants={ButtonVariants}
-      initial="initial"
-      whileTap="tap"
-      onClick={onClick}
-      className="h-inherit cursor w-32"
-      style={{
-        flex: 50,
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-};
-
-interface ArcadeFooterProps {
-  isHomeScreen: boolean;
-}
-
-export const ArcadeFooter: FC<ArcadeFooterProps> = ({ isHomeScreen }) => {
-  const { setGameEarnings, setLeelaSongPlaying, setShowDisclosureModal } =
-    useArcadeMachineContext();
+  useEffect(() => {
+    if (router.pathname === "/") {
+      setIsHomeScreen(true);
+    } else {
+      setIsHomeScreen(false);
+    }
+  }, [router]);
 
   return (
-    <div style={{ display: "flex", alignSelf: "center", flex: 100, flexDirection: "row", paddingTop: 10, paddingBottom: 10, backgroundColor: "black" }}>
-      <span style={{ flex: 70, color: "white", fontSize: 20, textAlign: "center" }}>
-        {"MADE WITH LOVE BY "}
-      </span>
-      <FooterButton onClick={() => setGameEarnings(true)}>
-        <img
-          src={"bottomBar/modulusAndFriends.png"} alt={"Modulus and friends button"}></img>
-      </FooterButton>
+    <>
+      {showDisclosureModal && <DisclosureModal />}
+      <footer className="bg-b box-content flex flex-row items-center gap-x-3 bg-off-gray py-5 px-width-clamp">
+        <p className="text-xl text-off-white">{"MADE WITH ❤️ BY "}</p>
+        <FooterButton
+          text="Modulus and frens"
+          onClick={() => setGameEarnings(true)}
+        />
 
-      {/* --- Press to start only available on home screen --- */}
-      {isHomeScreen ?
-        <PressToStartButton onClick={() => { }}>
-          <img
-            src={"bottomBar/pressAnywhereToStart.png"}
-            alt={"Press anywhere to start"}>
-          </img>
-        </PressToStartButton> : <></>
-        // <div style={{ flex: 110 }}/>
-      }
+        {/* --- Press to start only available on home screen --- */}
+        {isHomeScreen ? (
+          <FooterButton
+            darkMode
+            flexGrow
+            text="Press anywhere to start"
+            onClick={() => setNavigateToChessGame(true)}
+          />
+        ) : (
+          <div className="flex-grow" />
+        )}
 
-      <DisclosureButton onClick={() => setShowDisclosureModal(true)}>
-        <img
-          src="/bottomBar/disclosureButton.png" alt="Legal/financial disclosure">
-        </img>
-      </DisclosureButton>
-      <TwitterButton onClick={() => { }}>
+        <FooterButton
+          text="Disclosure"
+          onClick={() => setShowDisclosureModal(true)}
+        />
         <a href="https://twitter.com/moduluslabs?lang=en" target="_blank">
-          <img
-            src="/bottomBar/twitterButton.png" alt="Modulus Twitter button">
-          </img>
+          <FooterButton text="Twitter" />
         </a>
-      </TwitterButton>
 
-      {/* --- Music is only on for chess screen --- */}
-      {isHomeScreen ? <></> :
-        <MusicButton onClick={() => setLeelaSongPlaying((cur) => !cur)}>
-          <img
-            src="/bottomBar/musicButton.png" alt="Music play/pause button">
-          </img>
-        </MusicButton>
-      }
-    </div >
+        {/* --- Music is only on for chess screen --- */}
+        {isHomeScreen ? (
+          <></>
+        ) : (
+          <FooterButton
+            text="Music"
+            onClick={() => setLeelaSongPlaying((cur) => !cur)}
+          />
+        )}
+      </footer>
+    </>
   );
 };

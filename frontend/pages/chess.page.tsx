@@ -19,7 +19,13 @@ import { DisclosureModal } from "../pageElements/gamePopups/DisclosureModal";
 
 export default function ChessPage() {
   const { isMobile } = useMediaQueryContext();
-  const { showGameInstructions, showGameDetails, showInfoModal, leelaSongPlaying, showDisclosureModal } = useArcadeMachineContext();
+  const {
+    showGameInstructions,
+    showGameDetails,
+    showInfoModal,
+    leelaSongPlaying,
+    showDisclosureModal,
+  } = useArcadeMachineContext();
   const { currChessBoard } = useChessGameContext();
 
   if (isMobile) {
@@ -28,8 +34,11 @@ export default function ChessPage() {
 
   return (
     <FadingPageWrapper>
-      <div className="flex h-screen flex-col items-end justify-center" style={{ backgroundColor: "off-black" }}>
-        <svg className="h-full w-full object-contain" viewBox="0 0 1920 1080" >
+      <div
+        className="flex h-full w-full flex-col items-end justify-center"
+        style={{ backgroundColor: "off-black" }}
+      >
+        <svg className="h-full w-full object-cover" viewBox="0 0 1920 1080">
           <foreignObject
             width="1920"
             height="1080"
@@ -64,11 +73,7 @@ export default function ChessPage() {
                     <InfoModal />
                   </div>
                 )}
-                {
-                  showDisclosureModal && (
-                    <DisclosureModal />
-                  )
-                }
+                {showDisclosureModal && <DisclosureModal />}
 
                 <div className="col-span-1 flex flex-col justify-between">
                   <div className="h-[96px]">
@@ -82,7 +87,7 @@ export default function ChessPage() {
                   <div className="flex h-[91px]">
                     <PrizePool />
                   </div>
-                  {currChessBoard.chessGame.turn() === "w" ?
+                  {currChessBoard.chessGame.turn() === "w" ? (
                     <>
                       <div className="flex h-[193px]">
                         <NextMoveLeaderboard />
@@ -90,7 +95,8 @@ export default function ChessPage() {
                       <div className="flex h-[216px]">
                         <VotingPanel />
                       </div>
-                    </> :
+                    </>
+                  ) : (
                     <>
                       <Image
                         height={700}
@@ -99,18 +105,17 @@ export default function ChessPage() {
                         alt="Leela-thinking-gif"
                       />
                     </>
-                  }
+                  )}
                 </div>
               </div>
             </div>
           </foreignObject>
         </svg>
-        <ArcadeFooter isHomeScreen={false}></ArcadeFooter>
       </div>
       <Sound
         url="/Leela_Song_Take_3.m4a"
         playStatus={leelaSongPlaying ? "PLAYING" : "PAUSED"}
       />
-    </FadingPageWrapper >
+    </FadingPageWrapper>
   );
 }

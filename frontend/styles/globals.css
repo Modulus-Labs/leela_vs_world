@@ -9,14 +9,18 @@
 } */
 
 @font-face {
-  font-family: 'Incognito-Inc';
-  src: url('./VCR_OSD_MONO_1.001.ttf');
+  font-family: "Incognito-Inc";
+  src: url("./VCR_OSD_MONO_1.001.ttf");
 }
 
 :root {
   --emerald-green: #51ae8f;
+  --highlight-green: #11db6c;
+  --forest-green: #285748;
+  --deep-forest-green: #004d3c;
 
   --off-black: #0e1111;
+  --off-gray: #353535;
   --off-white: #f3f8f9;
   --gray: #808080;
   --light-gray: #55c6ef27;
@@ -143,7 +147,8 @@ html {
     }
 
     .page-container {
-      padding: theme(padding.10) theme(padding.width-clamp) theme(padding.20) theme(padding.width-clamp);
+      padding: theme(padding.10) theme(padding.width-clamp) theme(padding.20)
+        theme(padding.width-clamp);
     }
   }
 }

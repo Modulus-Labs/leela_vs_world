@@ -24,7 +24,7 @@ export const FadingPageWrapper: FC<FadingPageWrapperProps> = ({ children }) => {
       initial="hidden"
       animate="visible"
       exit="hidden"
-      className="bg-off-black"
+      className="h-full bg-off-black"
     >
       {children}
     </motion.div>
