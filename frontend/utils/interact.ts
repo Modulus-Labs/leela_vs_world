@@ -231,11 +231,11 @@ export const connectWallet = async () => {
       try {
         // --- First try to switch to connecting to Polygon Testnet ---
         // TODO(ryancao): Switch this to mainnet!
-        // const swappedChain = await window.ethereum.request({
-        //   method: 'wallet_switchEthereumChain',
-        //   params: [{ chainId: '0x13881' }],
-        // });
-        // console.log(`Swapped chain: ${swappedChain}`);
+        const swappedChain = await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x13881' }],
+        });
+        console.log(`Swapped chain: ${swappedChain}`);
       } catch (error: any) {
         // TODO(ryancao): Check that this works!
         if (error.code === 4902) {
@@ -266,15 +266,15 @@ export const connectWallet = async () => {
 
       // --- Getting the actual provider which works on Polygon Mumbai ---
       // TODO(ryancao): Switch this to mainnet
-      // const polygonMumbai = {
-      //   name: "maticmum",
-      //   chainId: 80001
-      // };
+      const polygonMumbai = {
+        name: "maticmum",
+        chainId: 80001
+      };
       // @ts-ignore
-      // const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
+      const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
 
       // --- Localhost ---
-      const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545/");
+      // const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545/");
 
       const obj = {
         status: "Your wallet has been connected!",

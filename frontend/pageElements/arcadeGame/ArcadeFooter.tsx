@@ -114,7 +114,7 @@ interface ArcadeFooterProps {
 }
 
 export const ArcadeFooter: FC<ArcadeFooterProps> = ({ isHomeScreen }) => {
-  const { setGameEarnings, setLeelaSongPlaying } =
+  const { setGameEarnings, setLeelaSongPlaying, setShowDisclosureModal } =
     useArcadeMachineContext();
 
   return (
@@ -138,15 +138,17 @@ export const ArcadeFooter: FC<ArcadeFooterProps> = ({ isHomeScreen }) => {
         // <div style={{ flex: 110 }}/>
       }
 
-      <DisclosureButton onClick={() => setGameEarnings(true)}>
+      <DisclosureButton onClick={() => setShowDisclosureModal(true)}>
         <img
           src="/bottomBar/disclosureButton.png" alt="Legal/financial disclosure">
         </img>
       </DisclosureButton>
       <TwitterButton onClick={() => { }}>
-        <img
-          src="/bottomBar/twitterButton.png" alt="Modulus Twitter button">
-        </img>
+        <a href="https://twitter.com/moduluslabs?lang=en" target="_blank">
+          <img
+            src="/bottomBar/twitterButton.png" alt="Modulus Twitter button">
+          </img>
+        </a>
       </TwitterButton>
 
       {/* --- Music is only on for chess screen --- */}
