@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-leelavworldfrontend-dev-182224-authRole",
+      "UnauthRoleArn": "arn:aws:iam::912380644572:role/amplify-leelavworldfrontend-dev-182224-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::912380644572:role/amplify-leelavworldfrontend-dev-182224-authRole",
+      "Region": "us-west-2",
+      "DeploymentBucketName": "amplify-leelavworldfrontend-dev-182224-deployment",
+      "UnauthRoleName": "amplify-leelavworldfrontend-dev-182224-unauthRole",
+      "StackName": "amplify-leelavworldfrontend-dev-182224",
+      "StackId": "arn:aws:cloudformation:us-west-2:912380644572:stack/amplify-leelavworldfrontend-dev-182224/935fa130-b645-11ed-825f-02ccb996496d",
+      "AmplifyAppId": "d227galadmiqcu"
+    },
+    "categories": {
+      "hosting": {
+        "amplifyhosting": {
+          "appId": "d227galadmiqcu",
+          "type": "manual"
+        }
+      }
+    }
+  }
+}
