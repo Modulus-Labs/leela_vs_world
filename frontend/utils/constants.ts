@@ -1,4 +1,3 @@
-
 // --- Testnet (fast testing) ---
 export const addresses = {
   LEELA_CONTRACT_ADDR: "0x1Ed4A9bea3f17084EC93D6D4E30194708d1Dd9d6",
@@ -8,9 +7,9 @@ export const addresses = {
 
 // --- Testnet (slow testing) ---
 // export const addresses = {
-//     LEELA_CONTRACT_ADDR: "0xCe3bbD11D73712Acf79799AE669b00f93A69F7Be",
-//     BETTING_CONTRACT_ADDR: "0x0d77B4eeE333e7A8c65965b98eD3601110b3D58b",
-//     CHESS_CONTRACT_ADDR: "0x1344AF5D3592f5d338344342b5Bc57A1771EC161",
+//   LEELA_CONTRACT_ADDR: "0xCe3bbD11D73712Acf79799AE669b00f93A69F7Be",
+//   BETTING_CONTRACT_ADDR: "0x0d77B4eeE333e7A8c65965b98eD3601110b3D58b",
+//   CHESS_CONTRACT_ADDR: "0x1344AF5D3592f5d338344342b5Bc57A1771EC161",
 // }
 
 // --- This is for local hardhat network ---
