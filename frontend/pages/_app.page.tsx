@@ -52,8 +52,8 @@ export default function App({ Component, pageProps }: AppProps) {
             <ContractInteractionContextProvider>
               <ChessGameContextProvider>
                 <BettingContextProvider>
-                  <div className="flex h-screen flex-col overflow-hidden">
-                    <div className="relative flex-grow">
+                  <div className="flex h-screen flex-col">
+                    <div className="relative flex-grow overflow-hidden">
                       <Component {...pageProps} />
                     </div>
                     <div>

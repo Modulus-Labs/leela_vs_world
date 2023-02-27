@@ -34,10 +34,7 @@ export default function ChessPage() {
 
   return (
     <FadingPageWrapper>
-      <div
-        className="flex h-full w-full flex-col items-end justify-center"
-        style={{ backgroundColor: "off-black" }}
-      >
+      <div className="flex h-full w-full cursor-pointer flex-row items-center justify-center bg-off-black">
         <svg className="h-full w-full object-cover" viewBox="0 0 1920 1080">
           <foreignObject
             width="1920"
