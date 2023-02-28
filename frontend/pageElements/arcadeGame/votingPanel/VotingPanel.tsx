@@ -72,7 +72,7 @@ export const VotingPanel: FC = () => {
 
           {/* --- "with your purchased power: ___ " --- */}
           <div className="absolute right-[110px] bottom-[135px]" style={{}}>
-            <span style={{ fontSize: 25, color: "white" }}>{`${votingPower}`}</span>
+            <span style={{ fontSize: 25, color: "white" }}>{`${votingPower.toPrecision(2)}`}</span>
           </div>
         </div>
         :

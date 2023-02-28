@@ -40,6 +40,9 @@ interface BettingContextInterface {
   moveNumber: number;
   setMoveNumber: Dispatch<SetStateAction<number>>;
 
+  showEndGameModal: boolean;
+  setShowEndGameModal: Dispatch<SetStateAction<boolean>>;
+
   // --- Public Functions ---
   getBettingPoolStateFromBettingContract: () => Promise<[BigNumber, BigNumber, BigNumber]>;
   getMoveLeaderboardStateFromBettingContract: () => Promise<[number[], BigNumber[]]>;
@@ -50,6 +53,8 @@ interface BettingContextInterface {
   voteForMove: (move: number, onFinish: (result: ethers.ContractTransaction) => void, onError: (error: any) => void) => void;
   getUserVotedMove: (onFinish: (moveResult: number) => void, onError: () => void) => void;
   addStake: (amount: number, betOnLeela: boolean, onFinish: (result: ethers.ContractTransaction) => void, onError: (error: any) => void) => void;
+  getAccountPayable: (onFinish: (payableAmt: BigNumber) => void, onError: (error: any) => void) => void;
+  claimPayout: (onFinish: () => void, onError: (error: any) => void) => void;
 }
 
 const BettingContext = createContext<BettingContextInterface | undefined>(
@@ -145,6 +150,23 @@ export const BettingContextProvider = ({
   // --- Contract-related stuff ---
   const { walletAddr, bettingContract, ethersProvider } = useContractInteractionContext();
 
+  // --- For showing game ended modal ---
+  const [showEndGameModal, setShowEndGameModal] = useState<boolean>(false);
+  useEffect(useCallback(() => {
+    const onFinish = (amt: BigNumber) => {
+      // --- Only pop up the modal if the amount payable is greater than 0 ---
+      if (amt.gt(0)) {
+        setShowEndGameModal(true);
+      } else {
+        setShowEndGameModal(false);
+      }
+    }
+    const onError = (error: any) => {
+      console.error(`Error with getAccountPayable: ${error}`);
+    }
+    getAccountPayable(onFinish, onError);
+  }, [walletAddr]), [walletAddr]);
+
   // --- For voting power ---
   const [votingPower, setVotingPower] = useState<number>(0);
   useEffect(useCallback(() => {
@@ -236,7 +258,7 @@ export const BettingContextProvider = ({
       console.log(`We just saw a new vote made from player ${player} on move ${move} with power ${power}`);
 
       // --- Just lazily requesting it again from the contract ---
-      getLeaderboardMoveFn();
+      // getLeaderboardMoveFn();
 
       // --- Manually updating the current leaderboard ---
       const [moveFrom, moveTo] = convertUint16ReprToMoveStrings(move);
@@ -244,38 +266,38 @@ export const BettingContextProvider = ({
       const leaderboardMoveRepr = getAlgebraicNotation(moveFrom, moveTo, currChessBoard.chessGame);
       const parsedPower = Number(ethers.utils.formatEther(power.toHexString()));
 
-      // // --- Update the leaderboard ---
-      // let foundIdx = -1;
-      // for (let i = 0; i < leaderboardMoves.length; ++i) {
-      //   if (leaderboardMoves[i].humanRepr === leaderboardMoveRepr) {
-      //     foundIdx = i;
-      //     break;
-      //   }
-      // }
+      // --- Update the leaderboard ---
+      let foundIdx = -1;
+      for (let i = 0; i < leaderboardMoves.length; ++i) {
+        if (leaderboardMoves[i].humanRepr === leaderboardMoveRepr) {
+          foundIdx = i;
+          break;
+        }
+      }
 
-      // // --- If the current move already exists there ---
-      // if (foundIdx >= 0) {
-      //   console.log("Move already exists! Updating leaderboard now");
-      //   setLeaderboardMoves((curLeaderboardMoves) => {
-      //     curLeaderboardMoves[foundIdx].stake += parsedPower;
-      //     return curLeaderboardMoves;
-      //   });
-      // }
+      // --- If the current move already exists there ---
+      if (foundIdx >= 0) {
+        console.log("Move already exists! Updating leaderboard now");
+        setLeaderboardMoves((curLeaderboardMoves) => {
+          curLeaderboardMoves[foundIdx].stake += parsedPower;
+          return curLeaderboardMoves;
+        });
+      }
 
-      // // --- Otherwise, add it ---
-      // else {
-      //   console.log("Move doesn't yet exist! Updating leaderboard now");
-      //   const newLeaderboardMove: ChessLeaderboardMove = {
-      //     humanRepr: leaderboardMoveRepr,
-      //     stake: parsedPower,
-      //     ID: leaderboardMoves.length,
-      //   }
-      //   setLeaderboardMoves((curLeaderboardMoves) => {
-      //     curLeaderboardMoves = curLeaderboardMoves.concat([newLeaderboardMove]);
-      //     curLeaderboardMoves.sort(compareMoves);
-      //     return curLeaderboardMoves;
-      //   });
-      // }
+      // --- Otherwise, add it ---
+      else {
+        console.log("Move doesn't yet exist! Updating leaderboard now");
+        const newLeaderboardMove: ChessLeaderboardMove = {
+          humanRepr: leaderboardMoveRepr,
+          stake: parsedPower,
+          ID: leaderboardMoves.length,
+        }
+        setLeaderboardMoves((curLeaderboardMoves) => {
+          curLeaderboardMoves = curLeaderboardMoves.concat([newLeaderboardMove]);
+          curLeaderboardMoves.sort(compareMoves);
+          return curLeaderboardMoves;
+        });
+      }
 
       // --- If it's us, update the move we voted for ---
       console.log(`Okay hang on now. Player is ${player.toLowerCase()} and walletAddr is ${walletAddr.toLowerCase()}`);
@@ -314,9 +336,6 @@ export const BettingContextProvider = ({
       console.log(`The world just played a move! Move: ${worldMove}`);
       // --- Increment the move number ---
       setMoveNumber((cur) => cur + 1);
-
-      // TODO(ryancao): Make the game state a "Leela is thinking" state
-
     })
 
   }, [bettingContract]), [bettingContract]);
@@ -366,6 +385,20 @@ export const BettingContextProvider = ({
   const getLastLeelaMove = (): Promise<number> => {
     const leelaLastMoveRequest = bettingContract.leelaMove();
     return leelaLastMoveRequest;
+  }
+
+  /**
+   * Grabs move index as a field from the betting contract (lol)
+   * @param onFinish 
+   * @param onError 
+   * @returns 
+   */
+  const getMoveNumber = (onFinish: (moveNumber: number) => void, onError: (error: any) => void): void => {
+    bettingContract.moveIndex().then((result) => {
+      onFinish(result);
+    }).catch((error) => {
+      onError(error);
+    })
   }
 
   // ------------------------ USER-SPECIFIC FUNCTIONS ------------------------
@@ -435,19 +468,39 @@ export const BettingContextProvider = ({
   }
 
   /**
-   * Grabs move index as a field from the betting contract (lol)
    * @param onFinish 
    * @param onError 
-   * @returns 
    */
-  const getMoveNumber = (onFinish: (moveNumber: number) => void, onError: (error: any) => void): void => {
-    bettingContract.moveIndex().then((result) => {
-      onFinish(result);
-    }).catch((error) => {
-      onError(error);
-    })
+  const getAccountPayable = (onFinish: (payableAmt: BigNumber) => void, onError: (error: any) => void): void => {
+    if (walletAddr === "") return;
+    // console.log("Got here! 1");
+    bettingContract.estimateGas.accountsPayable(walletAddr).then((estimatedGas) => {
+      console.log("Got here! 2");
+      bettingContract.accountsPayable(walletAddr, { gasLimit: estimatedGas.mul(2) }).then((payableAmt) => {
+        onFinish(payableAmt);
+      }).catch((error) => {
+        onError(error);
+      });
+    });
   }
 
+  /**
+   * Allows the user to claim their stake payout.
+   * @param onFinish 
+   * @param onError 
+   */
+  const claimPayout = (onFinish: () => void, onError: (error: any) => void): void => {
+    if (walletAddr === "") return;
+    bettingContract.estimateGas.claimPayout().then((estimatedGas) => {
+      bettingContract.claimPayout({ gasLimit: estimatedGas.mul(2) }).then((receipt) => {
+        receipt.wait().then(() => {
+          onFinish();
+        })
+      }).catch((error) => {
+        onError(error);
+      });
+    });
+  }
 
   return (
     <BettingContext.Provider
@@ -470,6 +523,8 @@ export const BettingContextProvider = ({
         setVotingPower,
         userVotedMove,
         setUserVotedMove,
+        showEndGameModal,
+        setShowEndGameModal,
 
         // --- Public Functions ---
         getBettingPoolStateFromBettingContract,
@@ -481,6 +536,8 @@ export const BettingContextProvider = ({
         voteForMove,
         getUserVotedMove,
         addStake,
+        claimPayout,
+        getAccountPayable,
       }}
     >
       {children}
