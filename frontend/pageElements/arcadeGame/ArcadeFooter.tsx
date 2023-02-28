@@ -6,6 +6,7 @@ import { useArcadeMachineContext } from "../../contexts/ArcadeMachineContext";
 import { useRouter } from "next/router";
 import clsx from "clsx";
 import { DisclosureModal } from "../gamePopups/DisclosureModal";
+import { ModulusAndFriendsModal } from "../gamePopups/ModulusAndFriendsModal";
 
 const ButtonVariants: Variants = {
   initial: {
@@ -58,6 +59,8 @@ export const ArcadeFooter: FC = () => {
     setLeelaSongPlaying,
     setShowDisclosureModal,
     showDisclosureModal,
+    setShowModulusAndFriendsModal,
+    showModulusAndFriendsModal,
   } = useArcadeMachineContext();
 
   const [isHomeScreen, setIsHomeScreen] = useState(false);
@@ -73,11 +76,12 @@ export const ArcadeFooter: FC = () => {
   return (
     <>
       {showDisclosureModal && <DisclosureModal />}
+      {showModulusAndFriendsModal && <ModulusAndFriendsModal />}
       <footer className="bg-b box-content flex flex-row items-center gap-x-3 bg-off-gray py-5 px-width-clamp">
         <p className="text-xl text-off-white">{"MADE WITH ❤️ BY "}</p>
         <FooterButton
           text="Modulus and frens"
-          onClick={() => setGameEarnings(true)}
+          onClick={() => setShowModulusAndFriendsModal(true)}
         />
 
         {/* --- Press to start only available on home screen --- */}

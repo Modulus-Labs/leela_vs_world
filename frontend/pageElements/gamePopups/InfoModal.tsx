@@ -17,14 +17,14 @@ export const InfoModal = () => {
         ariaHideApp={false}
         isOpen={showInfoModal}
         style={{
-          overlay: {
-            top: "12%",
-            bottom: "35%",
-            left: "25%",
-            right: "26%",
-            borderRadius: 5,
-            transform: "translate(0%, 30%)",
-          },
+          // overlay: {
+          //   top: "12%",
+          //   bottom: "35%",
+          //   left: "25%",
+          //   right: "26%",
+          //   borderRadius: 5,
+          //   transform: "translate(0%, 30%)",
+          // },
           content: {
             top: '50%',
             left: '50%',
@@ -32,7 +32,7 @@ export const InfoModal = () => {
             bottom: 'auto',
             marginRight: '-50%',
             transform: 'translate(-50%, -50%)',
-            maxWidth: "90%",
+            maxWidth: "80%",
             backgroundColor: "white",
           },
         }}

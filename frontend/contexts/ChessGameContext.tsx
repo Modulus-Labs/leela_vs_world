@@ -24,8 +24,6 @@ interface ChessGameContextInterface {
   // --- For stateful things ---
   currChessBoard: BoardState;
   setCurrChessBoard: Dispatch<SetStateAction<BoardState>>;
-  moveIndex: number;
-  setMoveIndex: Dispatch<SetStateAction<number>>;
 
   startMove: (square: Square) => void;
   endMove: (square: Square) => void;
@@ -79,7 +77,6 @@ export const ChessGameContextProvider = ({
           chessGame: new Chess(fen),
           moveIndex: moveIndex + 1,
         });
-        setMoveIndex(moveIndex + 1);
 
       }).catch((error: any) => {
         console.error(`Failed to get board state: ${error}`);
@@ -94,8 +91,8 @@ export const ChessGameContextProvider = ({
     chessContract.removeAllListeners();
     chessContract.on(chessContract.filters.movePlayed(), (gameState, leelaState, worldState, leelaMove) => {
       const newFen = getFen(gameState.toHexString().substring(2), worldState, leelaState, !leelaMove, currChessBoard.moveIndex + 1);
-      console.log(`From listener got this FEN: ${newFen}`);
-      console.log(validateFen(newFen));
+      // console.log(`From listener got this FEN: ${newFen}`);
+      // console.log(validateFen(newFen));
       const newChessGame = new Chess(newFen);
       setCurrChessBoard((curChessBoard) => {
         return {
@@ -304,7 +301,9 @@ export const ChessGameContextProvider = ({
 
   // --- Stateful things ---
   const [currChessBoard, setCurrChessBoard] = useState<BoardState>(getInitialBoardState);
-  const [moveIndex, setMoveIndex] = useState<number>(1);
+
+  // --- The move index from the chess contract doesn't work ---
+  // const [moveIndex, setMoveIndex] = useState<number>(1);
 
   /**
    * Determines whether we're diagonal to an enpassant square
@@ -389,8 +388,6 @@ export const ChessGameContextProvider = ({
       value={{
         currChessBoard,
         setCurrChessBoard,
-        moveIndex,
-        setMoveIndex,
         startMove,
         endMove,
         resetMove,

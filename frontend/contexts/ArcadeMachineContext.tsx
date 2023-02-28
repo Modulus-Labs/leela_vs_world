@@ -29,6 +29,9 @@ interface ArcadeMachineContextInterface {
   leelaSongPlaying: boolean;
   setLeelaSongPlaying: Dispatch<SetStateAction<boolean>>;
 
+  showModulusAndFriendsModal: boolean;
+  setShowModulusAndFriendsModal: Dispatch<SetStateAction<boolean>>;
+
   // --- For info modal stuff ---
   showInfoModal: boolean;
   setShowInfoModal: Dispatch<SetStateAction<boolean>>;
@@ -57,6 +60,7 @@ export const ArcadeMachineContextProvider = ({
     useState<boolean>(false);
   const [navigateToChessGame, setNavigateToChessGame] =
     useState<boolean>(false);
+  const [showModulusAndFriendsModal, setShowModulusAndFriendsModal] = useState<boolean>(false);
 
   // --- For info modal ---
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -67,7 +71,7 @@ export const ArcadeMachineContextProvider = ({
   // --- Music stuff ---
   const [leelaSongPlaying, setLeelaSongPlaying] = useState<boolean>(false);
 
-  // When changing routes reset so it doesn't automatically navigate to the chess gam
+  // When changing routes reset so it doesn't automatically navigate to the chess game
   useEffect(() => {
     if (navigateToChessGame) {
       setNavigateToChessGame(false);
@@ -87,6 +91,8 @@ export const ArcadeMachineContextProvider = ({
         setShowDisclosureModal,
         navigateToChessGame,
         setNavigateToChessGame,
+        showModulusAndFriendsModal,
+        setShowModulusAndFriendsModal,
 
         leelaSongPlaying,
         setLeelaSongPlaying,

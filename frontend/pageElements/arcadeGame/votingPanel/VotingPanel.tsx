@@ -112,22 +112,23 @@ export const VotingPanel: FC = () => {
               else {
                 const selectedMoveRepr = getContractMoveRepr(currChessBoard.moveFrom, currChessBoard.moveTo);
 
-                // --- TODO: call betting contract function voteWorldMove(ret) ---
-                // --- TODO: Grab the actual amount of power from the betting contract ---
-                const voteForMoveRequest = voteForMove(selectedMoveRepr);
-                openModalWithOptions(`Submitting vote to contract -- this might take a moment...`, false);
-                voteForMoveRequest?.then(async (result) => {
+                // --- Voting on a move ---
+                const onFinish = (result: ethers.ContractTransaction) => {
                   openModalWithOptions(`Processing... You voted for [${moveNotation}] with ${votingPower} power.`, false);
-                  await result.wait();
-                  openModalWithOptions(`Success!! Voted for move [${moveNotation}] with ${votingPower} power.`, true);
-                }).catch((error) => {
+                  result.wait().then(() => {
+                    openModalWithOptions(`Success!! Voted for move [${moveNotation}] with ${votingPower} power.`, true);
+                  })
+                };
+                const onError = (error: any) => {
                   if (error.message.includes("user rejected transaction")) {
                     openModalWithOptions(`Oops -- you cancelled the transaction!`, true);
                   } else {
                     openModalWithOptions(`Failed to submit vote to contract. Error: ${error}`, true);
                   }
                   console.error(error);
-                });
+                }
+                openModalWithOptions(`Submitting vote to contract -- this might take a moment...`, false);
+                const voteForMoveRequest = voteForMove(selectedMoveRepr, onFinish, onError);
               }
             }}
           />

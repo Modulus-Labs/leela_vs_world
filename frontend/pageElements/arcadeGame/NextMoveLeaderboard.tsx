@@ -26,7 +26,7 @@ export const NextMoveLeaderboard: FC = () => {
             )}
           >
             <p style={{ fontSize: 20 }}>{humanRepr}</p>
-            <p style={{ fontSize: 20 }}>{stake > 0 ? `${stake} ETH` : ""}</p>
+            <p style={{ fontSize: 20 }}>{stake > 0 ? `${stake} MATIC` : ""}</p>
           </div>
         ))}
       </div>

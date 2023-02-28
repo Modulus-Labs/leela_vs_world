@@ -1,3 +1,4 @@
+import { ethers } from 'ethers';
 import { motion, Variants } from 'framer-motion';
 import Image from 'next/image';
 import { FC, MouseEventHandler, useCallback, useState } from 'react';
@@ -74,30 +75,34 @@ export const GameDetails: FC = () => {
   const buyPower = (betOnLeela: boolean) => {
     try {
       const numberPowerAmount = Number(powerAmount);
-      console.log(`Buying ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}`);
+      // console.log(`Buying ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}`);
       if (numberPowerAmount < MIN_STAKE_AMT) {
         openModalWithOptions(`Error: cannot buy less than ${MIN_STAKE_AMT} MATIC worth of power!`, true);
         return;
       }
 
-      addStake(numberPowerAmount, betOnLeela)?.then(async (result) => {
-        openModalWithOptions(`Processing... (You bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"})`, false);
-        const receipt = await result.wait();
-        openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}!`, true);
-        setShowGameDetails(false);
-      }).catch((error) => {
+      // --- Buying power ---
+      openModalWithOptions(`Processing... (You bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"})`, false);
+      const onFinish = (result: ethers.ContractTransaction) => {
+        result.wait().then(() => {
+          openModalWithOptions(`Successfully bought ${numberPowerAmount} power, betting on ${betOnLeela ? "Leela" : "The World"}!`, true);
+          setShowGameDetails(false);
+        });
+      };
+      const onError = (error: any) => {
         if (error.message.includes("user rejected transaction")) {
           openModalWithOptions("Oops: You cancelled the transaction!", true);
         } else {
           openModalWithOptions(`Error in buying power: ${error.message}`, true);
         }
         console.error(`Oof: ${error.message}`);
-      });
-
+      }
+      addStake(numberPowerAmount, betOnLeela, onFinish, onError);
     } catch (error: any) {
-      openModalWithOptions(`Error in buying power: ${error}`, true);
+      openModalWithOptions(`Error in buying power: ${error.message}`, true);
+      console.error(error);
     }
-  }
+  };
 
   return (
     <GamePopup onClick={() => setShowGameDetails(false)}>
