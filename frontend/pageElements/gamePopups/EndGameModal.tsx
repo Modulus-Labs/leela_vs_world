@@ -1,11 +1,12 @@
 import { motion, Variants } from "framer-motion";
-import Modal from 'react-modal';
-import { useBettingContext } from '../../contexts/BettingContext';
-import { FC } from 'react';
+import Modal from "react-modal";
+import { useBettingContext } from "../../contexts/BettingContext";
+import { FC } from "react";
 import clsx from "clsx";
 import { connectWallet } from "../../utils/interact";
 import { useContractInteractionContext } from "../../contexts/ContractInteractionContext";
 import { ethers } from "ethers";
+import { OutlineButton } from "../../components/buttons/OutlineButton";
 
 const ModalPrizePool: FC = () => {
   // const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
@@ -31,17 +32,17 @@ const ModalPrizePool: FC = () => {
 
 const ButtonVariants: Variants = {
   initial: {
-    filter: 'brightness(100%)',
+    filter: "brightness(100%)",
     scale: 1,
   },
   tap: {
-    filter: 'brightness(85%)',
+    filter: "brightness(85%)",
     scale: 0.99,
   },
 };
 
 type EndGameModalButtonProps = {
-  buttonImageUrl: React.ComponentProps<'button'>['className'];
+  buttonImageUrl: React.ComponentProps<"button">["className"];
   onClick: any;
 };
 
@@ -49,11 +50,13 @@ export const EndGameModalButton: FC<EndGameModalButtonProps> = ({
   buttonImageUrl,
   onClick,
 }) => {
-
   return (
-    <div style={{ flex: 1, display: "flex", }}>
+    <div style={{ flex: 1, display: "flex" }}>
       <button onClick={onClick}>
-        <img style={{ flexGrow: 1, display: "flex", maxWidth: 250, minWidth: 100 }} src={buttonImageUrl}></img>
+        <img
+          style={{ flexGrow: 1, display: "flex", maxWidth: 250, minWidth: 100 }}
+          src={buttonImageUrl}
+        ></img>
       </button>
     </div>
   );
@@ -61,18 +64,11 @@ export const EndGameModalButton: FC<EndGameModalButtonProps> = ({
 
 // --- To display messages to user ---
 export const EndGameModal = () => {
+  const { showEndGameModal, setShowEndGameModal, claimPayout } =
+    useBettingContext();
 
-  const {
-    showEndGameModal,
-    setShowEndGameModal,
-    claimPayout,
-  } = useBettingContext();
-
-  const {
-    walletAddr,
-    setWalletAddr,
-    setEthersProvider
-  } = useContractInteractionContext();
+  const { walletAddr, setWalletAddr, setEthersProvider } =
+    useContractInteractionContext();
 
   return (
     <div>
@@ -134,11 +130,13 @@ export const EndGameModal = () => {
                 };
                 const onError = (error: any) => {
                   alert(`Error claiming your payout: ${error}`);
-                }
+                };
                 claimPayout(onFinish, onError);
-              }} />
-              {walletAddr === "" ?
-                <EndGameModalButton buttonImageUrl="connect_wallet_modal_button.png"
+              }}
+              />
+              {walletAddr === "" ? (
+                <EndGameModalButton
+                  buttonImageUrl="connect_wallet_modal_button.png"
                   onClick={() => {
                     connectWallet().then(({ status, address, provider }) => {
                       if (address !== null && provider !== null) {
@@ -147,22 +145,26 @@ export const EndGameModal = () => {
                       } else {
                         // Do nothing in case of failure?
                       }
-                    })
-                  }} />
-                :
+                    });
+                  }}
+                />
+              ) : (
                 <span style={{ fontSize: 10 }}>
                   {`Connected wallet: ${walletAddr}`}
                 </span>
-              }
+              )}
             </div>
           </div>
 
-          <button
-            style={{ borderRadius: 10, borderColor: "black", paddingTop: 5, paddingBottom: 5, paddingLeft: 10, paddingRight: 10, fontSize: 15, borderWidth: 1, alignSelf: "center", marginTop: 20 }}
-            onClick={() => { setShowEndGameModal(false) }}>{"Dismiss"}</button>
-
-        </div >
-      </Modal >
-    </div >
+          <OutlineButton
+            text="Dismiss"
+            onClick={() => {
+              setShowEndGameModal(false);
+            }}
+            className="mx-auto"
+          />
+        </div>
+      </Modal>
+    </div>
   );
-}
+};
