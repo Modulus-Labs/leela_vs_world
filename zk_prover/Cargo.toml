@@ -1,0 +1,42 @@
+[package]
+name = "leela_zk"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "leela_circuit"
+path = "src/lib.rs"
+
+[[bin]]
+name = "run_leela"
+path = "src/bin.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+#halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2", tag = "v2022_10_22", features = ["dev-graph"]}
+halo2-base = {path = "/home/aweso/modulus_labs/axiom/halo2-lib/halo2-base", default-features = false, features = ["halo2-pse", "dev-graph"]}
+snark-verifier-sdk = {path = "/home/aweso/modulus_labs/axiom/snark-verifier/snark-verifier-sdk/", default-features = false, features = ["loader_halo2", "loader_evm", "halo2-pse"]}
+# poseidon-circuit = { git = "https://github.com/scroll-tech/poseidon-circuit.git" }
+poseidon-circuit = { path = "/home/aweso/modulus_labs/scroll/poseidon-circuit"}
+
+rand_chacha = "0.3.1"
+
+halo2_machinelearning = {path="/home/aweso/halo2_machinelearning"}
+ndarray = "0.15.6"
+json = "0.12.4"
+lazy_static = "1.4.0"
+plotters = {version = "0.3.4"}
+once_cell = "1.17.0"
+rand = "0.8.5"
+
+[patch."https://github.com/scroll-tech/halo2.git"]
+# halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2023_01_20" }
+halo2_proofs = {path = "/home/aweso/halo2_pse/halo2/halo2_proofs"}
+
+[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
+halo2_proofs = {path = "/home/aweso/halo2_pse/halo2/halo2_proofs"}
+
+# [patch."https://github.com/axiom-crypto/halo2-lib.git"]
+# halo2-base = {path = "/home/aweso/modulus_labs/axiom/halo2-lib/halo2-base", default-features = false, features = ["halo2-pse"]}
+
