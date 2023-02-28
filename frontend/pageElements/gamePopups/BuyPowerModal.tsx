@@ -7,8 +7,11 @@ import { useBettingContext } from '../../contexts/BettingContext';
 import { useContractInteractionContext } from '../../contexts/ContractInteractionContext';
 import { GamePopup } from './GamePopup';
 
-// --- TODO(ryancao): Change this to 1 MATIC for mainnet ---
-const MIN_STAKE_AMT = 0.01;
+// --- Testnet ---
+// const MIN_STAKE_AMT = 0.01;
+
+// --- Mainnet
+const MIN_STAKE_AMT = 1;
 
 const ButtonVariants: Variants = {
   initial: {
@@ -52,7 +55,6 @@ export const GameDetails: FC = () => {
     setShowInfoModal
   } = useArcadeMachineContext();
   const { addStake, leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
-  const { walletAddr } = useContractInteractionContext();
   const [powerAmount, setPowerAmount] = useState<string>(`${MIN_STAKE_AMT}`);
 
   // --- To display error message to user ---

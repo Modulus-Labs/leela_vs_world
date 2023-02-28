@@ -5,21 +5,24 @@ import { FC } from 'react';
 import clsx from "clsx";
 import { connectWallet } from "../../utils/interact";
 import { useContractInteractionContext } from "../../contexts/ContractInteractionContext";
+import { ethers } from "ethers";
 
 const ModalPrizePool: FC = () => {
-  const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+  // const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+  const { payoutAvailable } = useBettingContext();
+  const parsedAmt = Number(ethers.utils.formatEther(payoutAvailable.toHexString()));
 
-  const denominator = (leelaPrizePoolAmount + worldPrizePoolAmount);
-  const leelaPrizePoolPercentage = denominator === 0 ? 50 : 100 * leelaPrizePoolAmount / denominator;
-  const worldPrizePoolPercentage = denominator === 0 ? 50 : 100 * worldPrizePoolAmount / denominator;
+  // const denominator = (leelaPrizePoolAmount + worldPrizePoolAmount);
+  // const leelaPrizePoolPercentage = denominator === 0 ? 50 : 100 * leelaPrizePoolAmount / denominator;
+  // const worldPrizePoolPercentage = denominator === 0 ? 50 : 100 * worldPrizePoolAmount / denominator;
   return (
     <div className="relative h-full w-full bg-[url(/PrizePool.png)] bg-contain bg-no-repeat text-4xl">
-      <p className="bg-transparent" style={{ fontSize: 20, color: "white", marginLeft: 200, marginTop: 5 }}>
-        {`${(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(2)} MATIC`}
+      <p className="bg-transparent" style={{ fontSize: 20, color: "white", marginLeft: 180, marginTop: 5 }}>
+        {`Your winnings:`}
       </p>
       <div className="top-[48px] left-[0px] h-[35px] w-full px-[17px]">
-        <p className="left-[50px] bg-transparent" style={{ fontSize: 20, color: "white", marginLeft: 10 }}>
-          {`${leelaPrizePoolPercentage.toFixed(2)}% Leela | ${worldPrizePoolPercentage.toFixed(2)}% World`}
+        <p className="left-[50px] bg-transparent" style={{ fontSize: 20, color: "white", marginLeft: 100 }}>
+          {`${(parsedAmt).toFixed(1)} MATIC`}
         </p>
       </div>
     </div>
@@ -101,7 +104,7 @@ export const EndGameModal = () => {
               {"YOU'RE BETWEEN GAMES!"}
             </span>
             <span style={{ fontSize: 15, marginBottom: 10 }}>
-              {"- If you staked and lost your bet, come back in 24 hrs for your redemption arc!"}
+              {"- If you staked and lost your bet, proceed to the new game for your redemption arc!"}
             </span>
             <span style={{ fontSize: 15, marginBottom: 10 }}>
               {"- If you staked and won your bet -- congrats and claim your reward below!"}

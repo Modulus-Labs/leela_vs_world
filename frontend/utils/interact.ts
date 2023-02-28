@@ -231,11 +231,14 @@ export const connectWallet = async () => {
       try {
         // --- First try to switch to connecting to Polygon Testnet ---
         // TODO(ryancao): Switch this to mainnet!
+        // const swappedChain = await window.ethereum.request({
+        //   method: 'wallet_switchEthereumChain',
+        //   params: [{ chainId: '0x13881' }],
+        // });
         const swappedChain = await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x13881' }],
+          params: [{ chainId: '0x89' }],
         });
-        console.log(`Swapped chain: ${swappedChain}`);
       } catch (error: any) {
         // TODO(ryancao): Check that this works!
         if (error.code === 4902) {
@@ -245,9 +248,10 @@ export const connectWallet = async () => {
               method: 'wallet_addEthereumChain',
               params: [
                 {
-                  chainId: '0x61',
+                  chainId: '0x89',
                   // @ts-ignore (change this to mainnet!)
-                  rpcUrl: "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo",
+                  // rpcUrl: "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo",
+                  rpcUrls: ["https://polygon-mainnet.g.alchemy.com/v2/T5jqKdcV4IPd7EwZ7X1W_ormA67wOlLb"],
                 },
               ],
             });
@@ -266,12 +270,16 @@ export const connectWallet = async () => {
 
       // --- Getting the actual provider which works on Polygon Mumbai ---
       // TODO(ryancao): Switch this to mainnet
-      const polygonMumbai = {
-        name: "maticmum",
-        chainId: 80001
-      };
+      // const polygonMumbai = {
+      //   name: "maticmum",
+      //   chainId: 80001
+      // };
+      const polygonMainnet = {
+        name: "matic",
+        chainId: 137,
+      }
       // @ts-ignore
-      const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
+      const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMainnet);
 
       // --- Localhost ---
       // const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545/");

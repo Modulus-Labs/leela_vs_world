@@ -19,5 +19,26 @@
         }
       }
     }
+  },
+  "prod": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-leelavworldfrontend-prod-94342-authRole",
+      "UnauthRoleArn": "arn:aws:iam::912380644572:role/amplify-leelavworldfrontend-prod-94342-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::912380644572:role/amplify-leelavworldfrontend-prod-94342-authRole",
+      "Region": "us-west-2",
+      "DeploymentBucketName": "amplify-leelavworldfrontend-prod-94342-deployment",
+      "UnauthRoleName": "amplify-leelavworldfrontend-prod-94342-unauthRole",
+      "StackName": "amplify-leelavworldfrontend-prod-94342",
+      "StackId": "arn:aws:cloudformation:us-west-2:912380644572:stack/amplify-leelavworldfrontend-prod-94342/0fef91a0-b787-11ed-beed-02c68d31a0f5",
+      "AmplifyAppId": "d227galadmiqcu"
+    },
+    "categories": {
+      "hosting": {
+        "amplifyhosting": {
+          "appId": "d227galadmiqcu",
+          "type": "manual"
+        }
+      }
+    }
   }
 }
