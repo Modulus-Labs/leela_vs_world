@@ -18,6 +18,7 @@ import Sound from "react-sound";
 import { DisclosureModal } from "../pageElements/gamePopups/DisclosureModal";
 import { useBettingContext } from "../contexts/BettingContext";
 import { EndGameModal } from "../pageElements/gamePopups/EndGameModal";
+import { AnimatePresence } from "framer-motion";
 
 export default function ChessPage() {
   const { isMobile } = useMediaQueryContext();
