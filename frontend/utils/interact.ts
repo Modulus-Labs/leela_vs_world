@@ -1,156 +1,292 @@
 import { ethers } from "ethers";
-// import { RockafellerBotL1__factory } from "../typechain-types/factories/contracts/RockafellerBotL1.sol/RockafellerBotL1__factory";
-// import l1_abi from "./L1_abi.json";
-import emoji from "node-emoji";
 
 // --- TODO(ryancao): Figure out what these contract addresses are ---
+// --- Polygon testnet ---
 const config = {
-  CHESS_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  // CHESS_CONTRACT_ADDR: "0xcA42f5Bac3Ea97030Dcf6c9BCE0BDd3F5F39e169", // This is the TESTNET ADDRESS
-  BETTING_CONTRACT_ADDR: "0x3804d8a14b6a2bdcf3ecace58d713dc783a8f2de", // This is the MAINNET ADDRESS
-  // BETTING_CONTRACT_ADDR: "0xcA42f5Bac3Ea97030Dcf6c9BCE0BDd3F5F39e169", // This is the TESTNET ADDRESS
+  LEELA_CONTRACT_ADDR: "0x9E18aDc813d6b5b033d16AfE8C44C879B174c434",
+  BETTING_CONTRACT_ADDR: "0xCEf7acD91D1385E6e7142d90d8831e468489d5D8",
+  CHESS_CONTRACT_ADDR: "0x89510ce94Ab5491740eF3B05206C5488295b6f89",
 }
 
-// --- These are testnet ---
-// const usdcAddress = "0x07865c6e87b9f70255377e024ace6630c1eaa37f";
-// const wethAddress = "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6";
+// --- Localhost ---
+// const config = {
+//   LEELA_CONTRACT_ADDR: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+//   BETTING_CONTRACT_ADDR: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+//   CHESS_CONTRACT_ADDR: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+// }
 
-// --- These are mainnet ---
-const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+/**
+ * Hook up against chess contract:
+    Grab board state from contract and place into frontend board state
+    Grab timer from contract and place into frontend timer
+ * Hook up against betting contract:
+    Grab betting pool state from contract and place into frontend pool state
+    Grab leaderboard state from contract and load into frontend leaderboard
+    Grab purchased power state from contract and display on frontend
+    Submit power purchase to contract and have that be reflected on frontend
+    Submit move to contract and have that be reflected on leaderboard
+ */
 
-export const donateToRocky = async (
-  amount: number,
-  openModalFn: (text: string, canDismiss: boolean) => void) => {
-
-  // --- Unfortunate check we must do ---
+/**
+ * Grabs the current ethers provider, if exists.
+ * @returns 
+ */
+const getEthersProvider = () => {
   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = null;
-  if (window.ethereum) {
-    // --- TODO(ryancao): Hacky hack for type checking??? ---
-    ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
-  }
-
-  if (ethersProvider != null) {
-
-    // --- Grab the current signer and create USDC/WETH contract ---
-    const owner = ethersProvider.getSigner();
-    const tokenContractAddress = tokenType === "USDC" ? usdcAddress : wethAddress;
-    let tokenContract = new ethers.Contract(tokenContractAddress, l1_abi, owner);
-
-    const RfB = RockafellerBotL1__factory.connect(config.L1_CONTRACT_ADDR, owner);
-
-    // --- Grab the user's amounts of funds ---
-    openModalFn("Waiting for Metamask confirmation of funds access... " + emoji.get("woman-running"), false);
-    let approveFundsAccessPromise = tokenContract.connect(owner).approve(RfB.address, nativeUnitAmt);
-
-    approveFundsAccessPromise.then((approveFundsAccessObj: any) => {
-
-      // console.log("approveFundsAccessObj");
-      // console.log(approveFundsAccessObj);
-      openModalFn(`Thanks for confirming! Waiting on tx (${approveFundsAccessObj.hash})... ` + emoji.get("man-running"), false);
-
-      // --- Wait for the tx to finish approving ---
-      approveFundsAccessObj.wait().then((approved: any) => {
-        console.log("Approved");
-        console.log(approved);
-
-        openModalFn("Granted funds access! Next transaction will be to actually donate... " + emoji.get("grin"), false);
-        const addFundsTransPromise = RfB.addFunds(tokenTypeToBitMapping[tokenType], nativeUnitAmt, { gasLimit: 100000 });
-        addFundsTransPromise.then((result: any) => {
-          openModalFn(`Donation tx sent! Waiting for confirmation... (${result.hash}) ` + emoji.get("thinking_face"), false);
-          result.wait().then(() => {
-            openModalFn(`Donation confirmed!! (${result.hash}) Thank you for your generous donation of ${amount} ${tokenType} to Rocky ` + emoji.get("crown") + ` Refresh the page in a moment to see your contribution on the leaderboard! #keeprockyalive`, true);
-          })
-            .catch((resultWaitError: any) => {
-              // console.error("Error confirming transaction");
-              // console.error(resultWaitError);
-              openModalFn(`Error: ${resultWaitError.message}`, true);
-              return;
-            });
-        })
-          .catch((fundAddError: any) => {
-            // console.error("Error adding funds");
-            // console.error(fundAddError);
-            openModalFn(`Error: ${fundAddError.message}`, true);
-            return;
-          });
-      })
-        .catch((error: any) => {
-
-        })
-    })
-      .catch((error: any) => {
-        // console.error("Disapproved or some other error");
-        openModalFn(`Error: ${error.message}`, true);
-        return;
-      });
-
-  }
+  // let ethersProvider: null | ethers.providers.Web3Provider = null;
+  // if (window.ethereum) {
+  //   // --- TODO(ryancao): Hacky hack for type checking??? ---
+  //   ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
+  // }
+  // require('dotenv').config();
+  // const { API_KEY } = process.env;
+  const API_URL = `https://polygon-mumbai.g.alchemy.com/v2/-eJGoKkTEMre3-CY_NksLQhZX2-E7RZQ`;
+  // console.log(`API URL IS: ${API_URL}`);
+  // console.log("Grabbing the ethers provider (again?)!");
+  // const API_URL = "http://127.0.0.1:8545/";
+  let ethersProvider = new ethers.providers.JsonRpcProvider(API_URL);
+  return ethersProvider;
 }
+
+// /**
+//  * Calls the chess contract via ethers and reads the board state from it.
+//  */
+// export const getBoardStateFromChessContract = (): Promise<[BigNumber, number, number, boolean, number, number]> | null => {
+//   let ethersProvider = getEthersProvider();
+
+//   if (ethersProvider != null) {
+
+//     // --- Grab owner, connect to contract, call function ---
+//     const chessGameContract = Chess__factory.connect(config.CHESS_CONTRACT_ADDR, ethersProvider);
+//     const chessGameStateRequest = chessGameContract.getChessGameState();
+
+//     // --- Grab result, feed back to caller ---
+//     return chessGameStateRequest;
+//   } else {
+//     return null;
+//   }
+// }
+
+// /**
+//  * Grabs the pool state + timer from the betting contract.
+//  * This does NOT require the user to be logged in!
+//  */
+// export const getBettingPoolStateFromBettingContract = (): Promise<[BigNumber, BigNumber, BigNumber]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
+
+//     // --- Connect to contract, call function ---
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//     const bettingGamePoolRequest = bettingGameContract.getFrontEndPoolState();
+//     return bettingGamePoolRequest;
+
+//   } else {
+//     return null;
+//   }
+// }
+
+// /**
+//  * Grabs the move leaderboard + number of votes from the betting contract.
+//  * This does NOT require the user to be logged in!
+//  * @returns 
+//  */
+// export const getMoveLeaderboardStateFromBettingContract = (): Promise<[number[], BigNumber[]]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
+//     // --- Connect to contract, call function ---
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//     // console.log("Getting current moves and votes!");
+//     const bettingGamePoolRequest = bettingGameContract.getCurMovesAndVotes();
+//     return bettingGamePoolRequest;
+//   } else {
+//     return null;
+//   }
+// }
+
+// /**
+//  * Grabs the user's Leela and world stakes. This requires the user to be logged in!
+//  * @param userAddr 
+//  * @returns 
+//  */
+// export const getUserStakeFromBettingContract = (userAddr: string): Promise<[BigNumber, BigNumber]> | null => {
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider != null) {
+//     const owner = ethersProvider.getSigner(userAddr);
+//     // console.log(`Owner is coming from ${userAddr}!`);
+//     const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//     const userStakeRequest = bettingGameContract.getUserStakeState(userAddr, { gasLimit: 1e7 });
+//     return userStakeRequest;
+//   } else {
+//     return null;
+//   }
+// }
+
+// /**
+//  * Votes on the given move by the user.
+//  * @param userAddr 
+//  * @param move 
+//  * @returns 
+//  */
+// export const voteForMove = (userAddr: string, move: number) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+//   return voteWorldMoveRequest;
+// }
+
+// /**
+//  * Returns which move user voted for this round (or 0 if none)
+//  * @param userAddr 
+//  * @returns 
+//  */
+// export const getUserVotedMove = (userAddr: string): Promise<number> => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const userVotedMoveRequest = bettingGameContract.userVotedMove();
+//   return userVotedMoveRequest;
+// }
+
+// /**
+//  * Returns Leela's last move played (or 0 if none)
+//  * @returns 
+//  */
+// export const getLastLeelaMove = (): Promise<number> => {
+//   let ethersProvider = getEthersProvider();
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, ethersProvider);
+//   const leelaLastMoveRequest = bettingGameContract.leelaMove();
+//   return leelaLastMoveRequest;
+// }
+
+// /**
+//  * Votes on a particular move for the user for this turn.
+//  * @param userAddr 
+//  * @param move 
+//  * @returns 
+//  */
+// export const voteWorldMove = (userAddr: string, move: number) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const voteWorldMoveRequest = bettingGameContract.voteWorldMove(move, { gasLimit: 1e7 });
+//   return voteWorldMoveRequest;
+// }
+
+// /**
+//  * Buys power, staking on either Leela/World winning.
+//  * @param userAddr 
+//  * @param amount 
+//  * @param betOnLeela 
+//  * @returns 
+//  */
+// export const addStake = (userAddr: string, amount: number, betOnLeela: boolean) => {
+//   let ethersProvider = getEthersProvider();
+//   const owner = ethersProvider.getSigner(userAddr);
+//   const bettingGameContract = BettingGame__factory.connect(config.BETTING_CONTRACT_ADDR, owner);
+//   const addStakeRequest = bettingGameContract.addStake(betOnLeela, { gasLimit: 1e7, value: ethers.utils.parseUnits(amount.toString(), "ether") });
+//   return addStakeRequest;
+// }
 
 // --------------------------------------------------------------
 
 /**
  * @returns Currently connected network
  */
-export const getCurrentConnectedNetwork = async (): Promise<ethers.providers.Network> => {
+// export const getCurrentConnectedNetwork = async (): Promise<ethers.providers.Network> => {
 
-  // --- Unfortunate check we must do ---
-  // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = null;
-  if (window.ethereum) {
-    // --- TODO(ryancao): Hacky hack for type checking??? ---
-    ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
-  }
-  if (ethersProvider === null) return { name: "", chainId: -1 };
-
-  const network = await ethersProvider.getNetwork();
-  return network;
-}
+//   // --- Unfortunate check we must do ---
+//   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider === null) return { name: "", chainId: -1 };
+//   const network = await ethersProvider.getNetwork();
+//   return network;
+// }
 
 /**
  * Returns the current balance of the given Eth account to the user.
  * @param {*} walletAddress 
  * @returns 
  */
-export const getCurrentBalanceDisplay = async (walletAddress: string): Promise<string> => {
+// export const getCurrentBalanceDisplay = async (walletAddress: string): Promise<string> => {
 
-  // --- Unfortunate check we must do ---
-  // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
-  let ethersProvider: null | ethers.providers.Web3Provider = null;
-  if (window.ethereum) {
-    // --- TODO(ryancao): Hacky hack for type checking??? ---
-    ethersProvider = new ethers.providers.Web3Provider(<any>(window.ethereum));
-  }
-  if (ethersProvider === null) return "";
+//   // --- Unfortunate check we must do ---
+//   // --- Provider from ethers.js allows us to talk to chain/wallet/etc ---
+//   let ethersProvider = getEthersProvider();
+//   if (ethersProvider === null) return "";
 
-  // balance (in Wei): { BigNumber: "182826475815887608" }
-  const balance: ethers.BigNumber = await ethersProvider.getBalance(walletAddress);
+//   // balance (in Wei): { BigNumber: "182826475815887608" }
+//   const balance: ethers.BigNumber = await ethersProvider.getBalance(walletAddress);
 
-  // --- Return the amount in Eth as a string representation ---
-  return ethers.utils.formatEther(balance);
-}
+//   // --- Return the amount in Eth as a string representation ---
+//   return ethers.utils.formatEther(balance);
+// }
 
 export const connectWallet = async () => {
   // --- Checks to see if the user's browser has Metamask enabled...
   // --- (Metamask injects a global `ethereum` object)
   if (window.ethereum) {
     try {
+
+      try {
+        // --- First try to switch to connecting to Polygon Testnet ---
+        // TODO(ryancao): Switch this to mainnet!
+        const swappedChain = await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x13881' }],
+        });
+        console.log(`Swapped chain: ${swappedChain}`);
+      } catch (error: any) {
+        // TODO(ryancao): Check that this works!
+        if (error.code === 4902) {
+          try {
+            await window.ethereum.request({
+              // @ts-ignore (not sure why this isn't considered a function)
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x61',
+                  // @ts-ignore (change this to mainnet!)
+                  rpcUrl: "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo",
+                },
+              ],
+            });
+          } catch (addError) {
+            console.error(addError);
+          }
+        }
+        console.error(error);
+      }
+
       // --- Returns an array containing all of the user's account
       // --- addresses connected to the dApp. We only use the first one.
       const addressArray = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
+
+      // --- Getting the actual provider which works on Polygon Mumbai ---
+      // TODO(ryancao): Switch this to mainnet
+      const polygonMumbai = {
+        name: "maticmum",
+        chainId: 80001
+      };
+      // @ts-ignore
+      const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
+
+      // --- Localhost ---
+      // const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545/");
+
       const obj = {
         status: "Your wallet has been connected!",
-        address: addressArray[0]
+        address: addressArray[0],
+        provider: provider,
       };
       return obj;
     } catch (error: any) {
       return {
         status: error.message,
         address: null,
+        provider: null,
       }
     }
 
@@ -158,7 +294,8 @@ export const connectWallet = async () => {
   } else {
     return {
       address: null,
-      status: "You must install MetaMask, a virtual Ethereum wallet, in your browser."
+      status: "You must install MetaMask, a virtual Ethereum wallet, in your browser.",
+      provider: null,
     }
   }
 };

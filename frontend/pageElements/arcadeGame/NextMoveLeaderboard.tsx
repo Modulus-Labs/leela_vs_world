@@ -9,24 +9,24 @@ type Move = {
 };
 
 export const NextMoveLeaderboard: FC = () => {
-  const { validMoves } = useBettingContext();
+  const { leaderboardMoves } = useBettingContext();
 
-  if (validMoves.length === 0) return null;
-
+  // --- TODO(ryancao): What??? ---
+  // if (leaderboardMoves.length === 0) return null;
 
   return (
     <div className="h-full w-full bg-[url(/NextMoveLeaderboardDisplay.svg)] bg-contain bg-no-repeat px-[20px] pt-[65px] pb-[22.5px]">
       <div className="h-full overflow-y-scroll">
-        {validMoves.map(({ move, amount }, index) => (
+        {leaderboardMoves.map(({ humanRepr, stake, ID }, index) => (
           <div
-            key={move}
+            key={ID}
             className={clsx(
               'flex h-[25%] flex-row items-center justify-between px-[15px] text-3xl',
               index % 2 === 0 && 'bg-emerald-green'
             )}
           >
-            <p>{move}</p>
-            <p>{ethers.utils.formatEther(amount)} ETH</p>
+            <p style={{ fontSize: 20 }}>{humanRepr}</p>
+            <p style={{ fontSize: 20 }}>{stake > 0 ? `${stake} MATIC` : ""}</p>
           </div>
         ))}
       </div>

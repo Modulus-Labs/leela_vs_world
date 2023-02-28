@@ -10,6 +10,9 @@
     "next",
     "next/core-web-vitals"
   ],
+  "ignorePatterns": [
+    "**/aws-exports.js"
+  ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "project": "./tsconfig.json",
@@ -19,12 +22,16 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["react", "@typescript-eslint"],
+  "plugins": [
+    "react",
+    "@typescript-eslint"
+  ],
   "rules": {
     "eslintreact/no-unescaped-entities": 0,
     "@typescript-eslint/no-floating-promises": 0,
     "react-hooks/exhaustive-deps": 0,
     "@typescript-eslint/no-misused-promises": 0,
-    "@typescript-eslint/no-explicit-any": 0
+    "@typescript-eslint/no-explicit-any": 0,
+    "@next/next/no-img-element": "off"
   }
 }

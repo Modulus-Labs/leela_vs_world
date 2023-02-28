@@ -3,15 +3,24 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
+/* @font-face {
   font-family: 'Incognito-Inc';
   src: url('/fonts/IncognitoInc.ttf');
+} */
+
+@font-face {
+  font-family: "Incognito-Inc";
+  src: url("./VCR_OSD_MONO_1.001.ttf");
 }
 
 :root {
   --emerald-green: #51ae8f;
+  --highlight-green: #11db6c;
+  --forest-green: #285748;
+  --deep-forest-green: #004d3c;
 
   --off-black: #0e1111;
+  --off-gray: #353535;
   --off-white: #f3f8f9;
   --gray: #808080;
   --light-gray: #55c6ef27;
@@ -50,7 +59,7 @@ div.scroll {
   background-color: transparent;
   overflow-x: auto;
   overflow-y: auto;
-  text-align:justify;
+  text-align: justify;
 }
 
 input {
@@ -92,11 +101,13 @@ html {
   height: 0.5rem;
   margin: 0px 10px;
 }
+
 ::-webkit-scrollbar {
   width: 0.5rem;
   border-radius: 0.125rem;
   height: 0.5rem;
 }
+
 ::-webkit-scrollbar-thumb {
   border-radius: 0.2rem;
   background-color: var(--dark-gray);
@@ -105,11 +116,14 @@ html {
 
 /* ---Custom highlight color--- */
 ::selection {
-  background: var(--off-black); /* WebKit/Blink Browsers */
+  background: var(--off-black);
+  /* WebKit/Blink Browsers */
   color: var(--off-white);
 }
+
 ::-moz-selection {
-  background: var(--off-black); /* Gecko Browsers */
+  background: var(--off-black);
+  /* Gecko Browsers */
   color: var(--off-white);
 }
 

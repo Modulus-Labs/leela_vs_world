@@ -24,17 +24,17 @@ export const MoveToOverlay: FC<MoveToOverlayProps> = ({ x, y, square }) => {
   return (
     <div
       className={clsx(
-        'absolute h-[71px] w-[71px] cursor-pointer bg-blue-600 opacity-50',
+        'absolute h-[50px] w-[50px] cursor-pointer bg-blue-600 opacity-50',
         currChessBoard.validMoves !== null &&
-          currChessBoard.validMoves.some((move) => move === square) &&
-          'cursor-pointer'
+        currChessBoard.validMoves.some((move) => move === square) &&
+        'cursor-pointer'
       )}
       style={{
-        left: 35 + x * 71,
-        top: y * 71,
+        left: 25 + x * 50,
+        top: y * 50,
       }}
     >
-      <div className="relative h-[65px] w-[65px]">
+      <div className="relative h-[48px] w-[48px]">
         <Image
           src={`/chessPieces/${piece.type}${piece.color}.svg`}
           alt=""

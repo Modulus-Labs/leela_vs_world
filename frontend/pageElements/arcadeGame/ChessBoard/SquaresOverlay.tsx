@@ -1,6 +1,6 @@
 import { Chess, Square } from 'chess.js';
 import clsx from 'clsx';
-import { FC, SyntheticEvent, useEffect, useState } from 'react';
+import { FC, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { JsxElement } from 'typescript';
 import { useChessGameContext } from '../../../contexts/ChessGameContext';
 import { MOVE_STATE } from '../../../types/Chess.type';
@@ -15,20 +15,17 @@ export const SquaresOverlay: FC = () => {
 
   const [BoardGrid, setBoardGrid] = useState<JSX.Element[]>([]);
 
-  const chess = new Chess(currChessBoard.fen);
-
   const handleBoardSquareClick = (square: Square) => {
-    console.log('handleBoardSquareClick', square.toString());
-    const { moveState, moveFrom, moveTo, validMoves } = currChessBoard;
+    const { moveState, moveFrom, moveTo, validMoves, fen } = currChessBoard;
+    // console.log(moveState, moveFrom, moveTo, validMoves, fen);
 
     if (moveState === MOVE_STATE.IDLE) {
-      console.log('idle');
       // If the square is occupied by a piece => start a move
-      if (chess.get(square)) {
+      if (currChessBoard.chessGame.get(square)) {
+        resetMove();
         startMove(square);
       }
     } else if (moveState === MOVE_STATE.MOVING) {
-      console.log('moving');
       if (validMoves === null) {
         resetMove();
       } else if (moveFrom === square) {
@@ -38,20 +35,19 @@ export const SquaresOverlay: FC = () => {
         // The user clicked on a valid square => end the move
         if (validMoves.some((move) => move === square)) {
           endMove(square);
-        } else if (chess.get(square)) {
+        } else if (currChessBoard.chessGame.get(square)) {
           // If the user clicked on another piece => restart move with that square
           resetMove();
           startMove(square);
         }
       }
     } else if (moveState === MOVE_STATE.MOVED) {
-      console.log('moved');
       if (moveTo === square) {
         resetMove();
       }
 
       // If the square is occupied by a piece, start a move
-      if (chess.get(square)) {
+      if (currChessBoard.chessGame.get(square)) {
         resetMove();
         startMove(square);
       }
@@ -70,7 +66,7 @@ export const SquaresOverlay: FC = () => {
 
         if (ChessPiece || ValidMove || currChessBoard.moveTo === square) {
           subElements.push(
-            <div id={square} onClick={() => handleBoardSquareClick(square)}>
+            <div id={square} key={square} onClick={() => handleBoardSquareClick(square)}>
               {currChessBoard.moveState !== MOVE_STATE.MOVING &&
                 currChessBoard.moveTo === square && (
                   <MoveToOverlay x={i} y={j} square={square} />
@@ -84,10 +80,12 @@ export const SquaresOverlay: FC = () => {
           );
         }
       }
-      newBoardGrid.push(<g>{subElements}</g>);
+      newBoardGrid.push(<span key={i}>{subElements}</span>);
     }
-    setBoardGrid([...newBoardGrid]);
+    setBoardGrid(newBoardGrid);
   }, [currChessBoard]);
 
-  return <>{BoardGrid}</>;
+  return <>
+    {BoardGrid}
+  </>;
 };

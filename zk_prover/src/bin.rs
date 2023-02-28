@@ -2,6 +2,8 @@
 
 use std::{time::Instant, path::Path, fs::{self, File}, io::Write, iter};
 
+use std::env::{set_var, var};
+
 use halo2_machinelearning::{felt_from_i64, felt_to_i64};
 use halo2_base::{halo2_proofs::{plonk::{Circuit, Error as PlonkError, keygen_vk, keygen_pk, create_proof, verify_proof}, circuit::Value, halo2curves::{bn256::{Fr, Bn256}, FieldExt, group::ff::PrimeField}, poly::{commitment::{ParamsProver, Params}, kzg::{commitment::ParamsKZG, multiopen::{ProverSHPLONK, VerifierSHPLONK, VerifierGWC}, strategy::SingleStrategy}}, dev::MockProver, transcript::{Challenge255, Blake2bWrite, Blake2bRead, TranscriptReadBuffer, TranscriptWriterBuffer}}, utils::{value_to_option, fs::gen_srs}};
 use ndarray::{Array, Axis};
@@ -16,25 +18,26 @@ use snark_verifier_sdk::{halo2::{gen_snark, gen_snark_shplonk, aggregation::Publ
 
 
 fn main() -> Result<(), PlonkError> {
-    const PREFIX: &str = "/home/ubuntu/leela_zk/";
-    let params = read_input(PREFIX, "bgnet.json");
+    const PREFIX: &str = "";
+    set_var("VERIFY_CONFIG", "./configs/verify_circuit.config");
+    let params = read_input(PREFIX, "./bgnet.json");
     let mut rng = ChaCha20Rng::from_entropy();
 
 
     let input: Vec<Fr> = {
-        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "bgnet_intermediates_new.json").unwrap();
+        let inputs_raw = std::fs::read_to_string(PREFIX.to_owned() + "./proof_dir/leelaInputs.json").unwrap();
         let inputs = json::parse(&inputs_raw).unwrap();
-        let input: Vec<_> = inputs["input"].members().map(|input| input.as_i64().unwrap()).collect();
+        inputs.members().map(|input| Fr::from_str_vartime(input.as_str().unwrap()).unwrap()).collect()
 
-        let input = Array::from_shape_vec((112, 8, 8), input).unwrap();
+        // let input = Array::from_shape_vec((112, 8, 8), input).unwrap();
 
-        input.axis_iter(Axis(0)).map(|layer| {
-            let out = layer.iter().enumerate().fold(0_i128, |accum, (row, item)| {
-                accum + ((item/1_048_576) as i128 * 2_i128.pow(row as u32))
-            });
+        // input.axis_iter(Axis(0)).map(|layer| {
+        //     let out = layer.iter().enumerate().fold(0_i128, |accum, (row, item)| {
+        //         accum + ((item/1_048_576) as i128 * 2_i128.pow(row as u32))
+        //     });
 
-            Fr::from_u128(out as u128)
-        }).collect()
+        //     Fr::from_u128(out as u128)
+        // }).collect()
 
         // let outputs: Vec<_> = inputs["output"].members().map(|input| felt_from_i64(input.as_i64().unwrap())).collect();
     };
@@ -65,7 +68,7 @@ fn main() -> Result<(), PlonkError> {
         felt_to_i64(value_to_option(*output).unwrap())
     }).collect();
 
-    let mut f = File::create("calc_output.json")?;
+    let mut f = File::create("./proof_dir/calc_output.json")?;
 
     json::from(output).write(&mut f)?;
 
@@ -134,7 +137,7 @@ fn main() -> Result<(), PlonkError> {
 
     let proof = gen_evm_proof_shplonk(&params_max, &pk_agg, agg_circuit.clone(), agg_circuit.instances(), &mut rng);
 
-    let mut f = File::create("proof")?;
+    let mut f = File::create("./proof_dir/proof")?;
 
     f.write_all(proof.as_slice()).unwrap();
 
@@ -142,7 +145,7 @@ fn main() -> Result<(), PlonkError> {
 
     let verifier_contract = gen_evm_verifier_shplonk::<PublicAggregationCircuit>(&params_max, pk_agg.get_vk(), agg_circuit.num_instance(), None);
 
-    let mut f = File::create("verifier_contract_bytecode")?;
+    let mut f = File::create("./proof_dir/verifier_contract_bytecode")?;
 
     f.write_all(verifier_contract.as_slice()).unwrap();
 
@@ -152,7 +155,7 @@ fn main() -> Result<(), PlonkError> {
     
     let calldata = encode_calldata(&agg_circuit.instances(), &proof);
 
-    let mut f = File::create("official_calldata")?;
+    let mut f = File::create("./proof_dir/official_calldata")?;
 
     f.write_all(calldata.as_slice()).unwrap();
     
@@ -162,7 +165,7 @@ fn main() -> Result<(), PlonkError> {
 
     let instances_output: Vec<_> = instances.iter().flat_map(|value| value.to_repr().as_ref().iter().rev().cloned().collect::<Vec<_>>()).collect();
 
-    let mut f = File::create("limbs_instance")?;
+    let mut f = File::create("./proof_dir/limbs_instance")?;
 
     f.write_all(instances_output.as_slice()).unwrap();
 

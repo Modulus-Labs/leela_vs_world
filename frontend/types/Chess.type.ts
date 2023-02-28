@@ -1,4 +1,10 @@
-import { Square } from 'chess.js';
+import { Chess, Square } from 'chess.js';
+
+export interface ChessLeaderboardMove {
+  humanRepr: string;
+  stake: number;
+  ID: number;
+}
 
 export enum MOVE_STATE {
   IDLE,
@@ -12,6 +18,8 @@ export interface IdleBoardState {
   moveFrom: null;
   moveTo: null;
   validMoves: null;
+  chessGame: Chess;
+  moveIndex: number;
 }
 
 export interface MovingBoardState {
@@ -20,6 +28,8 @@ export interface MovingBoardState {
   moveFrom: Square;
   moveTo: null;
   validMoves: Square[];
+  chessGame: Chess;
+  moveIndex: number;
 }
 
 export interface MovedBoardState {
@@ -28,6 +38,8 @@ export interface MovedBoardState {
   moveFrom: Square;
   moveTo: Square;
   validMoves: null;
+  chessGame: Chess;
+  moveIndex: number;
 }
 
 export type BoardState = IdleBoardState | MovingBoardState | MovedBoardState;

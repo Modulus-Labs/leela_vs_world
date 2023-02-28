@@ -1,9 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-gas-reporter";
-import "hardhat-tracer";
-import 'hardhat-contract-sizer';
+// import "hardhat-tracer";
+// import 'hardhat-contract-sizer';
 require('dotenv').config();
+require("@nomiclabs/hardhat-ethers");
 
 const { API_URL, PRIVATE_KEY } = process.env;
 const config: HardhatUserConfig = {
@@ -27,16 +28,21 @@ const config: HardhatUserConfig = {
       gas: "auto",
       gasPrice: "auto",
       gasMultiplier: 4,
+      chainId: 1337,
     },
-    polygon_mumbai: {
-      url: API_URL,
-      accounts: [`0x${PRIVATE_KEY}`]
-    }
+    // polygon_mumbai: {
+    //   url: API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`]
+    // }
   },
 
-  gasReporter: {
-    enabled: true,
-  },
+  // gasReporter: {
+  //   enabled: true,
+  // },
+
+  mocha: {
+    timeout: 4000000
+  }
 
 
 };

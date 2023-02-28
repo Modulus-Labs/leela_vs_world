@@ -17,22 +17,22 @@ const ButtonVariants: Variants = {
 };
 
 export const GameEarnings: FC = () => {
-    const { setGameEarnings } =
-      useArcadeMachineContext();
-    const {prizePoolAmount} = useBettingContext();
-  
-    return (
-      <GamePopup onClick={() => setGameEarnings(false)}>
-        <div className="relative mx-auto mt-4 h-44 w-[80%] bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
-          <div className="ml-36 flex w-60 flex-col gap-y-1 pt-8 text-sm">
+  const { setGameEarnings } =
+    useArcadeMachineContext();
+  const { leelaPrizePoolAmount, worldPrizePoolAmount } = useBettingContext();
+
+  return (
+    <GamePopup onClick={() => setGameEarnings(false)}>
+      <div className="relative mx-auto mt-4 h-44 w-[80%] bg-[url(/CurrentPrizePoolDisplay.svg)] bg-contain bg-no-repeat">
+        <div className="ml-36 flex w-60 flex-col gap-y-1 pt-8 text-sm">
           <div className="border-2 border-off-white px-2 text-off-white">
-            {prizePoolAmount.toFixed(2)} MATIC
+            {(leelaPrizePoolAmount + worldPrizePoolAmount).toFixed(2)} MATIC
           </div>
-            <div className="border-2 border-off-white px-2 text-off-white">
-              10%
-            </div>
+          <div className="border-2 border-off-white px-2 text-off-white">
+            10%
           </div>
         </div>
-      </GamePopup>
-    );
-  };
+      </div>
+    </GamePopup>
+  );
+};

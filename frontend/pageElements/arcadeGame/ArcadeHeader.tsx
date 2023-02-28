@@ -34,11 +34,14 @@ const HeaderButton: FC<HeaderButtonProps> = ({ children, onClick }) => {
 };
 
 export const ArcadeHeader: FC = () => {
-  const { setShowGameDetails } = useArcadeMachineContext();
+
+  const { setShowGameInstructions } = useArcadeMachineContext();
 
   return (
     <div className="flex h-[inherit] w-full flex-row justify-between gap-x-10">
-      <HeaderButton onClick={() => setShowGameDetails(true)}>
+      <HeaderButton onClick={() => {
+        setShowGameInstructions(true);
+      }}>
         <Image priority fill src="/WhatsThisButton.svg" alt="What's This?" />
       </HeaderButton>
       <div className="relative h-full w-full flex-grow">
@@ -50,7 +53,7 @@ export const ArcadeHeader: FC = () => {
           console.log('Strategize on Discord');
         }}
       >
-        <a href={process.env.DISCORD_LINK!} target="_blank" rel="no-referrer">
+        <a href={"https://t.co/KlRkssJZvH"} target="_blank" rel="no-referrer">
           <Image
             priority
             fill
