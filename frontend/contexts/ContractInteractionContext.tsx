@@ -36,7 +36,6 @@ const ContractInteractionContext = createContext<IContractInteractionContext | u
   undefined
 );
 
-
 /**
  * Grabs ethers provider.
  * @returns 

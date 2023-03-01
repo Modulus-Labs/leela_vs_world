@@ -179,7 +179,7 @@ export const ChessGameContextProvider = ({
 
     console.log(`Game state is: ${gameState}`);
     const remainder = 64 - gameState.length;
-    // console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
+    console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
 
     // --- Processing the board itself ---
     let ret = "";
@@ -255,30 +255,30 @@ export const ChessGameContextProvider = ({
       ret += '/';
     }
     ret = ret.slice(0, -1);
-    // console.log(`Ret so far 1: ${ret}`);
+    console.log(`Ret so far 1: ${ret}`);
 
     // --- Whose turn it is ---
     const currMove = currentTurnBlack ? "b" : "w";
     ret += ' ' + currMove;
-    // console.log(`Ret so far 2: ${ret}`);
+    console.log(`Ret so far 2: ${ret}`);
 
     // --- Castling privileges + enpassant square ---
     const [castling, enpassant] = computeCastlingAndEnPassant(whiteState, blackState, !currentTurnBlack);
     // console.log(`Got this from computing: ${castling} | ${enpassant}`);
     ret += ' ' + castling;
-    // console.log(`Ret so far 3: ${ret}`);
+    console.log(`Ret so far 3: ${ret}`);
     ret += ' ' + enpassant;
-    // console.log(`Ret so far 3.5: ${ret}`);
+    console.log(`Ret so far 3.5: ${ret}`);
 
     // --- Halfmove clock ---
     // TODO(ryancao): Are we doing 50-move rule or not?
     ret += ' 0';
-    // console.log(`Ret so far 4: ${ret}`);
+    console.log(`Ret so far 4: ${ret}`);
 
     // --- Fullmove index ---
     ret += ' ' + moveIndex.toString();
 
-    // console.log(`Ret so far 5: ${ret}`);
+    console.log(`Ret so far 5: ${ret}`);
     return ret.toString();
   }
 

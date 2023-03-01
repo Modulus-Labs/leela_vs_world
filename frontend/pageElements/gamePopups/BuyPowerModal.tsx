@@ -10,8 +10,8 @@ import { GamePopup } from './GamePopup';
 // --- Testnet ---
 // const MIN_STAKE_AMT = 0.01;
 
-// --- Mainnet
-const MIN_STAKE_AMT = 1;
+// --- Mainnet ---
+const MIN_STAKE_AMT = 0.1;
 
 const ButtonVariants: Variants = {
   initial: {
