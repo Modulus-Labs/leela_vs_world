@@ -40,6 +40,8 @@ interface BettingContextInterface {
   moveNumber: number;
   setMoveNumber: Dispatch<SetStateAction<number>>;
 
+  payoutAvailable: BigNumber;
+  setPayoutAvailable: Dispatch<SetStateAction<BigNumber>>;
   showEndGameModal: boolean;
   setShowEndGameModal: Dispatch<SetStateAction<boolean>>;
 
@@ -151,7 +153,9 @@ export const BettingContextProvider = ({
   const { walletAddr, bettingContract, ethersProvider } = useContractInteractionContext();
 
   // --- For showing game ended modal ---
+  const [payoutAvailable, setPayoutAvailable] = useState<BigNumber>(BigNumber.from(0));
   const [showEndGameModal, setShowEndGameModal] = useState<boolean>(false);
+  const [leelaPreviouslyWon, setLeelaPreviouslyWon] = useState<boolean>(false);
   useEffect(useCallback(() => {
     const onFinish = (amt: BigNumber) => {
       // --- Only pop up the modal if the amount payable is greater than 0 ---
@@ -160,6 +164,7 @@ export const BettingContextProvider = ({
       } else {
         setShowEndGameModal(false);
       }
+      setPayoutAvailable(amt);
     }
     const onError = (error: any) => {
       console.error(`Error with getAccountPayable: ${error}`);
@@ -332,11 +337,25 @@ export const BettingContextProvider = ({
       setMoveNumber((cur) => cur + 1);
     });
 
+    // --- World move played; increment move number ---
     bettingContract.on(bettingContract.filters.worldMovePlayed(), (worldMove) => {
       console.log(`The world just played a move! Move: ${worldMove}`);
       // --- Increment the move number ---
       setMoveNumber((cur) => cur + 1);
-    })
+    });
+
+    // --- Listen for game ended ---
+    bettingContract.on(bettingContract.filters.gameEnd(), (leelaWon) => {
+      console.log(`Game ended! ${leelaWon ? "Leela" : "The World"} won!`);
+      const onFinish = (payableAmt: BigNumber) => {
+        setPayoutAvailable(payableAmt);
+        setShowEndGameModal(true);
+      }
+      const onError = (error: any) => {
+        console.error(error);
+      }
+      getAccountPayable(onFinish, onError);
+    });
 
   }, [bettingContract]), [bettingContract]);
 
@@ -475,7 +494,7 @@ export const BettingContextProvider = ({
     if (walletAddr === "") return;
     // console.log("Got here! 1");
     bettingContract.estimateGas.accountsPayable(walletAddr).then((estimatedGas) => {
-      console.log("Got here! 2");
+      // console.log("Got here! 2");
       bettingContract.accountsPayable(walletAddr, { gasLimit: estimatedGas.mul(2) }).then((payableAmt) => {
         onFinish(payableAmt);
       }).catch((error) => {
@@ -525,6 +544,8 @@ export const BettingContextProvider = ({
         setUserVotedMove,
         showEndGameModal,
         setShowEndGameModal,
+        payoutAvailable,
+        setPayoutAvailable,
 
         // --- Public Functions ---
         getBettingPoolStateFromBettingContract,

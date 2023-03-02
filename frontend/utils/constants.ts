@@ -1,3 +1,10 @@
+// --- Mainnet ---
+// export const addresses = {
+//   LEELA_CONTRACT_ADDR: "0x1Ed4A9bea3f17084EC93D6D4E30194708d1Dd9d6",
+//   BETTING_CONTRACT_ADDR: "0x7d17626479826A2a53E22c5E8F125AE579A7fe05",
+//   CHESS_CONTRACT_ADDR: "0xd4690D8A721B35cd2E5891138641daFdD02b77EC",
+// }
+
 // --- Testnet (fast testing) ---
 export const addresses = {
   LEELA_CONTRACT_ADDR: "0x1Ed4A9bea3f17084EC93D6D4E30194708d1Dd9d6",

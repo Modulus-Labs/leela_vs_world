@@ -13,7 +13,22 @@ export const InfoModal = () => {
   } = useArcadeMachineContext();
 
   return (
-    <BasicModal>
+    <Modal
+      ariaHideApp={false}
+      isOpen={showInfoModal}
+      style={{
+        content: {
+          top: "50%",
+          left: "50%",
+          right: "auto",
+          bottom: "auto",
+          marginRight: "-50%",
+          transform: "translate(-50%, -50%)",
+          maxWidth: "80%",
+          backgroundColor: "white",
+        },
+      }}
+    >
       <div
         style={{
           flex: 1,
@@ -32,6 +47,6 @@ export const InfoModal = () => {
           />
         )}
       </div>
-    </BasicModal>
+    </Modal>
   );
 };

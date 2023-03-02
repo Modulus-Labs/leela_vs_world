@@ -179,7 +179,7 @@ export const ChessGameContextProvider = ({
 
     console.log(`Game state is: ${gameState}`);
     const remainder = 64 - gameState.length;
-    // console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
+    console.log(`Game state as hex is: ${Number.parseInt(gameState, 16)}`);
 
     // --- Processing the board itself ---
     let ret = "";
@@ -264,7 +264,7 @@ export const ChessGameContextProvider = ({
 
     // --- Castling privileges + enpassant square ---
     const [castling, enpassant] = computeCastlingAndEnPassant(whiteState, blackState, !currentTurnBlack);
-    console.log(`Got this from computing: ${castling} | ${enpassant}`);
+    // console.log(`Got this from computing: ${castling} | ${enpassant}`);
     ret += ' ' + castling;
     console.log(`Ret so far 3: ${ret}`);
     ret += ' ' + enpassant;
