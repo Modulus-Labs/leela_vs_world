@@ -16,6 +16,9 @@ import { useChessGameContext } from "../contexts/ChessGameContext";
 import { ArcadeFooter } from "../pageElements/arcadeGame/ArcadeFooter";
 import Sound from "react-sound";
 import { DisclosureModal } from "../pageElements/gamePopups/DisclosureModal";
+import { useBettingContext } from "../contexts/BettingContext";
+import { EndGameModal } from "../pageElements/gamePopups/EndGameModal";
+import { AnimatePresence } from "framer-motion";
 
 export default function ChessPage() {
   const { isMobile } = useMediaQueryContext();
@@ -27,6 +30,7 @@ export default function ChessPage() {
     showDisclosureModal,
   } = useArcadeMachineContext();
   const { currChessBoard } = useChessGameContext();
+  const { showEndGameModal } = useBettingContext();
 
   if (isMobile) {
     return <ScreenTooSmall />;
@@ -71,6 +75,7 @@ export default function ChessPage() {
                   </div>
                 )}
                 {showDisclosureModal && <DisclosureModal />}
+                {showEndGameModal && <EndGameModal />}
 
                 <div className="col-span-1 flex flex-col justify-between">
                   <div className="h-[96px]">
@@ -84,7 +89,7 @@ export default function ChessPage() {
                   <div className="flex h-[91px]">
                     <PrizePool />
                   </div>
-                  {currChessBoard.chessGame.turn() === "w" ? (
+                  {currChessBoard.chessGame.turn() === "b" ? (
                     <>
                       <div className="flex h-[193px]">
                         <NextMoveLeaderboard />

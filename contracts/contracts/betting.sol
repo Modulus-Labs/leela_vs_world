@@ -397,22 +397,22 @@ contract BettingGame is Ownable {
     /**
      * NOTE: This is just for testing!! Will remove in full version.
      */
-    function manualLeelaMove(uint16 manualMove) public onlyOwner {
-        require(leelaTurn == true, "it is not leela's move");
-        chess.playMove(manualMove);
-        moveIndex++;
-        uint8 isGameEnded = chess.checkEndgame();
-        if (isGameEnded != 0) {
-            updateAccounts(true);
-            emit leelaMovePlayed(leelaMove);
-            emit gameEnd(true);
-            resetGame();
-            return;
-        }
-        emit leelaMovePlayed(leelaMove);
-        leelaTurn = false;
-        startVoteTimer();
-    }
+    // function manualLeelaMove(uint16 manualMove) public onlyOwner {
+    //     require(leelaTurn == true, "it is not leela's move");
+    //     chess.playMove(manualMove);
+    //     moveIndex++;
+    //     uint8 isGameEnded = chess.checkEndgame();
+    //     if (isGameEnded != 0) {
+    //         updateAccounts(true);
+    //         emit leelaMovePlayed(leelaMove);
+    //         emit gameEnd(true);
+    //         resetGame();
+    //         return;
+    //     }
+    //     emit leelaMovePlayed(leelaMove);
+    //     leelaTurn = false;
+    //     startVoteTimer();
+    // }
 
     function giveLeelaLegalMoves() public {
         require(leelaTurn == true, "it is not leela's turn");

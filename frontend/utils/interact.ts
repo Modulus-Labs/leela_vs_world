@@ -235,7 +235,10 @@ export const connectWallet = async () => {
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: '0x13881' }],
         });
-        console.log(`Swapped chain: ${swappedChain}`);
+        // const swappedChain = await window.ethereum.request({
+        //   method: 'wallet_switchEthereumChain',
+        //   params: [{ chainId: '0x89' }],
+        // });
       } catch (error: any) {
         // TODO(ryancao): Check that this works!
         if (error.code === 4902) {
@@ -245,9 +248,11 @@ export const connectWallet = async () => {
               method: 'wallet_addEthereumChain',
               params: [
                 {
-                  chainId: '0x61',
+                  // chainId: '0x89',
+                  chainId: "0x13881",
                   // @ts-ignore (change this to mainnet!)
-                  rpcUrl: "https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo",
+                  rpcUrls: ["https://polygon-mumbai.g.alchemy.com/v2/C_2O4qksq2Ij6fSp8EJ8eu7qKKONEsuo"],
+                  // rpcUrls: ["https://polygon-mainnet.g.alchemy.com/v2/T5jqKdcV4IPd7EwZ7X1W_ormA67wOlLb"],
                 },
               ],
             });
@@ -270,7 +275,12 @@ export const connectWallet = async () => {
         name: "maticmum",
         chainId: 80001
       };
+      // const polygonMainnet = {
+      //   name: "matic",
+      //   chainId: 137,
+      // }
       // @ts-ignore
+      // const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMainnet);
       const provider = new ethers.providers.Web3Provider(window.ethereum, polygonMumbai);
 
       // --- Localhost ---

@@ -10,12 +10,14 @@ require('dotenv').config();
 
 const { API_KEY, BETTING_ADDR, PRIVATE_KEY, CHESS_ADDR, VALIDATOR_ADDR } = process.env;
 
+const tx_params = {gasLimit: 1e8};
+
 async function checkLeela() {
     const polygonMumbai = {
-        name: "maticmum",
-        chainId: 80001
+        name: "arbitrum",
+        chainId: 42161
     };
-    const provider = new providers.AlchemyProvider(polygonMumbai, API_KEY);
+    const provider = new providers.InfuraProvider(polygonMumbai, API_KEY);
     const owner = new Wallet(PRIVATE_KEY ?? "", provider);
 
     const bettingContract = BettingGame__factory.connect(BETTING_ADDR ?? "", owner);
@@ -43,11 +45,11 @@ async function checkLeela() {
     
         console.log("run_leela is started!");
     
-        await bettingContract.leelaHashInputs();
+        await bettingContract.leelaHashInputs(tx_params);
     
         console.log("inputs hashed!");
     
-        await bettingContract.giveLeelaLegalMoves();
+        await bettingContract.giveLeelaLegalMoves(tx_params);
     
         //when output_calc.json is ready start hashing outputs
         await new Promise((resolve, reject) => {fs.watch("./proof_dir/", (eventType, fileName) => {
@@ -76,13 +78,13 @@ async function checkLeela() {
         var chunkEnd = 250;
     
         for (var chunk of outputChunks) {
-          var trans = await validatorContract.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
+          var trans = await validatorContract.hashOutputChunk(chunk, chunkStart, chunkEnd, tx_params)
           await trans.wait();
           chunkStart += 250;
           chunkEnd += 250;
         }
     
-        await validatorContract.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
+        await validatorContract.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, tx_params);
     
         console.log("finished hashing output")
         //when proof is ready and outputs are hashed send proof/instances to betting contract
@@ -102,7 +104,7 @@ async function checkLeela() {
         var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
         var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');  
     
-        await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});
+        await bettingContract.makeLeelaMove(proof_hex, instance_hex, tx_params);
         var command = new PutMetricDataCommand({Namespace: "Leela/dev", MetricData: [{MetricName: "LeelaMove", Value: Date.now()}]});
         await client.send(command);
         console.log("-------- Leela Move Played --------")
@@ -118,13 +120,13 @@ async function checkLeela() {
             await new Promise((resolve, reject) => setTimeout(() => resolve(true), timerLength.toNumber()*1000 + 60000));
             var move = await bettingContract.getWorldMove();
             if (move != 0) {
-                await bettingContract.callTimerOver()
+                await bettingContract.callTimerOver(tx_params)
                 var command = new PutMetricDataCommand({Namespace: "Leela/dev", MetricData: [{MetricName: "WorldMove", Value: Date.now()}]});
                 await client.send(command);
                 console.log("-------- World Move Played --------")
                 break;
             } else {
-                await bettingContract.startVoteTimer();
+                await bettingContract.startVoteTimer(tx_params);
                 console.log("-------- No World Move Ready --------")
             }
         }
@@ -134,10 +136,10 @@ async function checkLeela() {
 
 // async function runLeelaTest() {
 //     const polygonMumbai = {
-//         name: "maticmum",
-//         chainId: 80001
+//         name: "arbitrum-goerli",
+//         chainId: 421613
 //     };
-//     const provider = new providers.AlchemyProvider(polygonMumbai, API_KEY);
+//     const provider = new providers.InfuraProvider(polygonMumbai, API_KEY);
 //     const owner = new Wallet(PRIVATE_KEY ?? "", provider);
 
 //     const bettingContract = BettingGame__factory.connect(BETTING_ADDR ?? "", owner);
@@ -192,14 +194,14 @@ async function checkLeela() {
 //     var chunkStart = 0;
 //     var chunkEnd = 250;
 
-//     for (var chunk of outputChunks) {
-//       var trans = await validatorContract.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
-//       await trans.wait();
-//       chunkStart += 250;
-//       chunkEnd += 250;
-//     }
+//     // for (var chunk of outputChunks) {
+//     //   var trans = await validatorContract.hashOutputChunk(chunk, chunkStart, chunkEnd, {gasLimit: 15000000})
+//     //   await trans.wait();
+//     //   chunkStart += 250;
+//     //   chunkEnd += 250;
+//     // }
 
-//     await validatorContract.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
+//     // await validatorContract.hashOutputChunk(outputsBn.slice(1750, 1858), 1750, 1858, {gasLimit: 15000000});
 
 //     console.log("finished hashing output")
 //     //when proof is ready and outputs are hashed send proof/instances to betting contract
@@ -217,7 +219,7 @@ async function checkLeela() {
 //     var instance_raw = fs.readFileSync("./proof_dir/limbs_instance");
 //     var instance_hex = "0x" + instance_raw.reduce((output, elem) => (output + ('0' + elem.toString(16)).slice(-2)), '');  
 
-//     await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 3000000});  
+//     await bettingContract.makeLeelaMove(proof_hex, instance_hex, {gasLimit: 15000000});  
 // }
 
 // async function listenerTest() {
